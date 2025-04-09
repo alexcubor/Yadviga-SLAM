@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLAM with 8th Wall</title>
+    <!-- Подключение библиотеки 8th Wall -->
+    <script async src="//apps.8thwall.com/xrweb?appKey=YOUR_APP_KEY"></script>
+  </head>
+  <body>
+    <!-- Канвас для рендеринга -->
+    <canvas id="xr-canvas"></canvas>
+
+    <!-- Ваш JavaScript-код -->
+    <script type="module">
+      // Импорт XrControllerFactory из вашего файла
+      import { XrControllerFactory } from './xrControllerFactory.js';
+
+      // Инициализация SLAM-модуля
+      const slamModule = XrControllerFactory();
+
+      // Конфигурация XR8
+      window.XR8 ? onXR8Loaded() : window.addEventListener('xrloaded', onXR8Loaded);
+
+      function onXR8Loaded() {
+        // Добавление SLAM-модуля
+        XR8.addCameraPipelineModule(slamModule.pipelineModule());
+
+        // Добавление встроенного модуля для отслеживания изображений
+        XR8.addCameraPipelineModule(XR8.ImageTargets.pipelineModule());
+
+        // Добавление пользовательского модуля
+        XR8.addCameraPipelineModule({
+          name: 'custom-logger-module',
+          onUpdate: ({ processGpuResult }) => {
+            console.log('Кадр обработан:', processGpuResult);
+          },
+        });
+
+        // Конфигурация SLAM
+        slamModule.configure({
+          enableVps: true,           // Включение VPS
+          disableWorldTracking: false, // Отслеживание мира включено
+          imageTargets: ['target1'], // Цели для распознавания
+          cam: {
+            pixelRectWidth: 1280,
+            pixelRectHeight: 720,
+            nearClipPlane: 0.01,
+            farClipPlane: 1000
+          }
+        });
+
+        // Запуск XR8
+        XR8.run({ canvas: document.getElementById('xr-canvas') });
+
+        // Обработка событий
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        window.addEventListener('reality', (e) => {
+          frameCount++;
+          const currentTime = performance.now();
+          const elapsedTime = currentTime - lastTime;
+
+          if (elapsedTime >= 1000) { // Каждую секунду
+            console.log(`Частота событий reality: ${frameCount} FPS`);
+            frameCount = 0;
+            lastTime = currentTime;
+          }
+
+          const { rotation, position, realityTexture, worldPoints } = e.detail;
+          console.log('Pose:', rotation, position);
+          console.log('World Points:', worldPoints);
+          // Рендеринг или дальнейшая обработка
+
+          // Логирование данных
+          console.log('Ориентация устройства (rotation):', rotation);
+          console.log('Положение устройства (position):', position);
+          console.log('Текстура реальности (realityTexture):', realityTexture);
+          console.log('Точки мира (worldPoints):', worldPoints);
+
+          // Пример: использование worldPoints для рендеринга
+          if (worldPoints && worldPoints.length > 0) {
+            worldPoints.forEach((point) => {
+              console.log('Точка мира:', point);
+              // Добавьте свою логику обработки точек мира
+            });
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

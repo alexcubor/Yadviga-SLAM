@@ -1,0 +1,69 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Clean Build Directory",
+            "type": "shell",
+            "command": "rm -rf build && mkdir build",
+            "group": "build",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "clear": true
+            }
+        },
+        {
+            "label": "Configure CMake with Emscripten",
+            "type": "shell",
+            "command": "emcmake cmake .. -DCMAKE_CXX_FLAGS=\"-msimd128\"",
+            "group": "build",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "dependsOn": "Clean Build Directory"
+        },
+        {
+            "label": "Build Project",
+            "type": "shell",
+            "command": "emmake make -j4",
+            "group": "build",
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "dependsOn": "Configure CMake with Emscripten"
+        },
+        {
+            "label": "Move to Root",
+            "type": "shell",
+            "command": "cp slam_init.js ../web || echo 'Failed to copy slam_init.js'",
+            "group": {
+                "kind": "build",
+                "isDefault": true},
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "dependsOn": "Build Project"
+        },
+        {
+            "label": "Start Web Server",
+            "type": "shell",
+            "command": "lsof -ti:3001 || (cd web && python3 -m http.server 3001)",
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^.*$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Serving HTTP on .* port 3001",
+                    "endsPattern": "Serving HTTP on .* port 3001"
+                }
+            }
+        }
+    ]
+}

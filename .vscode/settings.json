@@ -1,0 +1,78 @@
+{
+    "C_Cpp.default.compilerPath": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/emcc",
+    "cmake.configureOnOpen": false, // Отключаем автоматическую конфигурацию CMake
+    "cmake.generator": "Unix Makefiles",
+    "cmake.configureSettings": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "OpenCV_DIR": "/Users/alexcubor/dev/tools/opencv/build",
+        "CMAKE_C_COMPILER": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/emcc",
+        "CMAKE_CXX_COMPILER": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/em++"
+    },
+    "cmake.environment": {
+        "PATH": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten:$PATH"
+    },
+    "C_Cpp.default.includePath": [
+        "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/cache/sysroot/include",
+        "${workspaceFolder}/include"
+    ],
+    "terminal.integrated.env.osx": {
+        "PATH": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten:$PATH"
+    },
+    "files.associations": {
+        "iostream": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "map": "cpp",
+        "algorithm": "cpp",
+        "__bit_reference": "cpp",
+        "__hash_table": "cpp",
+        "__locale": "cpp",
+        "__node_handle": "cpp",
+        "__split_buffer": "cpp",
+        "__tree": "cpp",
+        "__verbose_abort": "cpp",
+        "array": "cpp",
+        "bitset": "cpp",
+        "cctype": "cpp",
+        "cfenv": "cpp",
+        "charconv": "cpp",
+        "clocale": "cpp",
+        "cmath": "cpp",
+        "complex": "cpp",
+        "cstdarg": "cpp",
+        "cstddef": "cpp",
+        "cstdint": "cpp",
+        "cstdio": "cpp",
+        "cstdlib": "cpp",
+        "cstring": "cpp",
+        "ctime": "cpp",
+        "cwchar": "cpp",
+        "cwctype": "cpp",
+        "deque": "cpp",
+        "execution": "cpp",
+        "memory": "cpp",
+        "forward_list": "cpp",
+        "initializer_list": "cpp",
+        "ios": "cpp",
+        "iosfwd": "cpp",
+        "istream": "cpp",
+        "limits": "cpp",
+        "locale": "cpp",
+        "mutex": "cpp",
+        "new": "cpp",
+        "optional": "cpp",
+        "print": "cpp",
+        "queue": "cpp",
+        "ratio": "cpp",
+        "sstream": "cpp",
+        "stack": "cpp",
+        "stdexcept": "cpp",
+        "streambuf": "cpp",
+        "string_view": "cpp",
+        "typeindex": "cpp",
+        "typeinfo": "cpp",
+        "unordered_map": "cpp",
+        "variant": "cpp"
+    },
+    "liveServer.settings.port": 5501
+}

@@ -1,0 +1,34 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/src",
+                "/usr/local/include",
+                "/Users/alexcubor/dev/tools/build_opencv/include/opencv4/opencv2",
+                "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/system/include",
+                "/Users/alexcubor/dev/tools/build_opencv/include/opencv4",
+                "/Users/alexcubor/dev/tools/build_opencv"
+            ],
+            "defines": [
+                "EMSCRIPTEN"
+            ],
+            "compilerPath": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/em++",
+            "cStandard": "c11",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "clang-x64"
+        },
+        {
+            "name": "config",
+            "includePath": [
+                "${default}"
+            ],
+            "defines": [],
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64"
+        }
+    ],
+    "version": 4
+}
