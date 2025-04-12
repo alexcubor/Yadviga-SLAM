@@ -1,2 +1,7 @@
-**/.DS_Store
+# Build directories
 build/
+**/.DS_Store
+
+# OpenCV build files
+ThirdParty/opencv/build/
+ThirdParty/opencv/opencv-*/

@@ -1,6 +1,7 @@
 #include <emscripten.h>
 #include <iostream>
 #include <string>
+#include "../include/Initialize.h"
 
 // Define functions to be exported to JavaScript
 extern "C" {
@@ -10,6 +11,7 @@ extern "C" {
         std::string id(canvasId);
         std::cout << "Initializing SLAM with canvas ID: " << id << std::endl;
         
+        // Initialize the video stream directly
         EM_ASM_({
             const canvasId = UTF8ToString($0);
             console.log('Looking for canvas with ID:', canvasId);
@@ -36,11 +38,6 @@ extern "C" {
             // For example, get dimensions
             console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
             
-            // Create video element
-            const video = document.createElement('video');
-            video.setAttribute('autoplay', '');
-            video.setAttribute('playsinline', '');
-            
             // Request camera access
             console.log('Requesting camera access...');
             navigator.mediaDevices.getUserMedia({
@@ -52,23 +49,12 @@ extern "C" {
             })
             .then(stream => {
                 console.log('Camera access granted');
-                video.srcObject = stream;
                 
-                // Function for frame rendering
-                function drawFrame() {
-                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                        // Draw video frame on canvas
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    }
-                    // Request next frame
-                    requestAnimationFrame(drawFrame);
-                }
+                // Store the stream in a global variable for the renderer to use
+                window.slamVideoStream = stream;
                 
-                // Start rendering when video is ready
-                video.addEventListener('loadedmetadata', () => {
-                    console.log('Video metadata loaded');
-                    drawFrame();
-                });
+                // Signal that the camera is ready
+                window.dispatchEvent(new Event('slamCameraReady'));
             })
             .catch(err => {
                 console.error('Error accessing camera:', err);
@@ -76,5 +62,22 @@ extern "C" {
         }, canvasId);
         
         std::cout << "SLAM system initialized with canvas!" << std::endl;
+    }
+    
+    EMSCRIPTEN_KEEPALIVE
+    void stopSLAM(const char* canvasId) {
+        std::string id(canvasId);
+        std::cout << "Stopping SLAM with canvas ID: " << id << std::endl;
+        
+        // Stop the video stream directly
+        EM_ASM_({
+            // Stop the video stream if it exists
+            if (window.slamVideoStream) {
+                window.slamVideoStream.getTracks().forEach(track => track.stop());
+                window.slamVideoStream = null;
+            }
+        }, canvasId);
+        
+        std::cout << "SLAM system stopped!" << std::endl;
     }
 }

@@ -6,10 +6,7 @@
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/src",
                 "/usr/local/include",
-                "/Users/alexcubor/dev/tools/build_opencv/include/opencv4/opencv2",
-                "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/system/include",
-                "/Users/alexcubor/dev/tools/build_opencv/include/opencv4",
-                "/Users/alexcubor/dev/tools/build_opencv"
+                "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/system/include"
             ],
             "defines": [
                 "EMSCRIPTEN"

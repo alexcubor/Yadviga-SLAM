@@ -1,6 +1,27 @@
 {
     "version": "2.0.0",
     "tasks": [
+        // =============================================
+        // OpenCV Build Tasks
+        // =============================================
+        {
+            "label": "Build OpenCV",
+            "type": "shell",
+            "command": "./ThirdParty/opencv/build_opencv.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+
+        // =============================================
+        // Project Build Tasks
+        // =============================================
         {
             "label": "Clean Build Directory",
             "type": "shell",
@@ -26,20 +47,9 @@
             "dependsOn": "Clean Build Directory"
         },
         {
-            "label": "Build Project",
+            "label": "Build Yadviga",
             "type": "shell",
-            "command": "emmake make -j4",
-            "group": "build",
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}/build"
-            },
-            "dependsOn": "Configure CMake with Emscripten"
-        },
-        {
-            "label": "Move to Root",
-            "type": "shell",
-            "command": "cp yadviga-slam.js ../web || echo 'Failed to copy yadviga-slam.js'",
+            "command": "emmake make -j4 && cp yadviga-slam.js ../web || echo 'Failed to copy yadviga-slam.js'",
             "group": {
                 "kind": "build",
                 "isDefault": true},
@@ -47,7 +57,7 @@
             "options": {
                 "cwd": "${workspaceFolder}/build"
             },
-            "dependsOn": "Build Project"
+            "dependsOn": "Configure CMake with Emscripten"
         },
         {
             "label": "Start Web Server",

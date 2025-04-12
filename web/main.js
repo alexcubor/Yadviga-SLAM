@@ -74,8 +74,22 @@ class SlamModule {
             throw new Error("Module not properly initialized");
         }
         
-        console.log("Calling initializeSLAM with canvas ID:", this.canvasManager.getCanvasId());
-        this.instance.ccall('initializeSLAM', 'void', ['string'], [this.canvasManager.getCanvasId()]);
+        const canvasId = this.canvasManager.getCanvasId();
+        console.log("Calling initializeSLAM with canvas ID:", canvasId);
+        
+        // Initialize SLAM - this will set up the canvas and get camera access
+        this.instance.ccall('initializeSLAM', 'void', ['string'], [canvasId]);
+        
+        // Wait for the camera to be ready
+        await new Promise(resolve => {
+            window.addEventListener('slamCameraReady', resolve, { once: true });
+            // Also set a timeout in case the event doesn't fire
+            setTimeout(resolve, 2000);
+        });
+        
+        // Initialize renderer - this will render the video and overlay
+        console.log("Calling initializeRenderer with canvas ID:", canvasId);
+        this.instance.ccall('initializeRenderer', 'void', ['string'], [canvasId]);
     }
 }
 
@@ -86,6 +100,9 @@ async function startApplication() {
         const slamModule = new SlamModule(canvasManager);
         await slamModule.initialize();
         console.log("Application started successfully");
+        
+        // Set up a global reference to the SLAM module for debugging
+        window.slamModule = slamModule;
     } catch (error) {
         console.error("Application failed to start:", error);
     }
