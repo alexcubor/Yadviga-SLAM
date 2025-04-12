@@ -39,7 +39,7 @@
         {
             "label": "Move to Root",
             "type": "shell",
-            "command": "cp slam_init.js ../web || echo 'Failed to copy slam_init.js'",
+            "command": "cp yadviga-slam.js ../web || echo 'Failed to copy yadviga-slam.js'",
             "group": {
                 "kind": "build",
                 "isDefault": true},

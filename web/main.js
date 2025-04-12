@@ -1,4 +1,4 @@
-// Класс для управления canvas
+// Class for managing canvas
 class CanvasManager {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -15,12 +15,12 @@ class CanvasManager {
     }
     
     initializeCanvas() {
-        // Устанавливаем размеры canvas
+        // Set canvas dimensions
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         console.log("Canvas dimensions set to:", this.canvas.width, "x", this.canvas.height);
         
-        // Очищаем canvas и рисуем что-то для проверки
+        // Clear canvas and fill with black
         this.ctx.fillStyle = 'black';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         console.log("Canvas cleared and filled with black");
@@ -31,7 +31,7 @@ class CanvasManager {
     }
 }
 
-// Класс для управления SLAM модулем
+// Class for managing SLAM module
 class SlamModule {
     constructor(canvasManager) {
         this.canvasManager = canvasManager;
@@ -42,14 +42,14 @@ class SlamModule {
         console.log("Initializing SLAM module...");
         
         try {
-            // Загружаем скрипт slam_init.js
-            await this.loadScript('./slam_init.js');
+            // Load script yadviga-slam.js
+            await this.loadScript('./yadviga-slam.js');
             
-            // Создаем экземпляр модуля
+            // Create module instance
             this.instance = await createModule();
             console.log("Module instance created:", this.instance);
             
-            // Инициализируем SLAM
+            // Initialize SLAM
             await this.setupSlam();
             
             return this.instance;
@@ -79,7 +79,7 @@ class SlamModule {
     }
 }
 
-// Функция для запуска приложения
+// Function to start the application
 async function startApplication() {
     try {
         const canvasManager = new CanvasManager('xr-canvas');
@@ -91,7 +91,7 @@ async function startApplication() {
     }
 }
 
-// Ждем загрузки DOM перед инициализацией
+// Wait for DOM to load before starting application
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startApplication);
 } else {

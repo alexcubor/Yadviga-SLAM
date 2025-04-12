@@ -14,7 +14,7 @@ extern "C" {
             const canvasId = UTF8ToString($0);
             console.log('Looking for canvas with ID:', canvasId);
             
-            // Получаем canvas по переданному ID
+            // Get canvas by the provided ID
             const canvas = document.getElementById(canvasId);
             console.log('Canvas element:', canvas);
             
@@ -23,29 +23,29 @@ extern "C" {
                 return;
             }
             
-            // Получаем контекст
+            // Get context
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 console.error('Failed to get canvas context!');
                 return;
             }
             
-            // Теперь у нас есть доступ к canvas и его контексту
-            // Можно выполнять любые операции с canvas
+            // Now we have access to canvas and its context
+            // We can perform any operations with canvas
             
-            // Например, получить размеры
+            // For example, get dimensions
             console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
             
-            // Создаем элемент video
+            // Create video element
             const video = document.createElement('video');
             video.setAttribute('autoplay', '');
             video.setAttribute('playsinline', '');
             
-            // Запрашиваем доступ к камере
+            // Request camera access
             console.log('Requesting camera access...');
             navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: 'environment', // Используем заднюю камеру
+                    facingMode: 'environment', // Use back camera
                     width: { ideal: canvas.width },
                     height: { ideal: canvas.height }
                 }
@@ -54,17 +54,17 @@ extern "C" {
                 console.log('Camera access granted');
                 video.srcObject = stream;
                 
-                // Функция для отрисовки кадров
+                // Function for frame rendering
                 function drawFrame() {
                     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                        // Отрисовываем кадр из видео на canvas
+                        // Draw video frame on canvas
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     }
-                    // Запрашиваем следующий кадр
+                    // Request next frame
                     requestAnimationFrame(drawFrame);
                 }
                 
-                // Начинаем отрисовку когда видео готово
+                // Start rendering when video is ready
                 video.addEventListener('loadedmetadata', () => {
                     console.log('Video metadata loaded');
                     drawFrame();

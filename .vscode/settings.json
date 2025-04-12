@@ -1,6 +1,6 @@
 {
     "C_Cpp.default.compilerPath": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/emcc",
-    "cmake.configureOnOpen": false, // Отключаем автоматическую конфигурацию CMake
+    "cmake.configureOnOpen": false, // Turn off automatic configuration CMake
     "cmake.generator": "Unix Makefiles",
     "cmake.configureSettings": {
         "CMAKE_BUILD_TYPE": "Release",

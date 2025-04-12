@@ -1,5 +1,5 @@
-#ifndef SLAM_INIT_H
-#define SLAM_INIT_H
+#ifndef INITIALIZE_H
+#define INITIALIZE_H
 
 #include <stdint.h> // For uint8_t
 
@@ -8,4 +8,4 @@ extern "C" {
     void initializeSLAM(uint8_t* canvasData);
 }
 
-#endif // SLAM_INIT_H
+#endif // INITIALIZE_H

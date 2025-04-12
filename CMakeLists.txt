@@ -1,24 +1,24 @@
 cmake_minimum_required(VERSION 3.10)
 project(SimpleSLAM)
 
-# Установка флагов для компиляции
+# Set flags for compilation
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Указание путей к заголовочным файлам
+# Set include directions
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# Исходные файлы
+# Source files
 set(SOURCES
-    src/slam_init.cpp
+    src/Initialize.cpp
 )
 
-# Создание WebAssembly
-add_executable(slam_init ${SOURCES})
+# Create WebAssembly
+add_executable(yadviga-slam ${SOURCES})
 
-# Установка флагов для Emscripten
-set_target_properties(slam_init PROPERTIES
-    OUTPUT_NAME "slam_init"
+# Set flags for Emscripten
+set_target_properties(yadviga-slam PROPERTIES
+    OUTPUT_NAME "yadviga-slam"
     SUFFIX ".js"
     LINK_FLAGS "-s EXPORTED_FUNCTIONS='[\"_initializeSLAM\"]' \
                 -s EXPORTED_RUNTIME_METHODS='[\"ccall\", \"cwrap\"]' \
@@ -31,5 +31,5 @@ set_target_properties(slam_init PROPERTIES
                 -s EXPORT_NAME='createModule'"
 )
 
-# Указание директорий для заголовочных файлов
-target_include_directories(slam_init PUBLIC ${CMAKE_SOURCE_DIR}/include)
+# Set include directoriaes
+target_include_directories(yadviga-slam PUBLIC ${CMAKE_SOURCE_DIR}/include)
