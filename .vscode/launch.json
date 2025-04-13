@@ -19,7 +19,10 @@
             "runtimeExecutable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             "runtimeArgs": [
                 "--new-window",
-                "--remote-debugging-port=9222"
+                "--remote-debugging-port=9222",
+                "--auto-open-devtools-for-tabs",
+                "--window-size=1920,1080",
+                "--window-position=0,0"
             ],
             "preLaunchTask": "Start Web Server"
         }
