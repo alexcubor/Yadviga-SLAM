@@ -6,12 +6,12 @@
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/src",
                 "/usr/local/include",
-                "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/system/include"
+                "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten/system/include"
             ],
             "defines": [
                 "EMSCRIPTEN"
             ],
-            "compilerPath": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/em++",
+            "compilerPath": "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten/em++",
             "cStandard": "c11",
             "cppStandard": "c++14",
             "intelliSenseMode": "clang-x64"

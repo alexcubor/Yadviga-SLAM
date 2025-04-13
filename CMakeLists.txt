@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find OpenCV
-set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/opencv/build")
+set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/third_party/opencv/build")
 find_package(OpenCV REQUIRED COMPONENTS
     core
     imgproc

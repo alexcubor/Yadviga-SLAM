@@ -1,22 +1,22 @@
 {
-    "C_Cpp.default.compilerPath": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/emcc",
+    "C_Cpp.default.compilerPath": "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten/emcc",
     "cmake.configureOnOpen": false, // Turn off automatic configuration CMake
     "cmake.generator": "Unix Makefiles",
     "cmake.configureSettings": {
         "CMAKE_BUILD_TYPE": "Release",
-        "OpenCV_DIR": "${workspaceFolder}/ThirdParty/opencv/build",
-        "CMAKE_C_COMPILER": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/emcc",
-        "CMAKE_CXX_COMPILER": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/em++"
+        "OpenCV_DIR": "${workspaceFolder}/third_party/opencv/build",
+        "CMAKE_C_COMPILER": "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten/emcc",
+        "CMAKE_CXX_COMPILER": "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten/em++"
     },
     "cmake.environment": {
-        "PATH": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten:$PATH"
+        "PATH": "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten:$PATH"
     },
     "C_Cpp.default.includePath": [
-        "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/cache/sysroot/include",
+        "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten/cache/sysroot/include",
         "${workspaceFolder}/include"
     ],
     "terminal.integrated.env.osx": {
-        "PATH": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten:$PATH"
+        "PATH": "${workspaceFolder}/third_party/emsdk/emsdk/upstream/emscripten:$PATH"
     },
     "terminal.integrated.scrollback": 10000,
     "files.associations": {

@@ -7,7 +7,7 @@
         {
             "label": "Set Emscripten Script Permissions",
             "type": "shell",
-            "command": "chmod +x ./ThirdParty/emsdk/build_emsdk.sh",
+            "command": "chmod +x ./third_party/emsdk/build_emsdk.sh",
             "group": "build",
             "presentation": {
                 "clear": true,
@@ -18,7 +18,7 @@
         {
             "label": "Build Emscripten",
             "type": "shell",
-            "command": "./ThirdParty/emsdk/build_emsdk.sh",
+            "command": "./third_party/emsdk/build_emsdk.sh",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -37,7 +37,7 @@
         {
             "label": "Build OpenCV",
             "type": "shell",
-            "command": "./ThirdParty/opencv/build_opencv.sh",
+            "command": "./third_party/opencv/build_opencv.sh",
             "group": {
                 "kind": "build",
                 "isDefault": true
