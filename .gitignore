@@ -2,5 +2,8 @@ build/
 **/.DS_Store
 
 # OpenCV build files
-ThirdParty/opencv/build/
-ThirdParty/opencv/opencv-*/
+ThirdParty/opencv/*
+!ThirdParty/opencv/build_opencv.sh
+
+# Emscripten build files
+ThirdParty/emsdk/emsdk

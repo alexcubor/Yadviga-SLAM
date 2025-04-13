@@ -2,6 +2,36 @@
     "version": "2.0.0",
     "tasks": [
         // =============================================
+        // Emscripten Build Tasks
+        // =============================================
+        {
+            "label": "Set Emscripten Script Permissions",
+            "type": "shell",
+            "command": "chmod +x ./ThirdParty/emsdk/build_emsdk.sh",
+            "group": "build",
+            "presentation": {
+                "clear": true,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Emscripten",
+            "type": "shell",
+            "command": "./ThirdParty/emsdk/build_emsdk.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "dependsOn": "Set Emscripten Script Permissions"
+        },
+
+        // =============================================
         // OpenCV Build Tasks
         // =============================================
         {
@@ -14,9 +44,14 @@
             },
             "presentation": {
                 "reveal": "always",
-                "panel": "new"
+                "panel": "dedicated",
+                "clear": true,
+                "showReuseMessage": false,
+                "close": false,
+                "group": "buildOpenCV"
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "dependsOn": "Build Emscripten"
         },
 
         // =============================================
@@ -32,7 +67,8 @@
                 "cwd": "${workspaceFolder}"
             },
             "presentation": {
-                "clear": true
+                "clear": true,
+                "panel": "shared"
             }
         },
         {
@@ -44,18 +80,25 @@
             "options": {
                 "cwd": "${workspaceFolder}/build"
             },
+            "presentation": {
+                "panel": "shared"
+            },
             "dependsOn": "Clean Build Directory"
         },
         {
             "label": "Build Yadviga",
             "type": "shell",
-            "command": "emmake make -j4 && cp yadviga-slam.js ../web || echo 'Failed to copy yadviga-slam.js'",
+            "command": "emmake make -j4 && cp yadviga-slam.js ../web/ || echo 'Failed to copy yadviga-slam.js'",
             "group": {
                 "kind": "build",
-                "isDefault": true},
+                "isDefault": true
+            },
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}/build"
+            },
+            "presentation": {
+                "panel": "shared"
             },
             "dependsOn": "Configure CMake with Emscripten"
         },
@@ -72,6 +115,15 @@
                     "activeOnStart": true,
                     "beginsPattern": "Serving HTTP on .* port 3001",
                     "endsPattern": "Serving HTTP on .* port 3001"
+                }
+            },
+            "presentation": {
+                "panel": "shared",
+                "close": true
+            },
+            "options": {
+                "env": {
+                    "PYTHONUNBUFFERED": "1"
                 }
             }
         }

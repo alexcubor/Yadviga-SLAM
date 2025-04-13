@@ -1,23 +1,24 @@
 {
-    "C_Cpp.default.compilerPath": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/emcc",
+    "C_Cpp.default.compilerPath": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/emcc",
     "cmake.configureOnOpen": false, // Turn off automatic configuration CMake
     "cmake.generator": "Unix Makefiles",
     "cmake.configureSettings": {
         "CMAKE_BUILD_TYPE": "Release",
-        "OpenCV_DIR": "/Users/alexcubor/dev/tools/opencv/build",
-        "CMAKE_C_COMPILER": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/emcc",
-        "CMAKE_CXX_COMPILER": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/em++"
+        "OpenCV_DIR": "${workspaceFolder}/ThirdParty/opencv/build",
+        "CMAKE_C_COMPILER": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/emcc",
+        "CMAKE_CXX_COMPILER": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/em++"
     },
     "cmake.environment": {
-        "PATH": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten:$PATH"
+        "PATH": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten:$PATH"
     },
     "C_Cpp.default.includePath": [
-        "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten/cache/sysroot/include",
+        "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten/cache/sysroot/include",
         "${workspaceFolder}/include"
     ],
     "terminal.integrated.env.osx": {
-        "PATH": "/Users/alexcubor/dev/tools/emsdk/upstream/emscripten:$PATH"
+        "PATH": "${workspaceFolder}/ThirdParty/emsdk/emsdk/upstream/emscripten:$PATH"
     },
+    "terminal.integrated.scrollback": 10000,
     "files.associations": {
         "iostream": "cpp",
         "string": "cpp",

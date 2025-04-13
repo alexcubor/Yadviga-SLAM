@@ -5,91 +5,128 @@
 #include <emscripten.h>
 #include <iostream>
 #include <string>
+#include <opencv2/opencv.hpp>
+#include <opencv2/video/tracking.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/calib3d.hpp>
+#include <vector>
 
-// Import OpenCV.js
-EM_JS(void, importOpenCV, (), {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://docs.opencv.org/4.11.0/opencv.js';
-        script.onload = () => {
-            cv.onRuntimeInitialized = () => {
-                console.log('OpenCV.js loaded successfully');
-                resolve();
-            };
-        };
-        script.onerror = () => {
-            console.error('Failed to load OpenCV.js');
-            reject();
-        };
-        document.head.appendChild(script);
-    });
-});
+// Глобальные переменные для состояния трекера
+std::vector<cv::Point2f> prevPoints;
+std::vector<cv::Point2f> nextPoints;
+std::vector<uchar> status;
+std::vector<float> err;
+cv::Mat prevFrame;
+cv::Rect2d bbox;
+bool isInitialized = false;
 
 // Define functions to be exported to JavaScript
 extern "C" {
- 
+    
     EMSCRIPTEN_KEEPALIVE
-    void initializeTracking(const char* canvasId) {
-        std::string id(canvasId);
-        std::cout << "Initializing tracking with canvas ID: " << id << std::endl;
+    void initializeTracker(const char*) {
+        // Для Lucas-Kanade не требуется специальная инициализация
+        isInitialized = false;
+        prevPoints.clear();
+        nextPoints.clear();
+    }
+    
+    // Функция для обработки кадра
+    EMSCRIPTEN_KEEPALIVE
+    bool processFrame(uint8_t* imageData, int width, int height) {
+        if (!imageData || width <= 0 || height <= 0) {
+            return false;
+        }
         
-        // Import OpenCV.js
-        importOpenCV();
-        
-        EM_ASM_({
-            const canvasId = UTF8ToString($0);
+        try {
+            // Создаем cv::Mat из данных изображения
+            cv::Mat frame(height, width, CV_8UC4, imageData);
+            cv::Mat grayFrame;
+            cv::cvtColor(frame, grayFrame, cv::COLOR_RGBA2GRAY);
             
-            // Get canvas by the provided ID
-            const canvas = document.getElementById(canvasId);
-            
-            if (!canvas) {
-                console.error('Canvas not found! Available elements:', document.body.innerHTML);
-                return;
-            }
-            
-            // Get context
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                console.error('Failed to get canvas context!');
-                return;
-            }
-            
-            // Create video element
-            const video = document.createElement('video');
-            video.setAttribute('autoplay', 'true');
-            video.setAttribute('playsinline', 'true');
-            
-            // Request camera access
-            navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment', // Use back camera
-                    width: { ideal: canvas.width },
-                    height: { ideal: canvas.height }
-                }
-            })
-            .then(stream => {
-                video.srcObject = stream;
+            if (!isInitialized && bbox.width > 0 && bbox.height > 0) {
+                // Находим точки для отслеживания внутри bbox
+                cv::Mat mask = cv::Mat::zeros(frame.size(), CV_8UC1);
+                cv::rectangle(mask, bbox, cv::Scalar(255), -1);
                 
-                // Function for frame rendering
-                function drawFrame() {
-                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                        // Draw video frame on canvas
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                cv::goodFeaturesToTrack(grayFrame, prevPoints, 50, 0.01, 10, mask);
+                if (prevPoints.empty()) {
+                    std::cout << "No points found to track" << std::endl;
+                    return false;
+                }
+                
+                prevFrame = grayFrame.clone();
+                isInitialized = true;
+                return true;
+            }
+            
+            if (isInitialized) {
+                if (prevFrame.empty()) {
+                    std::cout << "Previous frame is empty" << std::endl;
+                    return false;
+                }
+                
+                // Вычисляем оптический поток
+                cv::calcOpticalFlowPyrLK(prevFrame, grayFrame, prevPoints, nextPoints, status, err);
+                
+                // Обновляем bbox на основе движения точек
+                if (!nextPoints.empty()) {
+                    std::vector<cv::Point2f> goodNew;
+                    std::vector<cv::Point2f> goodOld;
+                    
+                    for (size_t i = 0; i < nextPoints.size(); i++) {
+                        if (status[i]) {
+                            goodNew.push_back(nextPoints[i]);
+                            goodOld.push_back(prevPoints[i]);
+                        }
                     }
-                    // Request next frame
-                    requestAnimationFrame(drawFrame);
+                    
+                    if (!goodNew.empty()) {
+                        // Вычисляем среднее смещение точек
+                        cv::Point2f meanShift(0, 0);
+                        for (size_t i = 0; i < goodNew.size(); i++) {
+                            meanShift += goodNew[i] - goodOld[i];
+                        }
+                        meanShift *= 1.0f / goodNew.size();
+                        
+                        // Обновляем положение bbox
+                        bbox.x += meanShift.x;
+                        bbox.y += meanShift.y;
+                        
+                        // Обновляем точки и кадр для следующей итерации
+                        prevPoints = goodNew;
+                        prevFrame = grayFrame.clone();
+                        return true;
+                    }
                 }
                 
-                // Start rendering when video is ready
-                video.addEventListener('loadedmetadata', () => {
-                    drawFrame();
-                });
-            })
-            .catch(err => {
-                console.error('Error accessing camera:', err);
-            });
-        }, canvasId);
-        
-        std::cout << "Tracking system initialized with canvas!" << std::endl;
+                // Если точки потеряны, сбрасываем трекер
+                isInitialized = false;
+            }
+            
+            return false;
+        } catch (const cv::Exception& e) {
+            std::cout << "OpenCV error: " << e.what() << std::endl;
+            return false;
+        } catch (const std::exception& e) {
+            std::cout << "Error: " << e.what() << std::endl;
+            return false;
+        }
+    }
+    
+    // Функция для установки области отслеживания
+    EMSCRIPTEN_KEEPALIVE
+    void setTrackingRegion(int x, int y, int width, int height) {
+        bbox = cv::Rect2d(x, y, width, height);
+        isInitialized = false;
+    }
+    
+    // Функция для получения текущей области отслеживания
+    EMSCRIPTEN_KEEPALIVE
+    void getTrackingRegion(int* x, int* y, int* width, int* height) {
+        if (x) *x = static_cast<int>(bbox.x);
+        if (y) *y = static_cast<int>(bbox.y);
+        if (width) *width = static_cast<int>(bbox.width);
+        if (height) *height = static_cast<int>(bbox.height);
     }
 }

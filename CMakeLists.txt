@@ -1,46 +1,44 @@
 cmake_minimum_required(VERSION 3.10)
-project(SimpleSLAM)
+project(yadviga-slam)
 
-# Set flags for compilation
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set include directions
-include_directories(${CMAKE_SOURCE_DIR}/include)
+# Find OpenCV
+set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/opencv/build")
+find_package(OpenCV REQUIRED COMPONENTS
+    core
+    imgproc
+    calib3d
+    tracking
+    features2d
+)
 
-# Source files
+# Add include directories
+include_directories(
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${OpenCV_INCLUDE_DIRS}
+)
+
+# Add source files
 set(SOURCES
     src/Initialize.cpp
-    src/Tracking.cpp
     src/Mapping.cpp
+    src/Tracking.cpp
     src/LoopClosure.cpp
     src/Renderer.cpp
 )
 
-# Create WebAssembly
+# Create executable
 add_executable(yadviga-slam ${SOURCES})
 
-# Set flags for Emscripten
+# Link OpenCV libraries
+target_link_libraries(yadviga-slam ${OpenCV_LIBS})
+
+# Set Emscripten-specific flags
 set_target_properties(yadviga-slam PROPERTIES
-    OUTPUT_NAME "yadviga-slam"
     SUFFIX ".js"
-    LINK_FLAGS "-s EXPORTED_FUNCTIONS='[\"_initializeSLAM\", \"_stopSLAM\", \"_initializeTracking\", \"_initializeRenderer\", \"_stopRenderer\"]' \
-                -s EXPORTED_RUNTIME_METHODS='[\"ccall\", \"cwrap\"]' \
-                -s EXPORT_ES6=0 \
-                -s SINGLE_FILE=1 \
-                -s EXPORT_NAME='SlamInitModule' \
-                -s ALLOW_MEMORY_GROWTH=1 \
-                -s INITIAL_MEMORY=67108864 \
-                -s MODULARIZE=1 \
-                -s EXPORT_NAME='createModule' \
-                -s WASM=1 \
-                -s ENVIRONMENT=web \
-                -s NO_EXIT_RUNTIME=1 \
-                -s STRICT=1"
+    LINK_FLAGS "-s EXPORT_ES6=0 -s MODULARIZE=1 -s EXPORT_NAME='createModule' -s EXPORTED_FUNCTIONS=['_malloc','_free','_initializeSLAM','_processFrame','_setTrackingRegion','_getTrackingRegion'] -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s WASM=1 -s SINGLE_FILE=1 -s ALLOW_MEMORY_GROWTH=1 -s ENVIRONMENT='web'"
 )
-
-# Set compiler flags for SIMD
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128")
-
-# Set include directoriaes
-target_include_directories(yadviga-slam PUBLIC ${CMAKE_SOURCE_DIR}/include)
