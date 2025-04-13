@@ -1,7 +1,3 @@
-// Performs keypoint detection using ORB.
-// Tracks point motion between frames (optical flow, for example, Lucas-Kanade).
-// Estimates camera position (Camera Pose Estimation) using PnP (Perspective-n-Point).
-
 #include <emscripten.h>
 #include <iostream>
 #include <string>
@@ -11,7 +7,7 @@
 #include <opencv2/calib3d.hpp>
 #include <vector>
 
-// Глобальные переменные для состояния трекера
+// Global variables for tracker state
 std::vector<cv::Point2f> prevPoints;
 std::vector<cv::Point2f> nextPoints;
 std::vector<uchar> status;
@@ -25,13 +21,13 @@ extern "C" {
     
     EMSCRIPTEN_KEEPALIVE
     void initializeTracker(const char*) {
-        // Для Lucas-Kanade не требуется специальная инициализация
+        // No special initialization required for Lucas-Kanade
         isInitialized = false;
         prevPoints.clear();
         nextPoints.clear();
     }
     
-    // Функция для обработки кадра
+    // Function for processing a frame
     EMSCRIPTEN_KEEPALIVE
     bool processFrame(uint8_t* imageData, int width, int height) {
         if (!imageData || width <= 0 || height <= 0) {
@@ -39,13 +35,13 @@ extern "C" {
         }
         
         try {
-            // Создаем cv::Mat из данных изображения
+            // Create cv::Mat from image data
             cv::Mat frame(height, width, CV_8UC4, imageData);
             cv::Mat grayFrame;
             cv::cvtColor(frame, grayFrame, cv::COLOR_RGBA2GRAY);
             
             if (!isInitialized && bbox.width > 0 && bbox.height > 0) {
-                // Находим точки для отслеживания внутри bbox
+                // Find points to track inside the bbox
                 cv::Mat mask = cv::Mat::zeros(frame.size(), CV_8UC1);
                 cv::rectangle(mask, bbox, cv::Scalar(255), -1);
                 
@@ -66,10 +62,10 @@ extern "C" {
                     return false;
                 }
                 
-                // Вычисляем оптический поток
+                // Calculate optical flow
                 cv::calcOpticalFlowPyrLK(prevFrame, grayFrame, prevPoints, nextPoints, status, err);
                 
-                // Обновляем bbox на основе движения точек
+                // Update bbox based on point movement
                 if (!nextPoints.empty()) {
                     std::vector<cv::Point2f> goodNew;
                     std::vector<cv::Point2f> goodOld;
@@ -82,25 +78,25 @@ extern "C" {
                     }
                     
                     if (!goodNew.empty()) {
-                        // Вычисляем среднее смещение точек
+                        // Calculate average point displacement
                         cv::Point2f meanShift(0, 0);
                         for (size_t i = 0; i < goodNew.size(); i++) {
                             meanShift += goodNew[i] - goodOld[i];
                         }
                         meanShift *= 1.0f / goodNew.size();
                         
-                        // Обновляем положение bbox
+                        // Update bbox position
                         bbox.x += meanShift.x;
                         bbox.y += meanShift.y;
                         
-                        // Обновляем точки и кадр для следующей итерации
+                        // Update points and frame for next iteration
                         prevPoints = goodNew;
                         prevFrame = grayFrame.clone();
                         return true;
                     }
                 }
                 
-                // Если точки потеряны, сбрасываем трекер
+                // If points are lost, reset the tracker
                 isInitialized = false;
             }
             
@@ -114,14 +110,14 @@ extern "C" {
         }
     }
     
-    // Функция для установки области отслеживания
+    // Function for setting the tracking region
     EMSCRIPTEN_KEEPALIVE
     void setTrackingRegion(int x, int y, int width, int height) {
         bbox = cv::Rect2d(x, y, width, height);
         isInitialized = false;
     }
     
-    // Функция для получения текущей области отслеживания
+    // Function for getting the current tracking region
     EMSCRIPTEN_KEEPALIVE
     void getTrackingRegion(int* x, int* y, int* width, int* height) {
         if (x) *x = static_cast<int>(bbox.x);
