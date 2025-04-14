@@ -86,10 +86,6 @@ class SlamModule {
             // Also set a timeout in case the event doesn't fire
             setTimeout(resolve, 2000);
         });
-        
-        // Initialize renderer - this will render the video and overlay
-        console.log("Calling initializeRenderer with canvas ID:", canvasId);
-        this.instance.ccall('initializeRenderer', 'void', ['string'], [canvasId]);
     }
 }
 

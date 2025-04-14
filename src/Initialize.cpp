@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include "../include/Initialize.h"
+#include "../include/Renderer.h"
 
 // Define functions to be exported to JavaScript
 extern "C" {
@@ -52,6 +53,9 @@ extern "C" {
                 
                 // Store the stream in a global variable for the renderer to use
                 window.slamVideoStream = stream;
+                
+                // Initialize renderer after camera is ready
+                Module.ccall('initializeRenderer', 'void', ['string'], [canvasId]);
                 
                 // Signal that the camera is ready
                 window.dispatchEvent(new Event('slamCameraReady'));
