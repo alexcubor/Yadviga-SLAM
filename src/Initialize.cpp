@@ -4,42 +4,27 @@
 #include "../include/Initialize.h"
 #include "../include/Renderer.h"
 
-// Define functions to be exported to JavaScript
 extern "C" {
- 
     EMSCRIPTEN_KEEPALIVE
     void initializeSLAM(const char* canvasId) {
         std::string id(canvasId);
-        std::cout << "Initializing SLAM with canvas ID: " << id << std::endl;
+        std::cout << "Getting video for canvas ID: " << id << std::endl;
         
-        // Initialize the video stream directly
         EM_ASM_({
             const canvasId = UTF8ToString($0);
             console.log('Looking for canvas with ID:', canvasId);
             
-            // Get canvas by the provided ID
-            const canvas = document.getElementById(canvasId);
+            // 1. Get canvas by the provided ID
+            window.canvas = document.getElementById(canvasId);
             console.log('Canvas element:', canvas);
-            
-            if (!canvas) {
-                console.error('Canvas not found! Available elements:', document.body.innerHTML);
-                return;
-            }
-            
-            // Get context
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                console.error('Failed to get canvas context!');
-                return;
-            }
-            
-            // Now we have access to canvas and its context
-            // We can perform any operations with canvas
-            
-            // For example, get dimensions
             console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-            
-            // Request camera access
+
+
+            //=============================================================
+            // Video Stream Initialization
+            //=============================================================
+
+            // 2. Request camera access
             console.log('Requesting camera access...');
             navigator.mediaDevices.getUserMedia({
                 video: {
@@ -48,40 +33,32 @@ extern "C" {
                     height: { ideal: canvas.height }
                 }
             })
-            .then(stream => {
-                console.log('Camera access granted');
+            .then(function(stream) {
                 
-                // Store the stream in a global variable for the renderer to use
-                window.slamVideoStream = stream;
+                // 3. Create video element and attach stream
+                const video = document.createElement("video");
+                video.srcObject = stream;
+                video.autoplay = true;
+                video.playsInline = true; // Prevent fullscreen on iOS
                 
-                // Initialize renderer after camera is ready
-                Module.ccall('initializeRenderer', 'void', ['string'], [canvasId]);
-                
-                // Signal that the camera is ready
-                window.dispatchEvent(new Event('slamCameraReady'));
+                // Store video element globally (it contains the stream)
+                window.slamVideo = video;
+
+                Module.ccall('initializeRenderer', 'void', [], []);
             })
-            .catch(err => {
-                console.error('Error accessing camera:', err);
-            });
-        }, canvasId);
-        
-        std::cout << "SLAM system initialized with canvas!" << std::endl;
-    }
+
+            // Output variables:
+            // -----------------
+            // Canvas = window.canvas
+            // VideoStream = window.slamVideo
+
+            }, canvasId);
+
+    // Module.ccall('initializeRenderer', 'void', ['string'], [canvasId]);
+
+    // Module.ccall('freeTrackingResult', 'void', ['number'], [result]);
     
-    EMSCRIPTEN_KEEPALIVE
-    void stopSLAM(const char* canvasId) {
-        std::string id(canvasId);
-        std::cout << "Stopping SLAM with canvas ID: " << id << std::endl;
-        
-        // Stop the video stream directly
-        EM_ASM_({
-            // Stop the video stream if it exists
-            if (window.slamVideoStream) {
-                window.slamVideoStream.getTracks().forEach(track => track.stop());
-                window.slamVideoStream = null;
-            }
-        }, canvasId);
-        
-        std::cout << "SLAM system stopped!" << std::endl;
+    // // Signal that the camera is ready
+    // window.dispatchEvent(new Event('slamCameraReady'));
     }
 }

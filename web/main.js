@@ -42,9 +42,6 @@ class SlamModule {
         console.log("Initializing SLAM module...");
         
         try {
-            // Load script yadviga-slam.js
-            await this.loadScript('./yadviga-slam.js');
-            
             // Create module instance
             this.instance = await createModule();
             console.log("Module instance created:", this.instance);
@@ -57,16 +54,6 @@ class SlamModule {
             console.error('Failed to initialize SLAM module:', error);
             throw error;
         }
-    }
-    
-    loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
     }
     
     async setupSlam() {

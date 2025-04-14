@@ -22,7 +22,7 @@ extern "C" {
  * 
  * @param canvasId The ID of the canvas element to render on
  */
-void initializeRenderer(const char* canvasId);
+void initializeRenderer();
 
 /**
  * @brief Stop the renderer and clean up resources
@@ -31,7 +31,6 @@ void initializeRenderer(const char* canvasId);
  * 
  * @param canvasId The ID of the canvas element that was being rendered on
  */
-void stopRenderer(const char* canvasId);
 
 #ifdef __cplusplus
 }

@@ -40,5 +40,5 @@ target_link_libraries(yadviga-slam ${OpenCV_LIBS})
 # Set Emscripten-specific flags
 set_target_properties(yadviga-slam PROPERTIES
     SUFFIX ".js"
-    LINK_FLAGS "-s EXPORT_ES6=0 -s MODULARIZE=1 -s EXPORT_NAME='createModule' -s EXPORTED_FUNCTIONS=['_malloc','_free','_initializeSLAM','_processFrame','_setTrackingRegion','_getTrackingRegion'] -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s WASM=1 -s SINGLE_FILE=1 -s ALLOW_MEMORY_GROWTH=1 -s ENVIRONMENT='web'"
+    LINK_FLAGS "-s EXPORT_ES6=0 -s MODULARIZE=1 -s EXPORT_NAME='createModule' -s EXPORTED_FUNCTIONS=['_malloc','_free','_initializeSLAM'] -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s WASM=1 -s SINGLE_FILE=1 -s ALLOW_MEMORY_GROWTH=1 -s ENVIRONMENT='web'"
 )
