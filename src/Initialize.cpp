@@ -3,6 +3,7 @@
 #include <string>
 #include "../include/Initialize.h"
 #include "../include/Renderer.h"
+#include "../include/Tracking.h"
 
 extern "C" {
     EMSCRIPTEN_KEEPALIVE
@@ -15,7 +16,7 @@ extern "C" {
             console.log('Looking for canvas with ID:', canvasId);
             
             // 1. Get canvas by the provided ID
-            window.canvas = document.getElementById(canvasId);
+            canvas = document.getElementById(canvasId);
             console.log('Canvas element:', canvas);
             console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
 
@@ -34,31 +35,42 @@ extern "C" {
                 }
             })
             .then(function(stream) {
-                
+
                 // 3. Create video element and attach stream
                 const video = document.createElement("video");
                 video.srcObject = stream;
                 video.autoplay = true;
                 video.playsInline = true; // Prevent fullscreen on iOS
-                
-                // Store video element globally (it contains the stream)
-                window.slamVideo = video;
+                const ctx = canvas.getContext("2d");
+
+                function drawFrame() {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    requestAnimationFrame(drawFrame);
+                }
+                drawFrame();
+
+
+                // Output global variables:
+                //=============================================================
+                window.canvas = canvas;
+                //=============================================================
+
+
+                //=============================================================
+                // Tracker Initialization
+                //=============================================================
+
+                // Module.ccall('initializeTracker', 'void', [], []);
+
+
+                //=============================================================
+                // Renderer Initialization
+                //=============================================================
 
                 Module.ccall('initializeRenderer', 'void', [], []);
+
             })
 
-            // Output variables:
-            // -----------------
-            // Canvas = window.canvas
-            // VideoStream = window.slamVideo
-
             }, canvasId);
-
-    // Module.ccall('initializeRenderer', 'void', ['string'], [canvasId]);
-
-    // Module.ccall('freeTrackingResult', 'void', ['number'], [result]);
-    
-    // // Signal that the camera is ready
-    // window.dispatchEvent(new Event('slamCameraReady'));
     }
 }

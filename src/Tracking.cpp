@@ -8,138 +8,81 @@
 #include <opencv2/calib3d.hpp>
 #include <vector>
 
-// Global variables for tracker state
+// ============================================================================
+// Глобальные переменные для хранения состояния трекера
+// ============================================================================
+// Предыдущие точки для трекинга
 std::vector<cv::Point2f> prevPoints;
+// Следующие точки после трекинга
 std::vector<cv::Point2f> nextPoints;
+// Статусы точек (1 - успешно отслежена, 0 - потеряна)
 std::vector<uchar> status;
+// Ошибки трекинга для каждой точки
 std::vector<float> err;
+// Предыдущий кадр в оттенках серого
 cv::Mat prevFrame;
+// Область интереса для трекинга
 cv::Rect2d bbox;
+// Флаг инициализации трекера
 bool isInitialized = false;
 
-// Define functions to be exported to JavaScript
+// ============================================================================
+// Функции, экспортируемые в JavaScript
+// ============================================================================
 extern "C" {
-    // Структура для возврата результатов трекинга
-    struct TrackingResult {
-        float* points;        // Массив координат точек [x1,y1,x2,y2,...]
-        uchar* status;        // Массив статусов точек
-        float* errors;        // Массив ошибок
-        int numPoints;        // Количество точек
-    };
- 
-    // Function for processing a frame
+    // ============================================================================
+    // Инициализация трекера
+    // ============================================================================
     EMSCRIPTEN_KEEPALIVE
-    TrackingResult* initializeTracker(uint8_t* imageData, int width, int height) {
-        std::cout << "initializeTracker called with params - width: " << width << ", height: " << height << std::endl;
+    TrackingResult* initializeTracker() {
+        EM_ASM_({
+            const ctx = window.canvas.getContext('2d');
+            
+            // Получаем данные изображения
+            const imageData = ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
+            const buffer = imageData.data.buffer;
+            
+            console.log('Setting timeout for _initializeTracker...');
+            setTimeout(function() {
+                console.log('Calling _initializeTracker...');
+                Module.ccall('_initializeTracker', 'number', 
+                    ['number', 'number', 'number'], 
+                    [buffer, window.canvas.width, window.canvas.height]);
+            }, 0);
+        });
         
-        if (!imageData) {
-            std::cout << "Error: imageData is null" << std::endl;
-            return nullptr;
-        }
-        
-        if (width <= 0 || height <= 0) {
-            std::cout << "Error: Invalid dimensions - width: " << width << ", height: " << height << std::endl;
-            return nullptr;
-        }
-        
-        try {
-            std::cout << "Creating frame from image data..." << std::endl;
-            // Create cv::Mat from image data
-            cv::Mat frame(height, width, CV_8UC4, imageData);
-            
-            std::cout << "Converting to grayscale..." << std::endl;
-            cv::Mat grayFrame;
-            cv::cvtColor(frame, grayFrame, cv::COLOR_RGBA2GRAY);
-            
-            if (!isInitialized && bbox.width > 0 && bbox.height > 0) {
-                std::cout << "Initializing tracking points in bbox..." << std::endl;
-                // Find points to track inside the bbox
-                cv::Mat mask = cv::Mat::zeros(frame.size(), CV_8UC1);
-                cv::rectangle(mask, bbox, cv::Scalar(255), -1);
-                
-                cv::goodFeaturesToTrack(grayFrame, prevPoints, 50, 0.01, 10, mask);
-                if (prevPoints.empty()) {
-                    std::cout << "No points found to track in the region" << std::endl;
-                    return nullptr;
-                }
-                
-                std::cout << "Found " << prevPoints.size() << " points to track" << std::endl;
-                prevFrame = grayFrame.clone();
-                isInitialized = true;
-            }
-            
-            if (isInitialized) {
-                if (prevFrame.empty()) {
-                    std::cout << "Error: Previous frame is empty" << std::endl;
-                    return nullptr;
-                }
-                
-                std::cout << "Calculating optical flow..." << std::endl;
-                cv::calcOpticalFlowPyrLK(prevFrame, grayFrame, prevPoints, nextPoints, status, err);
-                
-                if (!nextPoints.empty()) {
-                    std::cout << "Processing " << nextPoints.size() << " tracked points" << std::endl;
-                    std::vector<cv::Point2f> goodNew;
-                    std::vector<cv::Point2f> goodOld;
-                    
-                    for (size_t i = 0; i < nextPoints.size(); i++) {
-                        if (status[i]) {
-                            goodNew.push_back(nextPoints[i]);
-                            goodOld.push_back(prevPoints[i]);
-                        }
-                    }
-                    
-                    std::cout << "Good points after filtering: " << goodNew.size() << std::endl;
-                    
-                    if (!goodNew.empty()) {
-                        // Calculate average point displacement
-                        cv::Point2f meanShift(0, 0);
-                        for (size_t i = 0; i < goodNew.size(); i++) {
-                            meanShift += goodNew[i] - goodOld[i];
-                        }
-                        meanShift *= 1.0f / goodNew.size();
-                        
-                        std::cout << "Mean shift - x: " << meanShift.x << ", y: " << meanShift.y << std::endl;
-                        
-                        // Update bbox position
-                        bbox.x += meanShift.x;
-                        bbox.y += meanShift.y;
-                        
-                        prevPoints = goodNew;
-                        prevFrame = grayFrame.clone();
-                    }
-                } else {
-                    std::cout << "No points were tracked in this frame" << std::endl;
-                }
-            }
-            
-            std::cout << "Creating tracking result..." << std::endl;
-            TrackingResult* result = new TrackingResult();
-            // ... заполнение результата ...
-            
-            std::cout << "Tracking completed successfully" << std::endl;
-            return result;
-            
-        } catch (const cv::Exception& e) {
-            std::cout << "OpenCV error: " << e.what() << std::endl;
-            return nullptr;
-        } catch (const std::exception& e) {
-            std::cout << "Standard error: " << e.what() << std::endl;
-            return nullptr;
-        } catch (...) {
-            std::cout << "Unknown error occurred" << std::endl;
-            return nullptr;
-        }
+        return nullptr; // Этот return никогда не будет выполнен
     }
     
-    // Function for clearing memory
+    // Внутренняя C++ функция для обработки данных кадра
     EMSCRIPTEN_KEEPALIVE
-    void freeTrackingResult(TrackingResult* result) {
-        if (result) {
-            delete[] result->points;
-            delete[] result->status;
-            delete[] result->errors;
-            delete result;
-        }
+    TrackingResult* _initializeTracker(uint8_t* imageData, int width, int height) {
+        std::cout << "=== _initializeTracker called ===" << std::endl;
+        std::cout << "Image size: " << width << "x" << height << std::endl;
+        
+        // Создание OpenCV матрицы из данных изображения
+        cv::Mat frame(height, width, CV_8UC4, imageData);
+        std::cout << "Frame created: " << frame.rows << "x" << frame.cols << std::endl;
+        
+        // Конвертация в оттенки серого
+        cv::Mat grayFrame;
+        cv::cvtColor(frame, grayFrame, cv::COLOR_RGBA2GRAY);
+        std::cout << "Gray frame created" << std::endl;
+
+        // Поиск хороших точек для отслеживания
+        std::vector<cv::Point2f> points;
+        std::cout << "Looking for good features to track..." << std::endl;
+        cv::goodFeaturesToTrack(grayFrame,    // Input image
+                               points,         // Output points
+                               100,           // Max number of points
+                               0.01,          // Quality level
+                               10,            // Min distance between points
+                               cv::Mat(),     // Mask
+                               3,             // Block size
+                               false,         // Use Harris detector
+                               0.04);         // Harris parameter
+        std::cout << "Found " << points.size() << " points to track" << std::endl;
+
+        return nullptr;
     }
 }
