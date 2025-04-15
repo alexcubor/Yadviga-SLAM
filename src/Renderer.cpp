@@ -4,21 +4,36 @@
 #include "../include/Renderer.h"
 #include "../include/Tracking.h"
 
-// Define functions to be exported to JavaScript
 extern "C" {
  
     EMSCRIPTEN_KEEPALIVE
     void initializeRenderer() {
         EM_ASM_({
+            
             // Get global variables
             const canvas = window.canvas;
             const ctx = canvas.getContext("2d");
             
-            // Function to render the video frame on the canvas
+            
+            // ============================================================================
+            // Draw tracking points on the canvas
+            // ============================================================================ 
+
             function renderFrame() {
-                ctx.strokeStyle = 'red';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(50, 50, 100, 100);
+                if (window.trackingPoints) {
+                    const point = window.trackingPoints;
+                    
+                    ctx.fillStyle = 'red';
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    
+                    if (point.status > 0) {
+                        ctx.beginPath();
+                        ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                }
                 
                 // Request the next frame
                 requestAnimationFrame(renderFrame);
