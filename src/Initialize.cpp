@@ -60,7 +60,7 @@ extern "C" {
                 // Tracker Initialization
                 //=============================================================
 
-                // Module.ccall('initializeTracker', 'void', [], []);
+                Module.ccall('initializeTracker', 'void', [], []);
 
 
                 //=============================================================
