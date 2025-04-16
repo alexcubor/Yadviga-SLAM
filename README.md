@@ -1,4 +1,4 @@
-# ![Yadviga-SLAM](resource/logo.svg)
+# ![Yadviga-SLAM](resources/logo.svg)
 
 [![Development Status](https://img.shields.io/badge/status-in%20development-yellow)](https://github.com/yourusername/Yadviga-SLAM)
 
