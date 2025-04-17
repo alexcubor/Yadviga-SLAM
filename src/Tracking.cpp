@@ -25,11 +25,12 @@ extern "C" {
 
             // 1. Get image data
             const ctx = window.canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
-            const buffer = imageData.data.buffer;
 
-            // 2. Calculate tracking points from video
             setTimeout(function() {
+                const imageData = ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
+                const buffer = imageData.data.buffer;
+
+                // 2. Calculate tracking points from video
                 const result = Module.ccall('_initializeTracker', 'number', 
                     ['number', 'number', 'number'], 
                     [buffer, window.canvas.width, window.canvas.height]);
@@ -45,7 +46,7 @@ extern "C" {
 
                 // 4. Free memory to avoid memory leaks
                 Module.ccall('freeTrackingResult', 'void', ['number'], [result]);
-            }, 0);
+            }, 1000);
         });
         
         return nullptr;
@@ -58,6 +59,7 @@ extern "C" {
 
     EMSCRIPTEN_KEEPALIVE
     TrackingResult* _initializeTracker(uint8_t* imageData, int width, int height) {
+        std::cout << "imageData: " << imageData << std::endl;
 
         // Create result with one point for testing
         TrackingResult* result = new TrackingResult();
