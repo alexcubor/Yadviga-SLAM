@@ -52,8 +52,8 @@ cd ${OPENCV_BUILD_DIR}
 echo "Configuring OpenCV..."
 emcmake cmake -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_INSTALL_PREFIX="${PWD}/../install" \
-              -DCMAKE_CXX_FLAGS="-msimd128 -Wno-deprecated-declarations -Wno-deprecated -Wno-deprecated-enum-enum-conversion -Wno-undef" \
-              -DCMAKE_C_FLAGS="-msimd128 -Wno-deprecated-declarations -Wno-deprecated -Wno-deprecated-enum-enum-conversion -Wno-undef" \
+              -DCMAKE_CXX_FLAGS="-msimd128 -matomics -mbulk-memory -pthread -Wno-deprecated-declarations -Wno-deprecated -Wno-deprecated-enum-enum-conversion -Wno-undef" \
+              -DCMAKE_C_FLAGS="-msimd128 -matomics -mbulk-memory -pthread -Wno-deprecated-declarations -Wno-deprecated -Wno-deprecated-enum-enum-conversion -Wno-undef" \
               -DOPENCV_EXTRA_MODULES_PATH="../${OPENCV_SOURCE_DIR}_contrib/modules" \
               -DBUILD_SHARED_LIBS=OFF \
               -DENABLE_PIC=FALSE \

@@ -1,6 +1,7 @@
 **/.DS_Store
+.idea/
 build/
-web/yadviga-slam.js
+web/yadviga-slam.*
 
 # OpenCV build files
 third_party/opencv/*

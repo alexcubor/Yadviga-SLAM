@@ -8,7 +8,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Debug in Chrome",
-            "url": "http://localhost:3001/index.html",
+            "url": "http://localhost:3000/index.html",
             "webRoot": "${workspaceFolder}/web",
             "sourceMaps": true,
             "sourceMapPathOverrides": {
@@ -22,7 +22,8 @@
                 "--remote-debugging-port=9222",
                 "--auto-open-devtools-for-tabs",
                 "--window-size=1920,1080",
-                "--window-position=0,0"
+                "--window-position=0,0",
+                "--enable-features=SharedArrayBuffer"
             ],
             "preLaunchTask": "Start Web Server"
         }

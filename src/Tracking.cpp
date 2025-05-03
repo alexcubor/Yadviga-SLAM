@@ -1,230 +1,150 @@
 #include <emscripten.h>
-#include <iostream>
-#include <string>
-#include "../include/Tracking.h"
+#include <emscripten/threading.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/calib3d.hpp>
-#include <vector>
+#include <thread>
+#include <atomic>
 
+// Global variables for tracking
+EMSCRIPTEN_KEEPALIVE float* trackingPoints = nullptr;  // Buffer for tracking points
+EMSCRIPTEN_KEEPALIVE std::atomic<int> trackingPointsCount{0};  // Number of tracking points
+EMSCRIPTEN_KEEPALIVE std::atomic<bool> pointsReady{false};  // Flag for points readiness
 
-// ============================================================================
-// JavaScript
-// ============================================================================
+// Declare external variables
+extern std::atomic<bool> frameReady;
+extern uint8_t* frameBuffer;
+extern int frameWidth;
+extern int frameHeight;
 
-extern "C" {
-    EMSCRIPTEN_KEEPALIVE
-    TrackingResult* initializeTracker() {
-        EM_ASM_({
+// Functions for accessing tracking points
+extern "C" float* getTrackingPoints() {
+    return trackingPoints;
+}
 
-            
-            // ============================================================================
-            // Initialize tracker
-            // ============================================================================
+extern "C" int getTrackingPointsCount() {
+    return trackingPointsCount.load(std::memory_order_acquire);
+}
 
-            // 1. Get image data with willReadFrequently optimization
-            const ctx = window.canvas.getContext('2d', { willReadFrequently: true });
-            
-            function findInitialPoints() {
-                const imageData = ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
-                const data = new Uint8Array(imageData.data);  // Create a view of the image data
-                const buffer = Module._malloc(data.length);  // Allocate memory in the Emscripten heap
-                Module.HEAPU8.set(data, buffer);  // Copy the image data to the Emscripten heap
+extern "C" bool arePointsReady() {
+    return pointsReady.load(std::memory_order_acquire);
+}
 
-                // 2. Try to find initial points
-                const result = Module.ccall('_initializeTracker', 'number', 
-                    ['number', 'number', 'number'], 
-                    [buffer, window.canvas.width, window.canvas.height]);
-
-                // 3. Get points from address in memory
-                const pointsPtr = HEAP32[result / 4];
-                const statusPtr = HEAP32[result / 4 + 2];
-                const numPoints = HEAP32[result / 4 + 1];
-                
-                // 4. Check if points were found
-                if (numPoints > 0) {
-                    // Points found, store them
-                    window.trackingPoints = [];
-                    for (let i = 0; i < numPoints; i++) {
-                        window.trackingPoints.push({
-                            x: HEAPF32[pointsPtr / 4 + i * 2],
-                            y: HEAPF32[pointsPtr / 4 + i * 2 + 1],
-                            status: HEAPF32[statusPtr / 4 + i]
-                        });
-                    }
-
-                    // Free memory
-                    Module._free(buffer);
-                    Module.ccall('freeTrackingResult', 'void', ['number'], [result]);
-
-                    // Start continuous tracking
-                    function trackPoints() {
-                        const imageData = ctx.getImageData(0, 0, window.canvas.width, window.canvas.height);
-                        const data = new Uint8Array(imageData.data);
-                        const buffer = Module._malloc(data.length);
-                        Module.HEAPU8.set(data, buffer);
-
-                        // Track points using Lucas-Kanade
-                        const trackResult = Module.ccall('_trackPoints', 'number',
-                            ['number', 'number', 'number'],
-                            [buffer, window.canvas.width, window.canvas.height]);
-
-                        if (trackResult) {
-                            // Update tracking points
-                            const newPointsPtr = HEAP32[trackResult / 4];
-                            const newStatusPtr = HEAP32[trackResult / 4 + 2];
-                            const newNumPoints = HEAP32[trackResult / 4 + 1];
-                            
-                            window.trackingPoints = [];
-                            for (let i = 0; i < newNumPoints; i++) {
-                                window.trackingPoints.push({
-                                    x: HEAPF32[newPointsPtr / 4 + i * 2],
-                                    y: HEAPF32[newPointsPtr / 4 + i * 2 + 1],
-                                    status: HEAPF32[newStatusPtr / 4 + i]
-                                });
-                            }
-
-                            // Free memory
-                            Module._free(buffer);
-                            Module.ccall('freeTrackingResult', 'void', ['number'], [trackResult]);
-
-                            // Request next frame
-                            requestAnimationFrame(trackPoints);
-                        } else {
-                            // Tracking failed, try to find new points
-                            Module._free(buffer);
-                            findInitialPoints();
-                        }
-                    }
-
-                    // Start tracking loop
-                    trackPoints();
-                } else {
-                    // No points found, try again
-                    Module._free(buffer);
-                    Module.ccall('freeTrackingResult', 'void', ['number'], [result]);
-                    requestAnimationFrame(findInitialPoints);
-                }
-            }
-
-            // Start looking for points
-            findInitialPoints();
-        });
-        
-        return nullptr;
-    }
+void trackingThread() {
+    EM_ASM({
+        self.trackingFrameCount = 0;
+    });
     
-    
-    // ============================================================================
-    // C++
-    // ============================================================================
-
-    // Global variables for tracking state
+    // Static variables for tracking
+    static bool isInitialized = false;
     static cv::Mat prevGray;
     static std::vector<cv::Point2f> prevPoints;
-    static bool isInitialized = false;
+    
+    while (true) {
+        bool isReady = frameReady.load(std::memory_order_acquire);
+        
+        if (isReady) {
+            // EM_ASM({
+            //     self.trackingFrameCount++;
+            //     console.log("Tracking: Frame ready now:", Module._getFrameReady(), "Frame count:", self.trackingFrameCount);
+            //     const frameData = new Uint8Array(Module.HEAPU8.buffer, Module._getFrameBuffer(), Module._getFrameBufferSize());
+            //     console.log("Tracking: Frame buffer:", frameData);
+            // });
 
-    EMSCRIPTEN_KEEPALIVE
-    TrackingResult* _initializeTracker(uint8_t* imageData, int width, int height) {
-        // Create OpenCV Mat from the image data
-        cv::Mat frame(height, width, CV_8UC4, imageData);
-        
-        // Convert to grayscale
-        cv::Mat gray;
-        cv::cvtColor(frame, gray, cv::COLOR_RGBA2GRAY);
-        
-        // Find good features to track
-        std::vector<cv::Point2f> corners;
-        cv::goodFeaturesToTrack(gray, corners, 25, 0.01, 10);
-        
-        // Store for tracking
-        gray.copyTo(prevGray);
-        prevPoints = corners;
-        isInitialized = true;
-        
-        // Create result structure
-        TrackingResult* result = new TrackingResult();
-        
-        if (!corners.empty()) {
-            result->numPoints = corners.size();
-            result->points = new float[corners.size() * 2];
-            result->status = new float[corners.size()];
-            
-            for (size_t i = 0; i < corners.size(); i++) {
-                result->points[i * 2] = corners[i].x;
-                result->points[i * 2 + 1] = corners[i].y;
-                result->status[i] = 1.0f;
+            cv::Mat frame(frameHeight, frameWidth, CV_8UC4, frameBuffer);
+
+            // Convert current frame to grayscale
+            cv::Mat gray;
+            cv::cvtColor(frame, gray, cv::COLOR_RGBA2GRAY);
+                
+            if (!isInitialized || prevPoints.empty()) { // Filter out black frames through if, and real frames in else
+                EM_ASM_DOUBLE({
+                    console.log("TRACKING: Initializing points");
+                    return 0.0;
+                });
+                    
+                // Initialize at first frame
+                std::vector<cv::Point2f> corners;
+                cv::goodFeaturesToTrack(gray, corners, 25, 0.01, 10);
+                prevGray = gray.clone();
+                prevPoints = corners;
+                isInitialized = true;
+                
+                // Write points to buffer
+                if (trackingPoints) {
+                    free(trackingPoints);
+                }
+                trackingPoints = (float*)malloc(corners.size() * 2 * sizeof(float));
+                for (size_t i = 0; i < corners.size(); i++) {
+                    trackingPoints[i * 2] = corners[i].x / frameWidth * 2 - 1;
+                    trackingPoints[i * 2 + 1] = corners[i].y / frameHeight * 2 - 1;
+                }
+                
+                // Atomically update the number of points and set the readiness flag
+                trackingPointsCount.store(corners.size(), std::memory_order_release);
+                pointsReady.store(true, std::memory_order_release);
+                
+                // Log original coordinates
+                // EM_ASM({
+                //     const pointsCount = $0;
+                //     const pointsPtr = $1;
+                //     const points = new Float32Array(Module.HEAPF32.buffer, pointsPtr, pointsCount * 2);
+                //     console.log("TRACKING: Points data:", Array.from(points));
+                // }, corners.size(), trackingPoints);
+            } else {
+                EM_ASM_DOUBLE({
+                    console.log("TRACKING: Tracking points");
+                    return 0.0;
+                });
+                // Tracking points with Lucas-Kanade
+                std::vector<cv::Point2f> nextPoints;
+                std::vector<uchar> status;
+                std::vector<float> err; cv::calcOpticalFlowPyrLK(
+                    prevGray, gray, prevPoints, nextPoints,
+                    status, err,
+                    cv::Size(21, 21), 3,
+                    cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01)
+                );
+                    
+                // Update previous frame and points
+                gray.copyTo(prevGray);
+                prevPoints = nextPoints;
+                    
+                // Count the number of successfully tracked points
+                int trackedPoints = 0;
+                for (size_t i = 0; i < status.size(); i++) {
+                    if (status[i]) trackedPoints++;
+                }
+
+                // Update tracking points in WebGL
+                if (trackingPoints) {
+                    free(trackingPoints);
+                }
+                trackingPoints = (float*)malloc(prevPoints.size() * 2 * sizeof(float));
+                for (size_t i = 0; i < prevPoints.size(); i++) {
+                    trackingPoints[i * 2] = prevPoints[i].x / frameWidth * 2 - 1;
+                    trackingPoints[i * 2 + 1] = prevPoints[i].y / frameHeight * 2 - 1;
+                }
+                
+                // Atomically update the number of points and set the readiness flag
+                trackingPointsCount.store(prevPoints.size(), std::memory_order_release);
+                pointsReady.store(true, std::memory_order_release);
             }
+                
+            // Give time for processing the next frame
+            emscripten_thread_sleep(8); // ~60 FPS = (16)
+            frameReady.store(false, std::memory_order_release);
         } else {
-            result->numPoints = 0;
-            result->points = nullptr;
-            result->status = nullptr;
+            emscripten_thread_sleep(8);
         }
-
-        // Output result:
-        // ============================================================================
-        // numPoints: Number of points
-        // points: Left indent point, Top indent point
-        // status: 1.0 if point is valid, 0.0 if point is invalid
-        // ============================================================================
-
-        return result;
     }
+}
 
-    EMSCRIPTEN_KEEPALIVE
-    TrackingResult* _trackPoints(uint8_t* imageData, int width, int height) {
-        if (!isInitialized || prevPoints.empty()) {
-            return nullptr;
-        }
-
-        // Create OpenCV Mat from the current frame
-        cv::Mat frame(height, width, CV_8UC4, imageData);
-        
-        // Convert current frame to grayscale
-        cv::Mat gray;
-        cv::cvtColor(frame, gray, cv::COLOR_RGBA2GRAY);
-        
-        // Track points using Lucas-Kanade
-        std::vector<cv::Point2f> nextPoints;
-        std::vector<uchar> status;
-        std::vector<float> err;
-        
-        cv::calcOpticalFlowPyrLK(
-            prevGray, gray, prevPoints, nextPoints,
-            status, err,
-            cv::Size(21, 21), 3,
-            cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01)
-        );
-        
-        // Update previous frame and points
-        gray.copyTo(prevGray);
-        prevPoints = nextPoints;
-        
-        // Create result structure
-        TrackingResult* result = new TrackingResult();
-        result->numPoints = nextPoints.size();
-        result->points = new float[nextPoints.size() * 2];
-        result->status = new float[nextPoints.size()];
-        
-        for (size_t i = 0; i < nextPoints.size(); i++) {
-            result->points[i * 2] = nextPoints[i].x;
-            result->points[i * 2 + 1] = nextPoints[i].y;
-            result->status[i] = status[i];
-        }
-
-        return result;
-    }
-
-
-    // ============================================================================
-    // Free memory
-    // ============================================================================ 
-
-    EMSCRIPTEN_KEEPALIVE
-    void freeTrackingResult(TrackingResult* result) {
-        if (result->points) delete[] result->points;
-        if (result->status) delete[] result->status;
-        delete result;
-    }
+extern "C" void startTracking() {
+    EM_ASM({
+        console.log("Tracking.cpp ✅ thread 1");
+    });
+    std::thread t(trackingThread);
+    t.detach();  // Detach the thread
 }

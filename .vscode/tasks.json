@@ -88,7 +88,7 @@
         {
             "label": "Build Yadviga",
             "type": "shell",
-            "command": "emmake make -j4 && cp yadviga-slam.js ../web/ || echo 'Failed to copy yadviga-slam.js'",
+            "command": "emmake make -j4 && cp yadviga-slam.js yadviga-slam.worker.js ../web/ || echo 'Failed to copy files'",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -102,10 +102,14 @@
             },
             "dependsOn": "Configure CMake with Emscripten"
         },
+
+        // =============================================
+        // Debug on Web Server
+        // =============================================
         {
             "label": "Start Web Server",
             "type": "shell",
-            "command": "lsof -ti:3001 || (cd web && python3 -m http.server 3001)",
+            "command": "lsof -ti:3000 || (cd web && python3 -m http.server 3000)",
             "isBackground": true,
             "problemMatcher": {
                 "pattern": {
@@ -113,8 +117,8 @@
                 },
                 "background": {
                     "activeOnStart": true,
-                    "beginsPattern": "Serving HTTP on .* port 3001",
-                    "endsPattern": "Serving HTTP on .* port 3001"
+                    "beginsPattern": "Serving HTTP on .* port 3000",
+                    "endsPattern": "Serving HTTP on .* port 3000"
                 }
             },
             "presentation": {
