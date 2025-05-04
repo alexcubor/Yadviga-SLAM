@@ -3,7 +3,8 @@
 
 extern "C" void renderFrame();
 extern "C" void startTracking();
-extern "C" void renderTrackingPoints();
+extern "C" void testTracking();
+extern "C" void testFPS();
 
 
 // Autorun function
@@ -17,11 +18,31 @@ int main() {
     // Optional test functions
     // ========================================================================================
 
-    // Check if the canvas has the attribute render-tracking
+    // Check script tag attributes for test functions
     EM_ASM_({
-        const canvas = document.getElementById('xr-canvas');
-        if (canvas && canvas.hasAttribute('render-tracking')) {
-            Module._renderTrackingPoints();
+        // Find our script tag
+        const scripts = document.getElementsByTagName('script');
+        let ourScript = null;
+        for (let script of scripts) {
+            if (script.src.includes('yadviga-slam.js')) {
+                ourScript = script;
+                break;
+            }
+        }
+
+        if (!ourScript) {
+            console.error('Script tag not found');
+            return;
+        }
+
+        // Check for render-tracking attribute
+        if (ourScript.hasAttribute('render-tracking')) {
+            Module._testTracking();
+        }
+        
+        // Check for test-fps attribute
+        if (ourScript.hasAttribute('test-fps')) {
+            Module._testFPS();
         }
     });
 }

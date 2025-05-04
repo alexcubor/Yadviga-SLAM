@@ -133,10 +133,10 @@ void trackingThread() {
             }
                 
             // Give time for processing the next frame
-            emscripten_thread_sleep(8); // ~60 FPS = (16)
+            // emscripten_thread_sleep(8); // ~60 FPS = (16)
             frameReady.store(false, std::memory_order_release);
         } else {
-            emscripten_thread_sleep(8);
+            // emscripten_thread_sleep(8);
         }
     }
 }

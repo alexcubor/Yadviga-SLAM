@@ -50,8 +50,9 @@ set(EXPORTED_FUNCS
     "_startTracking"
     "_getTrackingPoints"
     "_getTrackingPointsCount"
-    "_renderTrackingPoints"
     "_arePointsReady"
+    "_testTracking"
+    "_testFPS"
 )
 # Convert list to string with square brackets and commas
 string(JOIN "," EXPORTED_FUNCS_STR ${EXPORTED_FUNCS})
