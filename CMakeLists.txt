@@ -5,6 +5,10 @@ project(yadviga-slam)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Debug flags
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "-gsource-map -O0")
+
 # Find OpenCV
 set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/third_party/opencv/build")
 find_package(OpenCV REQUIRED COMPONENTS
@@ -27,6 +31,7 @@ set(SOURCES
     src/Initialize.cpp
     src/Tracking.cpp
     src/Rendering.cpp
+    # src/Mapping.cpp
 )
 
 # Create executable
@@ -60,7 +65,7 @@ string(JOIN "," EXPORTED_FUNCS_STR ${EXPORTED_FUNCS})
 # Set Emscripten-specific flags
 set_target_properties(yadviga-slam PROPERTIES
     SUFFIX ".js"
-    LINK_FLAGS "-s SINGLE_FILE=1 -s INVOKE_RUN=1 -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1 -s WASM_ASYNC_COMPILATION=1 -s EXPORTED_FUNCTIONS=[${EXPORTED_FUNCS_STR}] -s ALLOW_MEMORY_GROWTH=1 -s SHARED_MEMORY=1"
+    LINK_FLAGS "-s SINGLE_FILE=1 -s INVOKE_RUN=1 -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=2 -s WASM_ASYNC_COMPILATION=1 -s EXPORTED_FUNCTIONS=[${EXPORTED_FUNCS_STR}] -s ALLOW_MEMORY_GROWTH=1 -s SHARED_MEMORY=1"
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -matomics -mbulk-memory -pthread")

@@ -4,6 +4,7 @@
 extern "C" void renderFrame();
 extern "C" void startTracking();
 extern "C" void testTracking();
+// extern "C" void startMapping();
 extern "C" void testFPS();
 
 
@@ -12,6 +13,7 @@ int main() {
     std::cout << "Initialize.cpp ✅" << std::endl;
     renderFrame();
     startTracking();
+    // startMapping();
     
 
     // ========================================================================================

@@ -9,8 +9,14 @@
 
 // Global variables for tracking
 EMSCRIPTEN_KEEPALIVE float* trackingPoints = nullptr;  // Buffer for tracking points
+EMSCRIPTEN_KEEPALIVE float* prevTrackingPoints = nullptr;  // Buffer for previous tracking points
 EMSCRIPTEN_KEEPALIVE std::atomic<int> trackingPointsCount{0};  // Number of tracking points
 EMSCRIPTEN_KEEPALIVE std::atomic<bool> pointsReady{false};  // Flag for points readiness
+EMSCRIPTEN_KEEPALIVE uint8_t* pointStatus = nullptr;  // Status of each point (1 if tracked, 0 if lost)
+EMSCRIPTEN_KEEPALIVE float* pointDescriptors = nullptr;  // Descriptors for each point
+EMSCRIPTEN_KEEPALIVE size_t descriptorSize = 0;  // Size of descriptor for each point
+EMSCRIPTEN_KEEPALIVE float cameraMatrix[9] = {0};  // Camera intrinsic matrix (3x3)
+EMSCRIPTEN_KEEPALIVE std::atomic<bool> trackingRunning{true};  // Flag to control tracking thread
 
 // Declare external variables
 extern std::atomic<bool> frameReady;
