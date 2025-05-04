@@ -26,7 +26,7 @@ include_directories(
 set(SOURCES
     src/Initialize.cpp
     src/Tracking.cpp
-    src/Renderer.cpp
+    src/Rendering.cpp
 )
 
 # Create executable
