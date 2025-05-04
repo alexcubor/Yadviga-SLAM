@@ -35,8 +35,8 @@ int main() {
             return;
         }
 
-        // Check for render-tracking attribute
-        if (ourScript.hasAttribute('render-tracking')) {
+        // Check for test-tracking attribute
+        if (ourScript.hasAttribute('test-tracking')) {
             Module._testTracking();
         }
         
