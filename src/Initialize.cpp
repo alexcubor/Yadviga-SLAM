@@ -3,8 +3,7 @@
 
 extern "C" void renderFrame();
 extern "C" void startTracking();
-extern "C" void testTracking();
-// extern "C" void startMapping();
+extern "C" void startMapping();
 extern "C" void testFPS();
 
 
@@ -13,11 +12,11 @@ int main() {
     std::cout << "Initialize.cpp ✅" << std::endl;
     renderFrame();
     startTracking();
-    // startMapping();
+    startMapping();
     
 
     // ========================================================================================
-    // Optional test functions
+    // Run functions by tag attributes
     // ========================================================================================
 
     // Check script tag attributes for test functions
@@ -35,11 +34,6 @@ int main() {
         if (!ourScript) {
             console.error('Script tag not found');
             return;
-        }
-
-        // Check for test-tracking attribute
-        if (ourScript.hasAttribute('test-tracking')) {
-            Module._testTracking();
         }
         
         // Check for test-fps attribute

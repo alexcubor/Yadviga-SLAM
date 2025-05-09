@@ -31,7 +31,7 @@ set(SOURCES
     src/Initialize.cpp
     src/Tracking.cpp
     src/Rendering.cpp
-    # src/Mapping.cpp
+    src/Mapping.cpp
 )
 
 # Create executable
@@ -56,7 +56,6 @@ set(EXPORTED_FUNCS
     "_getTrackingPoints"
     "_getTrackingPointsCount"
     "_arePointsReady"
-    "_testTracking"
     "_testFPS"
 )
 # Convert list to string with square brackets and commas
