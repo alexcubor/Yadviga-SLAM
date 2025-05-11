@@ -52,7 +52,7 @@ void mappingThread() {
                 std::vector<cv::Point3f> points3D;
                 for (int i = 0; i < points4D.cols; i++) {
                     cv::Mat x = points4D.col(i);
-                    x = x / x.at<float>(3);  // делим на w-координату
+                    x = x / x.at<float>(3);  // divide by w-coordinate
                     points3D.push_back(cv::Point3f(
                         x.at<float>(0),  // X
                         x.at<float>(1),  // Y
