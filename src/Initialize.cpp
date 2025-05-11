@@ -2,15 +2,16 @@
 #include <iostream>
 
 extern "C" void renderFrame();
+extern "C" void initThreeScene();
 extern "C" void startTracking();
 extern "C" void startMapping();
-extern "C" void testFPS();
 
 
 // Autorun function
 int main() {
     std::cout << "Initialize.cpp ✅" << std::endl;
     renderFrame();
+    initThreeScene();
     startTracking();
     startMapping();
     
@@ -37,8 +38,8 @@ int main() {
         }
         
         // Check for test-fps attribute
-        if (ourScript.hasAttribute('test-fps')) {
-            Module._testFPS();
+        if (!ourScript.hasAttribute('disable-logo')) {
+            Module._showLogo();
         }
     });
 }

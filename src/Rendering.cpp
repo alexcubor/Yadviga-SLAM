@@ -4,6 +4,7 @@
 #include <atomic>
 #include <memory>
 #include <iostream>
+#include "logo.svg.h"
 
 // Global variables for renderer
 EMSCRIPTEN_KEEPALIVE std::atomic<bool> frameReady{false};  // Definition with export
@@ -13,8 +14,7 @@ EMSCRIPTEN_KEEPALIVE int frameWidth = 0;  // Frame width
 EMSCRIPTEN_KEEPALIVE int frameHeight = 0;  // Frame height
 EMSCRIPTEN_KEEPALIVE cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_32F);
 
-// Declare external variables for tracking points
-// extern std::vector<cv::Point2f> trackingPoints;
+// Declare external variables for tracking pointsё
 extern int trackingPointsCount;
 
 extern "C" {
@@ -70,7 +70,7 @@ extern "C" {
             canvas.style.position = 'fixed';
             canvas.style.top = '0';
             canvas.style.left = '0';
-
+            
             const gl = canvas.getContext('webgl', {
                 alpha: false,
                 antialias: false,
@@ -82,7 +82,7 @@ extern "C" {
             // Save context in global variable
             window._gl = gl;
             window.dispatchEvent(new CustomEvent('gl-ready', { detail: gl }));
-
+            
             // Initialize render pipeline if it doesn't exist
             if (!window._renderPipeline) {
                 window._renderPipeline = [];
@@ -172,10 +172,10 @@ extern "C" {
                     const settings = track.getSettings();
                     // Pass to C++
                     Module._setCameraMatrix(
-                        settings.width,  // используем как приближение для fx
-                        settings.height, // используем как приближение для fy
-                        settings.width / 2,  // cx в центре
-                        settings.height / 2  // cy в центре
+                        settings.width,  // use as fx
+                        settings.height, // use as fy
+                        settings.width / 2,  // cx in center
+                        settings.height / 2  // cy in center
                     );
                     
                     video.srcObject = stream;
@@ -269,46 +269,205 @@ extern "C" {
         });
     }
 }
-
-
-extern "C" void testFPS() {
-    EM_ASM_({
-        // Create FPS counter element
-        const fpsCounter = document.createElement('div');
-        fpsCounter.id = 'test-fps-counter';
-        fpsCounter.style.position = 'fixed';
-        fpsCounter.style.top = '10px';
-        fpsCounter.style.right = '10px';
-        fpsCounter.style.color = 'white';
-        fpsCounter.style.fontFamily = 'monospace';
-        fpsCounter.style.fontSize = '16px';
-        fpsCounter.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        fpsCounter.style.padding = '5px';
-        fpsCounter.style.borderRadius = '5px';
-        fpsCounter.style.zIndex = '1000';
-        fpsCounter.textContent = 'FPS: 0';
-        document.body.appendChild(fpsCounter);
-
-        // Initialize FPS tracking variables
-        let lastFrameTime = performance.now();
-        let frameCount = 0;
-
-        // Function to update FPS counter
-        function updateFPS() {
-            const now = performance.now();
-            frameCount++;
-
-            if (now - lastFrameTime >= 1000) {
-                const fps = Math.round(frameCount * 1000 / (now - lastFrameTime));
-                fpsCounter.textContent = 'FPS: ' + fps;
-                frameCount = 0;
-                lastFrameTime = now;
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE void initThreeScene() {
+        EM_ASM_({
+            // Load Three.js if not already loaded
+            if (!window.THREE) {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+                script.onload = function() {
+                    initScene();
+                };
+                document.head.appendChild(script);
+            } else {
+                initScene();
             }
 
-            requestAnimationFrame(updateFPS);
-        }
+            function initScene() {
+                // Create Three.js scene if it doesn't exist
+                if (!window._threeScene) {
+                    // Create scene
+                    window._threeScene = new THREE.Scene();
+                    
+                    // Get main canvas size
+                    var mainCanvas = document.getElementById('xr-canvas');
+                    var canvasWidth = mainCanvas.width;
+                    var canvasHeight = mainCanvas.height;
+                    
+                    // Create camera with correct aspect ratio
+                    window._threeCamera = new THREE.PerspectiveCamera(
+                        75,
+                        canvasWidth / canvasHeight,
+                        0.1,
+                        1000
+                    );
+                    window._threeCamera.position.set(0, 5, 5);  // Поднимаем камеру и отодвигаем назад
+                    window._threeCamera.lookAt(0, 0, 0);  // Смотрим в центр сцены
+                    
+                    // Add grid helper
+                    var gridHelper = new THREE.GridHelper(10, 10, 0x0000ff, 0x808080);
+                    window._threeScene.add(gridHelper);
+                    
+                    // Add axes helper
+                    var axesHelper = new THREE.AxesHelper(5);
+                    window._threeScene.add(axesHelper);
+                    
+                    // Create renderer
+                    var rendererOptions = Object.create(null);
+                    rendererOptions.alpha = true;
+                    rendererOptions.antialias = true;
+                    window._threeRenderer = new THREE.WebGLRenderer(rendererOptions);
+                    
+                    // Set Three.js canvas size to match main canvas
+                    window._threeRenderer.setSize(canvasWidth, canvasHeight);
+                    window._threeRenderer.setClearColor(0x000000, 0);
+                    
+                    // Style the canvas to match main canvas
+                    var canvas = window._threeRenderer.domElement;
+                    canvas.style.position = 'fixed';
+                    canvas.style.top = '0';
+                    canvas.style.left = '0';
+                    canvas.style.width = mainCanvas.style.width;
+                    canvas.style.height = mainCanvas.style.height;
+                    canvas.style.zIndex = '2';
+                    
+                    // Add renderer to DOM
+                    document.body.appendChild(canvas);
+                    
+                    // Add mouse navigation
+                    let isDragging = false;
+                    var previousMousePosition = Object.create(null);
+                    previousMousePosition.x = 0;
+                    previousMousePosition.y = 0;
+                    
+                    // Camera orbit parameters
+                    var cameraDistance = 7;  // Distance from camera to center
+                    var cameraPhi = Math.PI / 4;  // Angle of inclination (vertical)
+                    var cameraTheta = 0;  // Angle of rotation (horizontal)
+                    
+                    function updateCameraPosition() {
+                        // Convert spherical coordinates to Cartesian
+                        window._threeCamera.position.x = cameraDistance * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+                        window._threeCamera.position.y = cameraDistance * Math.cos(cameraPhi);
+                        window._threeCamera.position.z = cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+                        window._threeCamera.lookAt(0, 0, 0);
+                    }
+                    
+                    // Set initial camera position
+                    updateCameraPosition();
+                    
+                    canvas.addEventListener('mousedown', function(e) {
+                        isDragging = true;
+                        previousMousePosition.x = e.clientX;
+                        previousMousePosition.y = e.clientY;
+                    });
 
-        // Start FPS counter
-        updateFPS();
-    });
+                    canvas.addEventListener('mousemove', function(e) {
+                        if (!isDragging) return;
+                        
+                        var deltaMove = Object.create(null);
+                        deltaMove.x = e.clientX - previousMousePosition.x;
+                        deltaMove.y = e.clientY - previousMousePosition.y;
+
+                        // Update angles (inverted rotation)
+                        cameraTheta += deltaMove.x * 0.01;  // Inverted horizontal rotation
+                        cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi - deltaMove.y * 0.01));  // Inverted vertical rotation
+
+                        // Обновляем позицию камеры
+                        updateCameraPosition();
+
+                        previousMousePosition.x = e.clientX;
+                        previousMousePosition.y = e.clientY;
+                    });
+
+                    canvas.addEventListener('mouseup', function() {
+                        isDragging = false;
+                    });
+                    
+                    // Handle window resize
+                    window.addEventListener('resize', () => {
+                        // Update main canvas size
+                        var mainCanvas = document.getElementById('xr-canvas');
+                        var canvasWidth = mainCanvas.width;
+                        var canvasHeight = mainCanvas.height;
+                        
+                        // Update Three.js canvas size
+                        window._threeCamera.aspect = canvasWidth / canvasHeight;
+                        window._threeCamera.updateProjectionMatrix();
+                        window._threeRenderer.setSize(canvasWidth, canvasHeight);
+                        canvas.style.width = mainCanvas.style.width;
+                        canvas.style.height = mainCanvas.style.height;
+                    });
+
+                    // Add to render pipeline
+                    if (!window._renderPipeline) {
+                        window._renderPipeline = [];
+                    }
+                    var renderStage = Object.create(null);
+                    renderStage.render = function(gl) {
+                        // Render Three.js scene
+                        window._threeRenderer.render(window._threeScene, window._threeCamera);
+                    };
+                    window._renderPipeline.push(renderStage);
+
+                    // Start animation loop
+                    function animate() {
+                        requestAnimationFrame(animate);
+                        window._threeRenderer.render(window._threeScene, window._threeCamera);
+                    }
+                    animate();
+                }
+            }
+        });
+    }
 }
+
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE void showLogo() {
+        EM_ASM_({
+            const mainCanvas = document.getElementById('xr-canvas');
+            if (mainCanvas) {
+                // Create canvas for logo
+                const logoCanvas = document.createElement('canvas');
+                logoCanvas.style.position = 'absolute';
+                logoCanvas.style.top = '0';
+                logoCanvas.style.left = '0';
+                logoCanvas.style.width = mainCanvas.style.width;
+                logoCanvas.style.height = mainCanvas.style.height;
+                logoCanvas.style.pointerEvents = 'none';
+                logoCanvas.style.zIndex = '1000';
+                logoCanvas.style.mixBlendMode = 'overlay';
+                
+                // Set size of logo canvas
+                logoCanvas.width = mainCanvas.width;
+                logoCanvas.height = mainCanvas.height;
+                
+                // Get context and draw SVG
+                const ctx = logoCanvas.getContext('2d');
+                const img = new Image();
+                img.onload = function() {
+                    // Calculate size of logo (25% of canvas width)
+                    const logoWidth = mainCanvas.width * 0.25;
+                    const logoHeight = (logoWidth * img.height) / img.width;
+                    
+                    // Draw logo in left bottom corner
+                    ctx.drawImage(img, 
+                        15, // left offset
+                        mainCanvas.height - logoHeight - 15, // bottom offset
+                        logoWidth,
+                        logoHeight
+                    );
+                };
+                
+                // Convert SVG to data URL
+                const svgBlob = new Blob([UTF8ToString($0)], {type: 'image/svg+xml'});
+                img.src = URL.createObjectURL(svgBlob);
+                
+                // Add logo canvas after main canvas
+                mainCanvas.parentNode.insertBefore(logoCanvas, mainCanvas.nextSibling);
+            }
+        }, LOGO_SVG);
+    }
+}
+

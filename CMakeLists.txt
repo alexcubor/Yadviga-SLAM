@@ -56,7 +56,6 @@ set(EXPORTED_FUNCS
     "_getTrackingPoints"
     "_getTrackingPointsCount"
     "_arePointsReady"
-    "_testFPS"
 )
 # Convert list to string with square brackets and commas
 string(JOIN "," EXPORTED_FUNCS_STR ${EXPORTED_FUNCS})
@@ -68,3 +67,16 @@ set_target_properties(yadviga-slam PROPERTIES
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -matomics -mbulk-memory -pthread")
+
+# Read SVG file and create header
+file(READ ${CMAKE_SOURCE_DIR}/resources/logo.svg LOGO_SVG_CONTENT)
+string(REPLACE "\"" "\\\"" LOGO_SVG_CONTENT "${LOGO_SVG_CONTENT}")
+string(REPLACE "\n" "\\n" LOGO_SVG_CONTENT "${LOGO_SVG_CONTENT}")
+configure_file(
+    ${CMAKE_SOURCE_DIR}/resources/logo.svg.h.in
+    ${CMAKE_BINARY_DIR}/logo.svg.h
+    @ONLY
+)
+
+# Add binary directory to include paths
+include_directories(${CMAKE_BINARY_DIR})

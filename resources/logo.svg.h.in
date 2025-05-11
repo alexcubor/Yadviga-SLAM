@@ -1,0 +1,6 @@
+#ifndef LOGO_SVG_H
+#define LOGO_SVG_H
+
+#define LOGO_SVG "@LOGO_SVG_CONTENT@"
+
+#endif // LOGO_SVG_H 
