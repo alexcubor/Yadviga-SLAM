@@ -9,11 +9,11 @@ extern "C" void startMapping();
 
 // Autorun function
 int main() {
-    std::cout << "Initialize.cpp ✅" << std::endl;
+    std::cout << "🚀 Initialize ✅ Yadviga SLAM" << std::endl;
     renderFrame();
     initThreeScene();
     startTracking();
-    startMapping();
+    // startMapping();
     
 
     // ========================================================================================

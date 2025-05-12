@@ -61,13 +61,6 @@ void trackingThread() {
         bool isReady = frameReady.load(std::memory_order_acquire);
         
         if (isReady) {
-            // EM_ASM({
-            //     self.trackingFrameCount++;
-            //     console.log("Tracking: Frame ready now:", Module._getFrameReady(), "Frame count:", self.trackingFrameCount);
-            //     const frameData = new Uint8Array(Module.HEAPU8.buffer, Module._getFrameBuffer(), Module._getFrameBufferSize());
-            //     console.log("Tracking: Frame buffer:", frameData);
-            // });
-
             cv::Mat frame(frameHeight, frameWidth, CV_8UC4, frameBuffer);
 
             // Convert current frame to grayscale
@@ -75,9 +68,8 @@ void trackingThread() {
             cv::cvtColor(frame, gray, cv::COLOR_RGBA2GRAY);
                 
             if (!isInitialized || trackingPoints.empty()) {
-                EM_ASM_DOUBLE({
-                    console.log("TRACKING: Initializing points");
-                    return 0.0;
+                EM_ASM({
+                    console.log("✨ Tracking: Initializing engine");
                 });
                     
                 // Initialize at first frame
@@ -114,18 +106,9 @@ void trackingThread() {
                 // Atomically update the number of points and set the readiness flag
                 trackingPointsCount.store(trackingPoints.size(), std::memory_order_release);
                 pointsReady.store(true, std::memory_order_release);
-                
-                // Log original coordinates
-                // EM_ASM({
-                //     const pointsCount = $0;
-                //     const pointsPtr = $1;
-                //     const points = new Float32Array(Module.HEAPF32.buffer, pointsPtr, pointsCount * 2);
-                //     console.log("TRACKING: Points data:", Array.from(points));
-                // }, corners.size(), trackingPoints.data());
-            } else { // Trackinng other frames after initialization
-                EM_ASM_DOUBLE({
-                    console.log("TRACKING: Tracking points");
-                    return 0.0;
+            } else { // Tracking other frames after initialization
+                EM_ASM({
+                    console.log("✨ Tracking points");
                 });
                 // Tracking points with Lucas-Kanade
                 std::vector<float> err; 
@@ -161,14 +144,6 @@ void trackingThread() {
                     pointStatus      // inliers mask
                 );
                 essentialMatrix = E;  // Save in global variable
-                
-                // Log original coordinates
-                // EM_ASM({
-                //     const pointsCount = $0;
-                //     const pointsPtr = $1;
-                //     const points = new Float32Array(Module.HEAPF32.buffer, pointsPtr, pointsCount * 2);
-                //     console.log("TRACKING: Points data:", Array.from(points));
-                // }, prevTrackingPoints.size(), trackingPoints.data());
             }
                 
             frameReady.store(false, std::memory_order_release);
@@ -180,7 +155,7 @@ void trackingThread() {
 
 extern "C" void startTracking() {
     EM_ASM({
-        console.log("Tracking.cpp ✅ thread 1");
+        console.log("✨ Tracking ✅ thread 1");
     });
     std::thread t(trackingThread);
     t.detach();  // Detach the thread

@@ -60,7 +60,7 @@ extern "C" void setFrameHeight(int height) {
 extern "C" {
     void renderFrame() {
         EM_ASM_({
-            console.log("Renderer.cpp ✅");
+            console.log("🎞️ Renderer ✅ GPU");
             // Create canvas element
             var canvas = document.createElement('canvas');
             canvas.id = 'xr-canvas';
