@@ -82,7 +82,7 @@ extern "C" {
             canvas.style.position = 'fixed';
             canvas.style.top = '0';
             canvas.style.left = '0';
-            
+
             const gl = canvas.getContext('webgl', {
                 alpha: false,
                 antialias: false,
@@ -94,7 +94,7 @@ extern "C" {
             // Save context in global variable
             window._gl = gl;
             window.dispatchEvent(new CustomEvent('gl-ready', { detail: gl }));
-            
+
             // Initialize render pipeline if it doesn't exist
             if (!window._renderPipeline) {
                 window._renderPipeline = [];
@@ -309,12 +309,13 @@ extern "C" {
                             //         sum += Math.sin(i) * Math.cos(i);
                             //     }
                             // }
-
+                            
                             // Notify about frame readiness
                             Module._setFrameReady(true);
                         }
                         requestAnimationFrame(processFrame);
                     }
+
                     // Initialize camera manager if available
                     if (window.CameraManager) {
                         const cameraManager = new window.CameraManager();
@@ -328,10 +329,15 @@ extern "C" {
                             );
                         };
                     }
+
                     processFrame();
                 })
                 .catch(err => {
                     console.error('Error accessing camera:', err);
+                    if (localStorage.getItem('slam_camera_id')) {
+                        localStorage.removeItem('slam_camera_id');
+                        console.log('Removed camera ID from localStorage. Trying again...');
+                    }
                 });
         });
     }
