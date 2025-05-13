@@ -6,12 +6,12 @@ fpsCounter.style.top = '10px';
 fpsCounter.style.right = '10px';
 fpsCounter.style.color = 'white';
 fpsCounter.style.fontFamily = 'monospace';
-fpsCounter.style.fontSize = '16px';
-fpsCounter.style.backgroundColor = 'rgba(0,0,0,0.5)';
+fpsCounter.style.fontSize = '12px';
 fpsCounter.style.padding = '5px';
 fpsCounter.style.borderRadius = '5px';
 fpsCounter.style.zIndex = '1000';
 fpsCounter.textContent = 'FPS: 0';
+fpsCounter.style.mixBlendMode = 'overlay';
 document.body.appendChild(fpsCounter);
 
 // Initialize FPS tracking variables

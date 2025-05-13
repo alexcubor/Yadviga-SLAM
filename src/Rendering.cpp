@@ -64,9 +64,21 @@ extern "C" {
             // Create canvas element
             var canvas = document.createElement('canvas');
             canvas.id = 'xr-canvas';
-            canvas.width = 640;
-            canvas.height = 480;
-            canvas.style.width = '100%';
+            
+            // Make canvas fullscreen
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                canvas.style.width = '100vw';
+                canvas.style.height = '100vh';
+            }
+            
+            // Initial resize
+            resizeCanvas();
+            
+            // Handle window resize
+            window.addEventListener('resize', resizeCanvas);
+            
             canvas.style.position = 'fixed';
             canvas.style.top = '0';
             canvas.style.left = '0';
@@ -113,8 +125,35 @@ extern "C" {
                 precision mediump float;
                 varying vec2 v_texCoord;
                 uniform sampler2D u_image;
+                uniform vec2 u_resolution;
+                uniform vec2 u_videoResolution;
                 void main() {
-                    gl_FragColor = texture2D(u_image, v_texCoord);
+                    // Calculate aspect ratios
+                    float videoAspect = u_videoResolution.x / u_videoResolution.y;
+                    float screenAspect = u_resolution.x / u_resolution.y;
+                    
+                    // Calculate scaling factors
+                    float scaleX = 1.0;
+                    float scaleY = 1.0;
+                    
+                    if (videoAspect > screenAspect) {
+                        // Video is wider than screen
+                        scaleX = screenAspect / videoAspect;
+                    } else {
+                        // Video is taller than screen
+                        scaleY = videoAspect / screenAspect;
+                    }
+                    
+                    // Calculate centered coordinates
+                    vec2 centeredCoord = (v_texCoord - 0.5) * vec2(scaleX, scaleY) + 0.5;
+                    
+                    // Check if the coordinate is within bounds
+                    if (centeredCoord.x >= 0.0 && centeredCoord.x <= 1.0 &&
+                        centeredCoord.y >= 0.0 && centeredCoord.y <= 1.0) {
+                        gl_FragColor = texture2D(u_image, centeredCoord);
+                    } else {
+                        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // Black bars
+                    }
                 }
             `);
             gl.compileShader(fragmentShader);
@@ -125,6 +164,10 @@ extern "C" {
             gl.attachShader(videoProgram, fragmentShader);
             gl.linkProgram(videoProgram);
             gl.useProgram(videoProgram);
+
+            // Get uniform locations
+            const resolutionLocation = gl.getUniformLocation(videoProgram, 'u_resolution');
+            const videoResolutionLocation = gl.getUniformLocation(videoProgram, 'u_videoResolution');
 
             // Create buffers for video
             const positionBuffer = gl.createBuffer();
@@ -139,17 +182,17 @@ extern "C" {
             const texCoordBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-                1.0, 1.0,  // Bottom right
                 0.0, 1.0,  // Bottom left
-                1.0, 0.0,  // Top right
-                0.0, 0.0   // Top left
+                1.0, 1.0,  // Bottom right
+                0.0, 0.0,  // Top left
+                1.0, 0.0   // Top right
             ]), gl.STATIC_DRAW);
 
             // Create texture for video
             const videoTexture = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
@@ -164,7 +207,15 @@ extern "C" {
             document.body.appendChild(canvas);
 
             // Request access to camera
-            navigator.mediaDevices.getUserMedia({ video: true })
+            navigator.mediaDevices.getUserMedia({ 
+                video: {
+                    deviceId: localStorage.getItem('slam_camera_id') ? 
+                        { exact: localStorage.getItem('slam_camera_id') } : 
+                        undefined,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            })
                 .then(stream => {
                     // Get camera matrix
                     const track = stream.getVideoTracks()[0];
@@ -194,6 +245,10 @@ extern "C" {
 
                             // Draw video
                             gl.useProgram(videoProgram);
+                            
+                            // Update uniforms
+                            gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+                            gl.uniform2f(videoResolutionLocation, video.videoWidth, video.videoHeight);
                             
                             // Update texture
                             gl.bindTexture(gl.TEXTURE_2D, videoTexture);
@@ -260,7 +315,19 @@ extern "C" {
                         }
                         requestAnimationFrame(processFrame);
                     }
-                    
+                    // Initialize camera manager if available
+                    if (window.CameraManager) {
+                        const cameraManager = new window.CameraManager();
+                        cameraManager.init(video);
+                        cameraManager.onCameraChange = (settings) => {
+                            Module._setCameraMatrix(
+                                settings.width,
+                                settings.height,
+                                settings.width / 2,
+                                settings.height / 2
+                            );
+                        };
+                    }
                     processFrame();
                 })
                 .catch(err => {
