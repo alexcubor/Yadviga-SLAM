@@ -58,6 +58,7 @@ These configurations provide:
    cd build
    emcmake cmake .. -DCMAKE_CXX_FLAGS="-msimd128"
    emmake make -j4
+   cp yadviga-slam.js yadviga-slam.worker.js ../web/ || echo 'Failed to copy files'
    ```
 
 ## Testing and Debugging
