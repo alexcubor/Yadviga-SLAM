@@ -3,16 +3,44 @@
   <head>
     <meta charset="UTF-8">
     <title>SLAM Yadviga</title>
+    <!-- Cache control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script>
+      // Clear all caches on page load
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+      
+      // Clear localStorage
+      // localStorage.clear();
+      
+      // Clear sessionStorage
+      sessionStorage.clear();
+      
+      // Force reload from server
+      window.onload = function() {
+        if (!window.location.hash) {
+          window.location = window.location + '#loaded';
+          window.location.reload(true);
+        }
+      }
+    </script>
   </head>
   <body>
     <!-- SLAM ENGINE -->
     <script src="yadviga-slam.js"></script>
 
     <!-- TESTS --> 
-    <script src="test-tracking.js"></script>
-    <script src="test-fps.js"></script>
     <script src="test-camera.js"></script>
-    <script src="test-mapping.js"></script>
+    <!-- <script src="test-tracking.js"></script> -->
+    <!-- <script src="test-fps.js"></script> -->
+    <!-- <script src="test-mapping.js"></script> -->
     <!-- <script src="three-cube.js"></script> -->
   </body>
 </html>
