@@ -29,7 +29,7 @@ include_directories(
 # Add source files
 set(SOURCES
     src/Initialize.cpp
-    # src/Tracking.cpp
+    src/Tracking.cpp
     src/Rendering.cpp
     # src/Mapping.cpp
 )
@@ -52,10 +52,10 @@ set(EXPORTED_FUNCS
     "_setFrameBufferSize"
     "_setFrameWidth"
     "_setFrameHeight"
-    # "_startTracking"
-    # "_getTrackingPoints"
-    # "_getTrackingPointsCount"
-    # "_arePointsReady"
+    "_startTracking"
+    "_getTrackingPoints"
+    "_getTrackingPointsCount"
+    "_arePointsReady"
 )
 # Convert list to string with square brackets and commas
 string(JOIN "," EXPORTED_FUNCS_STR ${EXPORTED_FUNCS})
@@ -63,10 +63,10 @@ string(JOIN "," EXPORTED_FUNCS_STR ${EXPORTED_FUNCS})
 # Set Emscripten-specific flags
 set_target_properties(yadviga-slam PROPERTIES
     SUFFIX ".js"
-    LINK_FLAGS "-s SINGLE_FILE=1 -s INVOKE_RUN=1 -s USE_PTHREADS=0 -s WASM_ASYNC_COMPILATION=1 -s EXPORTED_FUNCTIONS=[${EXPORTED_FUNCS_STR}] -s ALLOW_MEMORY_GROWTH=1"
+    LINK_FLAGS "-s SINGLE_FILE=1 -s INVOKE_RUN=1 -s USE_PTHREADS=0 -s WASM_ASYNC_COMPILATION=1 -s EXPORTED_FUNCTIONS=[${EXPORTED_FUNCS_STR}] -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY=1"
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -mbulk-memory")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -mbulk-memory -s ASYNCIFY")
 
 # Read SVG file and create header
 file(READ ${CMAKE_SOURCE_DIR}/resources/logo.svg LOGO_SVG_CONTENT)

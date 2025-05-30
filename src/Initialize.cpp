@@ -3,7 +3,7 @@
 
 extern "C" void renderFrame();
 // extern "C" void initThreeScene();
-// extern "C" void startTracking();
+extern "C" void startTracking();
 // extern "C" void startMapping();
 
 
@@ -31,7 +31,7 @@ int main() {
 
     renderFrame();
     // initThreeScene();
-    // startTracking();
+    startTracking();
     // startMapping();
     
 

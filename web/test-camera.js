@@ -229,7 +229,6 @@ class CameraManager {
             // Get camera settings
             const track = stream.getVideoTracks()[0];
             const settings = track.getSettings();
-            console.log('📹 Camera settings:', settings);
 
             // Notify about camera change
             if (this.onCameraChange) {
@@ -245,7 +244,7 @@ class CameraManager {
 const observer = new MutationObserver((mutations) => {
     if (window.YAGA) {
         observer.disconnect();
-        console.log('test-camera.js loaded');
+        console.log('🧪 Enable test-camera.js');
         const cameraManager = new CameraManager();
         cameraManager.init();
     }
