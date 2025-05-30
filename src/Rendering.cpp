@@ -263,7 +263,8 @@ extern "C" {
                             // Check if we need to mirror the video
                             const videoTrack = YAGA.video.srcObject.getVideoTracks()[0];
                             const settings = videoTrack.getSettings();
-                            const isFrontCamera = settings.facingMode === 'user';
+                            // Mirror if it's front camera or if facingMode is not defined (desktop)
+                            const isFrontCamera = settings.facingMode === 'user' || !settings.facingMode;
                             gl.uniform1i(isFrontCameraLocation, isFrontCamera);
                             
                             // Update texture
