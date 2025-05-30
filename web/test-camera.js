@@ -126,8 +126,13 @@ class CameraManager {
         const updateDimensions = () => {
             const canvas = document.getElementById('xr-canvas');
             if (canvas && YAGA.video) {
+                const videoTrack = YAGA.video.srcObject?.getVideoTracks()[0];
+                const settings = videoTrack?.getSettings();
+                const facingMode = settings?.facingMode || 'unknown';
+                
                 dimensionsDiv.innerHTML = `
                     Canvas: ${canvas.width}x${canvas.height}<br>
+                    Camera: ${facingMode}<br>
                     Video: ${YAGA.video.videoWidth}x${YAGA.video.videoHeight}<br>
                     Window: ${window.innerWidth}x${window.innerHeight}<br>
                     DPI: ${window.devicePixelRatio}

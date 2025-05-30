@@ -69,22 +69,14 @@ extern "C" {
             canvas.id = 'xr-canvas';
             
             // Make canvas fullscreen
-            function resizeCanvas() {
-                canvas.width = window.visualViewport.width;
-                canvas.height = window.visualViewport.height;
-                canvas.style.width = '100vw';
-                canvas.style.height = '100vh';
-            }
-            
-            // Initial resize
-            resizeCanvas();
-            
-            // Handle window resize
-            window.visualViewport.addEventListener('resize', resizeCanvas);
-            
+            canvas.width = window.visualViewport.width;
+            canvas.height = window.visualViewport.height;
+            canvas.style.width = '100vw';
+            canvas.style.height = '100vh';
             canvas.style.position = 'fixed';
             canvas.style.top = '0';
             canvas.style.left = '0';
+            canvas.style.objectFit = 'cover'; // Save proportions
 
             const gl = canvas.getContext('webgl', {
                 alpha: false,
@@ -130,6 +122,8 @@ extern "C" {
                 uniform sampler2D u_image;
                 uniform vec2 u_resolution;
                 uniform vec2 u_videoResolution;
+                uniform bool u_isFrontCamera;  // New uniform for camera type
+                
                 void main() {
                     // Calculate aspect ratios
                     float videoAspect = u_videoResolution.x / u_videoResolution.y;
@@ -152,6 +146,11 @@ extern "C" {
                     // Calculate centered coordinates
                     vec2 centeredCoord = (v_texCoord - 0.5) * vec2(scaleX, scaleY) + 0.5;
                     
+                    // Mirror coordinates for front camera
+                    if (u_isFrontCamera) {
+                        centeredCoord.x = 1.0 - centeredCoord.x;
+                    }
+                    
                     // Check if the coordinate is within bounds
                     if (centeredCoord.x >= 0.0 && centeredCoord.x <= 1.0 &&
                         centeredCoord.y >= 0.0 && centeredCoord.y <= 1.0) {
@@ -173,6 +172,7 @@ extern "C" {
             // Get uniform locations
             const resolutionLocation = gl.getUniformLocation(videoProgram, 'u_resolution');
             const videoResolutionLocation = gl.getUniformLocation(videoProgram, 'u_videoResolution');
+            const isFrontCameraLocation = gl.getUniformLocation(videoProgram, 'u_isFrontCamera');
 
             // Create buffers for video
             const positionBuffer = gl.createBuffer();
@@ -202,11 +202,11 @@ extern "C" {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
             // Create video element
-            const video = document.createElement('video');
-            video.autoplay = true;
-            video.playsInline = true;
-            video.width = canvas.width;
-            video.height = canvas.height;
+            YAGA.video = document.createElement('video');
+            YAGA.video.autoplay = true;
+            YAGA.video.playsInline = true;
+            YAGA.video.width = canvas.width;
+            YAGA.video.height = canvas.height;
             
             // Add canvas to body
             document.body.appendChild(canvas);
@@ -235,16 +235,16 @@ extern "C" {
                         settings.height / 2  // cy in center
                     );
                     
-                    video.srcObject = stream;
-                    video.play();
+                    YAGA.video.srcObject = stream;
+                    YAGA.video.play();
 
                     // Initialize video in YAGA module
-                    YAGA.video = video;
-                    YAGA.init();
+                    // YAGA.video = video;
+                    // YAGA.init();
                     
                     // Function to process frame
                     function processFrame() {
-                        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        if (YAGA.video.readyState === YAGA.video.HAVE_ENOUGH_DATA) {
                             // Save current state
                             const previousProgram = gl.getParameter(gl.CURRENT_PROGRAM);
                             const previousBlendEnabled = gl.getParameter(gl.BLEND);
@@ -258,11 +258,17 @@ extern "C" {
                             
                             // Update uniforms
                             gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-                            gl.uniform2f(videoResolutionLocation, video.videoWidth, video.videoHeight);
+                            gl.uniform2f(videoResolutionLocation, YAGA.video.videoWidth, YAGA.video.videoHeight);
+                            
+                            // Check if we need to mirror the video
+                            const videoTrack = YAGA.video.srcObject.getVideoTracks()[0];
+                            const settings = videoTrack.getSettings();
+                            const isFrontCamera = settings.facingMode === 'user';
+                            gl.uniform1i(isFrontCameraLocation, isFrontCamera);
                             
                             // Update texture
                             gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-                            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, YAGA.video);
                             
                             // Set attributes for video
                             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -319,7 +325,7 @@ extern "C" {
                     // Initialize camera manager if available
                     if (window.CameraManager) {
                         const cameraManager = new window.CameraManager();
-                        cameraManager.init(video);
+                        cameraManager.init(YAGA.video);
                         cameraManager.onCameraChange = (settings) => {
                             Module._setCameraMatrix(
                                 settings.width,

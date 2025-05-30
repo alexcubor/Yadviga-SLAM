@@ -1,3 +1,5 @@
+console.log("🎞️ Renderer ✅ GPU");
+
 // Create video element
 if (!window.YAGA) {
     window.YAGA = { 
@@ -9,26 +11,19 @@ if (!window.YAGA) {
     };
 }
 
-if (!YAGA.video) {
-    YAGA.video = document.createElement('video');
-    YAGA.video.autoplay = true;
-    YAGA.video.playsInline = true;
-}
-
-// Create canvas for GPU rendering
+// Create canvas element
 const canvas = document.createElement('canvas');
-canvas.id = 'xr-canvas';  // Add id for compatibility
+canvas.id = 'xr-canvas';
 
-// Style canvas to fill screen
+// Make canvas fullscreen
+canvas.width = window.visualViewport.width;
+canvas.height = window.visualViewport.height;
+canvas.style.width = '100vw';
+canvas.style.height = '100vh';
 canvas.style.position = 'fixed';
 canvas.style.top = '0';
 canvas.style.left = '0';
-canvas.style.width = '100%';
-canvas.style.height = '100%';
 canvas.style.objectFit = 'cover';
-
-// Add canvas to page
-document.body.appendChild(canvas);
 
 // Initialize WebGL context
 const gl = canvas.getContext('webgl');
@@ -136,6 +131,13 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+YAGA.video = document.createElement('video');
+YAGA.video.autoplay = true;
+YAGA.video.playsInline = true;
+
+// Add canvas to page
+document.body.appendChild(canvas);
 
 // Request camera access
 navigator.mediaDevices.getUserMedia({
