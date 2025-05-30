@@ -6,16 +6,26 @@ class CameraManager {
         this.lastSelectedCameraId = localStorage.getItem('slam_camera_id');
     }
 
-    init(videoElement) {
-        this.video = videoElement;
+    async init() {
         this.createUI();
-        this.updateCameraList();
+        
+        // First request camera access
+        try {
+            await navigator.mediaDevices.getUserMedia({ video: true });
+            // After getting access, update camera list
+            await this.updateCameraList();
+        } catch (err) {
+            console.error('Error getting camera access:', err);
+        }
+        
         this.setupAspectRatioHandling();
     }
 
     setupAspectRatioHandling() {
         // Create container for video
-        const container = this.video.parentElement;
+        if (!YAGA.video) return;  // Check if video exists
+        
+        const container = YAGA.video.parentElement;
         if (!container) return;
 
         // Container styles
@@ -25,20 +35,20 @@ class CameraManager {
         container.style.overflow = 'hidden';
 
         // Video styles
-        this.video.style.position = 'absolute';
-        this.video.style.top = '50%';
-        this.video.style.left = '50%';
-        this.video.style.transform = 'translate(-50%, -50%)';
-        this.video.style.minWidth = '100%';
-        this.video.style.minHeight = '100%';
-        this.video.style.width = 'auto';
-        this.video.style.height = 'auto';
+        YAGA.video.style.position = 'absolute';
+        YAGA.video.style.top = '50%';
+        YAGA.video.style.left = '50%';
+        YAGA.video.style.transform = 'translate(-50%, -50%)';
+        YAGA.video.style.minWidth = '100%';
+        YAGA.video.style.minHeight = '100%';
+        YAGA.video.style.width = 'auto';
+        YAGA.video.style.height = 'auto';
 
         // Function to update video size
         const updateVideoSize = () => {
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
-            const videoAspect = this.video.videoWidth / this.video.videoHeight;
+            const videoAspect = YAGA.video.videoWidth / YAGA.video.videoHeight;
             const containerAspect = containerWidth / containerHeight;
 
             // Determine video orientation
@@ -49,29 +59,29 @@ class CameraManager {
                 // For portrait video
                 if (isContainerPortrait) {
                     // Container is also portrait - align by height
-                    this.video.style.width = 'auto';
-                    this.video.style.height = '100%';
+                    YAGA.video.style.width = 'auto';
+                    YAGA.video.style.height = '100%';
                 } else {
                     // Container is landscape - align by width
-                    this.video.style.width = '100%';
-                    this.video.style.height = 'auto';
+                    YAGA.video.style.width = '100%';
+                    YAGA.video.style.height = 'auto';
                 }
             } else {
                 // For landscape video
                 if (isContainerPortrait) {
                     // Container is portrait - align by width
-                    this.video.style.width = '100%';
-                    this.video.style.height = 'auto';
+                    YAGA.video.style.width = '100%';
+                    YAGA.video.style.height = 'auto';
                 } else {
                     // Container is landscape - align by height
-                    this.video.style.width = 'auto';
-                    this.video.style.height = '100%';
+                    YAGA.video.style.width = 'auto';
+                    YAGA.video.style.height = '100%';
                 }
             }
         };
 
         // Update sizes when video size changes
-        this.video.addEventListener('loadedmetadata', updateVideoSize);
+        YAGA.video.addEventListener('loadedmetadata', updateVideoSize);
         window.addEventListener('resize', updateVideoSize);
     }
 
@@ -115,10 +125,10 @@ class CameraManager {
         // Function to update dimensions
         const updateDimensions = () => {
             const canvas = document.getElementById('xr-canvas');
-            if (canvas && this.video) {
+            if (canvas && YAGA.video) {
                 dimensionsDiv.innerHTML = `
                     Canvas: ${canvas.width}x${canvas.height}<br>
-                    Video: ${this.video.videoWidth}x${this.video.videoHeight}<br>
+                    Video: ${YAGA.video.videoWidth}x${YAGA.video.videoHeight}<br>
                     Window: ${window.innerWidth}x${window.innerHeight}<br>
                     DPI: ${window.devicePixelRatio}
                 `;
@@ -196,8 +206,8 @@ class CameraManager {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     deviceId: {exact: deviceId},
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: window.innerHeight },
+                    height: { ideal: window.innerWidth }
                 }
             });
 
@@ -208,8 +218,8 @@ class CameraManager {
 
             // Set new stream
             this.currentStream = stream;
-            this.video.srcObject = stream;
-            await this.video.play();
+            YAGA.video.srcObject = stream;
+            await YAGA.video.play();
 
             // Get camera settings
             const track = stream.getVideoTracks()[0];
@@ -226,5 +236,19 @@ class CameraManager {
     }
 }
 
-// Export for use in other files
-window.CameraManager = CameraManager; 
+// Wait for YAGA creation through MutationObserver
+const observer = new MutationObserver((mutations) => {
+    if (window.YAGA) {
+        observer.disconnect();
+        console.log('test-camera.js loaded');
+        const cameraManager = new CameraManager();
+        cameraManager.init();
+    }
+});
+
+observer.observe(document, {
+    childList: true,
+    subtree: true
+});
+
+

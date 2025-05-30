@@ -1,13 +1,13 @@
 #include <emscripten.h>
 #include <opencv2/opencv.hpp>
-#include <thread>
-#include <atomic>
+#include <mutex>
 #include <memory>
 #include <iostream>
 #include "logo.svg.h"
 
 // Global variables for renderer
-EMSCRIPTEN_KEEPALIVE std::atomic<bool> frameReady{false};  // Definition with export
+EMSCRIPTEN_KEEPALIVE bool frameReady = false;  // Definition with export
+EMSCRIPTEN_KEEPALIVE std::mutex frameMutex;    // Mutex for frameReady
 EMSCRIPTEN_KEEPALIVE uint8_t* frameBuffer = nullptr;  // Pointer to frame buffer
 EMSCRIPTEN_KEEPALIVE size_t frameBufferSize = 0;  // Frame buffer size
 EMSCRIPTEN_KEEPALIVE int frameWidth = 0;  // Frame width
@@ -26,11 +26,13 @@ extern "C" {
 }
 
 extern "C" void setFrameReady(bool ready) {
-    frameReady.store(ready, std::memory_order_release);
+    std::lock_guard<std::mutex> lock(frameMutex);
+    frameReady = ready;
 }
 
 extern "C" bool getFrameReady() {
-    return frameReady.load(std::memory_order_acquire);
+    std::lock_guard<std::mutex> lock(frameMutex);
+    return frameReady;
 }
 
 extern "C" uint8_t* getFrameBuffer() {
@@ -61,14 +63,15 @@ extern "C" {
     void renderFrame() {
         EM_ASM_({
             console.log("🎞️ Renderer ✅ GPU");
+            
             // Create canvas element
             var canvas = document.createElement('canvas');
             canvas.id = 'xr-canvas';
             
             // Make canvas fullscreen
             function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
+                canvas.width = window.visualViewport.width;
+                canvas.height = window.visualViewport.height;
                 canvas.style.width = '100vw';
                 canvas.style.height = '100vh';
             }
@@ -77,7 +80,7 @@ extern "C" {
             resizeCanvas();
             
             // Handle window resize
-            window.addEventListener('resize', resizeCanvas);
+            window.visualViewport.addEventListener('resize', resizeCanvas);
             
             canvas.style.position = 'fixed';
             canvas.style.top = '0';
@@ -137,11 +140,13 @@ extern "C" {
                     float scaleY = 1.0;
                     
                     if (videoAspect > screenAspect) {
-                        // Video is wider than screen
+                        // Video is wider than screen - scale to fit height
+                        scaleY = 1.0;
                         scaleX = screenAspect / videoAspect;
                     } else {
-                        // Video is taller than screen
-                        scaleY = videoAspect / screenAspect;
+                        // Video is taller than screen - scale to fit width
+                        scaleX = 1.0;
+                        scaleY = 1.0;
                     }
                     
                     // Calculate centered coordinates
@@ -212,8 +217,9 @@ extern "C" {
                     deviceId: localStorage.getItem('slam_camera_id') ? 
                         { exact: localStorage.getItem('slam_camera_id') } : 
                         undefined,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    facingMode: { ideal: "environment" },  // Use back camera by default
+                    width: window.innerHeight,
+                    height: window.innerWidth,
                 }
             })
                 .then(stream => {
@@ -231,6 +237,10 @@ extern "C" {
                     
                     video.srcObject = stream;
                     video.play();
+
+                    // Initialize video in YAGA module
+                    YAGA.video = video;
+                    YAGA.init();
                     
                     // Function to process frame
                     function processFrame() {
@@ -299,16 +309,6 @@ extern "C" {
                             frameData.set(pixels);
                             Module._setFrameWidth(canvas.width);
                             Module._setFrameHeight(canvas.height);
-
-                            // Simulate heavy CPU load for ~50ms
-                            // const startTime = performance.now();
-                            // let sum = 0;
-                            // while (performance.now() - startTime < 50) {
-                            //     // Do some CPU-intensive work
-                            //     for (let i = 0; i < 1000000; i++) {
-                            //         sum += Math.sin(i) * Math.cos(i);
-                            //     }
-                            // }
                             
                             // Notify about frame readiness
                             Module._setFrameReady(true);
@@ -329,7 +329,7 @@ extern "C" {
                             );
                         };
                     }
-
+                    
                     processFrame();
                 })
                 .catch(err => {
@@ -503,31 +503,34 @@ extern "C" {
             if (mainCanvas) {
                 // Create canvas for logo
                 const logoCanvas = document.createElement('canvas');
-                logoCanvas.style.position = 'absolute';
+                logoCanvas.style.position = 'fixed';  // Changed to fixed
                 logoCanvas.style.top = '0';
                 logoCanvas.style.left = '0';
-                logoCanvas.style.width = mainCanvas.style.width;
-                logoCanvas.style.height = mainCanvas.style.height;
+                logoCanvas.style.width = '100%';
+                logoCanvas.style.height = '100%';
                 logoCanvas.style.pointerEvents = 'none';
                 logoCanvas.style.zIndex = '1000';
                 logoCanvas.style.mixBlendMode = 'overlay';
                 
-                // Set size of logo canvas
-                logoCanvas.width = mainCanvas.width;
-                logoCanvas.height = mainCanvas.height;
+                // Set size of logo canvas to match visual viewport
+                logoCanvas.width = window.visualViewport.width;
+                logoCanvas.height = window.visualViewport.height;
                 
                 // Get context and draw SVG
                 const ctx = logoCanvas.getContext('2d');
                 const img = new Image();
                 img.onload = function() {
                     // Calculate size of logo (25% of canvas width)
-                    const logoWidth = mainCanvas.width * 0.25;
+                    const logoWidth = window.visualViewport.width * 0.25;
                     const logoHeight = (logoWidth * img.height) / img.width;
                     
-                    // Draw logo in left bottom corner
+                    // Draw logo in left bottom corner with safe area offset
+                    const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0');
+                    const bottomOffset = Math.max(15, safeAreaBottom + 5); // At least 15px or safe area + 5px
+                    
                     ctx.drawImage(img, 
                         15, // left offset
-                        mainCanvas.height - logoHeight - 15, // bottom offset
+                        window.visualViewport.height - logoHeight - bottomOffset, // bottom offset with safe area
                         logoWidth,
                         logoHeight
                     );
@@ -539,6 +542,27 @@ extern "C" {
                 
                 // Add logo canvas after main canvas
                 mainCanvas.parentNode.insertBefore(logoCanvas, mainCanvas.nextSibling);
+                
+                // Handle viewport resize
+                window.visualViewport.addEventListener('resize', function() {
+                    // Update canvas size
+                    logoCanvas.width = window.visualViewport.width;
+                    logoCanvas.height = window.visualViewport.height;
+                    
+                    // Redraw logo
+                    const logoWidth = window.visualViewport.width * 0.25;
+                    const logoHeight = (logoWidth * img.height) / img.width;
+                    const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0');
+                    const bottomOffset = Math.max(15, safeAreaBottom + 5);
+                    
+                    ctx.clearRect(0, 0, logoCanvas.width, logoCanvas.height);
+                    ctx.drawImage(img, 
+                        15,
+                        window.visualViewport.height - logoHeight - bottomOffset,
+                        logoWidth,
+                        logoHeight
+                    );
+                });
             }
         }, LOGO_SVG);
     }
