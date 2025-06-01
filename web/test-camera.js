@@ -89,38 +89,65 @@ class CameraManager {
         // Set root font size
         document.documentElement.style.fontSize = '16px';
         
-        const cameraUI = document.createElement('div');
-        cameraUI.style.position = 'fixed';
-        cameraUI.style.top = '2vh';
-        cameraUI.style.left = '2vw';
-        cameraUI.style.width = '90vw';
-        cameraUI.style.maxWidth = '25rem'; // ~400px on standard displays
-        cameraUI.style.zIndex = '1000';
-        cameraUI.style.padding = '0.75rem';
-        cameraUI.style.borderRadius = '0.375rem';
-        cameraUI.style.color = 'white';
-        cameraUI.style.fontSize = '0.875rem';
-        cameraUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        // Create UI container if it doesn't exist
+        let uiContainer = document.getElementById('yaga-ui-container');
+        if (!uiContainer) {
+            uiContainer = document.createElement('div');
+            uiContainer.id = 'yaga-ui-container';
+            uiContainer.style.position = 'fixed';
+            uiContainer.style.top = '2vh';
+            uiContainer.style.left = '2vw';
+            uiContainer.style.zIndex = '1000';
+            uiContainer.style.display = 'flex';
+            uiContainer.style.flexDirection = 'column';
+            uiContainer.style.gap = '1rem';
+            document.body.appendChild(uiContainer);
+        }
         
+        const cameraUI = document.createElement('div');
+        cameraUI.style.width = '90vw';
+        cameraUI.style.maxWidth = '32rem';
+        cameraUI.style.padding = '1rem';
+        cameraUI.style.borderRadius = '0.5rem';
+        cameraUI.style.color = 'white';
+        cameraUI.style.fontSize = '1rem';
+        cameraUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        cameraUI.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+        
+        // Create camera selection row
         const cameraSelect = document.createElement('select');
         cameraSelect.style.width = '100%';
-        cameraSelect.style.padding = '0.5rem';
+        cameraSelect.style.padding = '0.75rem';
         cameraSelect.style.backgroundColor = 'rgba(255,255,255,0.1)';
         cameraSelect.style.color = 'white';
         cameraSelect.style.border = '1px solid rgba(255,255,255,0.3)';
-        cameraSelect.style.borderRadius = '0.25rem';
-        cameraSelect.style.fontSize = '0.875rem';
-        cameraSelect.style.marginBottom = '0.5rem';
+        cameraSelect.style.borderRadius = '0.375rem';
+        cameraSelect.style.fontSize = '1rem';
+        cameraSelect.style.marginBottom = '0.75rem';
         
-        // Add dimensions display
+        // Create dimensions display row
         const dimensionsDiv = document.createElement('div');
-        dimensionsDiv.style.marginTop = '0.5rem';
-        dimensionsDiv.style.padding = '0.5rem';
+        dimensionsDiv.style.display = 'flex';
+        dimensionsDiv.style.gap = '1rem';
+        dimensionsDiv.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        dimensionsDiv.style.padding = '0.75rem';
         dimensionsDiv.style.backgroundColor = 'rgba(0,0,0,0.3)';
-        dimensionsDiv.style.borderRadius = '0.25rem';
-        dimensionsDiv.style.fontFamily = 'monospace';
-        dimensionsDiv.style.fontSize = '0.75rem';
-        dimensionsDiv.style.lineHeight = '1.5';
+        dimensionsDiv.style.borderRadius = '0.375rem';
+        dimensionsDiv.style.fontSize = '1rem';
+        dimensionsDiv.style.lineHeight = '1.6';
+        
+        // Create blocks for each type of information
+        const cameraInfoBlock = document.createElement('div');
+        cameraInfoBlock.style.flex = '1';
+        cameraInfoBlock.style.padding = '0.75rem';
+        cameraInfoBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
+        cameraInfoBlock.style.borderRadius = '0.375rem';
+        
+        const dpiInfoBlock = document.createElement('div');
+        dpiInfoBlock.style.flex = '1';
+        dpiInfoBlock.style.padding = '0.75rem';
+        dpiInfoBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
+        dpiInfoBlock.style.borderRadius = '0.375rem';
         
         // Function to update dimensions
         const updateDimensions = () => {
@@ -130,13 +157,14 @@ class CameraManager {
                 const settings = videoTrack?.getSettings();
                 const facingMode = settings?.facingMode || 'unknown';
                 
-                dimensionsDiv.innerHTML = `
-                    Canvas: ${canvas.width}x${canvas.height}<br>
+                cameraInfoBlock.innerHTML = `
                     Camera: ${facingMode}<br>
                     Video: ${YAGA.video.videoWidth}x${YAGA.video.videoHeight}<br>
+                    Canvas: ${canvas.width}x${canvas.height}`;
+                
+                dpiInfoBlock.innerHTML = `
                     Window: ${window.innerWidth}x${window.innerHeight}<br>
-                    DPI: ${window.devicePixelRatio}
-                `;
+                    DPI: ${window.devicePixelRatio}`;
             }
         };
         
@@ -151,12 +179,19 @@ class CameraManager {
             }
         };
         
+        // Add blocks to dimensions row
+        dimensionsDiv.appendChild(cameraInfoBlock);
+        dimensionsDiv.appendChild(dpiInfoBlock);
+        
+        // Add elements to UI
         cameraUI.appendChild(cameraSelect);
         cameraUI.appendChild(dimensionsDiv);
-        document.body.appendChild(cameraUI);
+        uiContainer.appendChild(cameraUI);
         
         this.cameraSelect = cameraSelect;
         this.dimensionsDiv = dimensionsDiv;
+        this.cameraInfoBlock = cameraInfoBlock;
+        this.dpiInfoBlock = dpiInfoBlock;
     }
 
     async updateCameraList() {
@@ -175,29 +210,43 @@ class CameraManager {
                 this.cameraSelect.appendChild(option);
             });
 
-            // Try to select back camera by default
-            if (!this.lastSelectedCameraId) {
-                // First try to find camera with "back" in label
-                const backCamera = videoDevices.find(device => 
-                    device.label.toLowerCase().includes('back') || 
-                    device.label.toLowerCase().includes('rear')
-                );
-                
-                if (backCamera) {
-                    this.cameraSelect.value = backCamera.deviceId;
-                    this.switchCamera(backCamera.deviceId);
-                } else if (videoDevices.length > 0) {
-                    // If no back camera found, use the first available camera
-                    this.cameraSelect.value = videoDevices[0].deviceId;
-                    this.switchCamera(videoDevices[0].deviceId);
+            // First check if there's already a camera set in YAGA
+            if (YAGA.video && YAGA.video.srcObject) {
+                const currentTrack = YAGA.video.srcObject.getVideoTracks()[0];
+                if (currentTrack) {
+                    const currentDeviceId = currentTrack.getSettings().deviceId;
+                    if (currentDeviceId) {
+                        this.cameraSelect.value = currentDeviceId;
+                        // Initialize the camera with current settings
+                        await this.switchCamera(currentDeviceId);
+                        return; // Keep using current camera
+                    }
                 }
-            } else {
-                // Use last selected camera if available
+            }
+
+            // If no current camera, try to use last selected
+            if (this.lastSelectedCameraId) {
                 const lastCamera = videoDevices.find(device => device.deviceId === this.lastSelectedCameraId);
                 if (lastCamera) {
                     this.cameraSelect.value = this.lastSelectedCameraId;
-                    this.switchCamera(this.lastSelectedCameraId);
+                    await this.switchCamera(this.lastSelectedCameraId);
+                    return;
                 }
+            }
+
+            // If no last selected camera, try to find back camera
+            const backCamera = videoDevices.find(device => 
+                device.label.toLowerCase().includes('back') || 
+                device.label.toLowerCase().includes('rear')
+            );
+            
+            if (backCamera) {
+                this.cameraSelect.value = backCamera.deviceId;
+                await this.switchCamera(backCamera.deviceId);
+            } else if (videoDevices.length > 0) {
+                // If no back camera found, use the first available camera
+                this.cameraSelect.value = videoDevices[0].deviceId;
+                await this.switchCamera(videoDevices[0].deviceId);
             }
         } catch (err) {
             console.error('Error getting camera list:', err);
@@ -223,8 +272,10 @@ class CameraManager {
 
             // Set new stream
             this.currentStream = stream;
-            YAGA.video.srcObject = stream;
-            await YAGA.video.play();
+            if (YAGA.video) {
+                YAGA.video.srcObject = stream;
+                await YAGA.video.play();
+            }
 
             // Get camera settings
             const track = stream.getVideoTracks()[0];

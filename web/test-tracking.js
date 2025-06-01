@@ -9,40 +9,61 @@ async function waitForGL() {
     });
 }
 
+function compileShader(gl, type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+
+    // Check for compilation errors
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+    }
+    return shader;
+}
+
 async function testTracking() {
     const gl = await waitForGL();
+    
     // Create shaders for points
-    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vertexShader, `
+    const vertexShader = compileShader(gl, gl.VERTEX_SHADER, `
         attribute vec2 a_position;
         void main() {
             gl_Position = vec4(a_position, 0, 1);
-            gl_PointSize = 8.0;  // Increase point size
+            gl_PointSize = 12.0;
         }
     `);
-    gl.compileShader(vertexShader);
 
-    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fragmentShader, `
+    const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, `
         precision mediump float;
         void main() {
-            // Make points round
-            vec2 center = gl_PointCoord - vec2(0.5);
-            float dist = length(center);
-            if (dist > 0.5) {
+            // Create sharp square point
+            vec2 coord = gl_PointCoord - vec2(0.5);
+            if (abs(coord.x) > 0.45 || abs(coord.y) > 0.45) {
                 discard;
             }
-            // Red points with a small glow
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0 - dist * 2.0);
+            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
         }
     `);
-    gl.compileShader(fragmentShader);
+
+    if (!vertexShader || !fragmentShader) {
+        console.error('Failed to compile shaders');
+        return;
+    }
 
     // Create program for points
     const pointProgram = gl.createProgram();
     gl.attachShader(pointProgram, vertexShader);
     gl.attachShader(pointProgram, fragmentShader);
     gl.linkProgram(pointProgram);
+
+    // Check for linking errors
+    if (!gl.getProgramParameter(pointProgram, gl.LINK_STATUS)) {
+        console.error('Program linking error:', gl.getProgramInfoLog(pointProgram));
+        gl.deleteProgram(pointProgram);
+        return;
+    }
 
     // Save program in global variable
     window._pointProgram = pointProgram;
@@ -61,11 +82,10 @@ async function testTracking() {
             // Create buffer for points
             const pointBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, pointBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
+            gl.bufferData(gl.ARRAY_BUFFER, points, gl.DYNAMIC_DRAW);
 
-            // Enable blending for transparency
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            // Disable blending
+            gl.disable(gl.BLEND);
 
             // Use program for points
             gl.useProgram(window._pointProgram);
@@ -77,6 +97,9 @@ async function testTracking() {
 
             // Draw points
             gl.drawArrays(gl.POINTS, 0, pointsCount);
+
+            // Cleanup
+            gl.deleteBuffer(pointBuffer);
         }
     };
 
