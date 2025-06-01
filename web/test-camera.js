@@ -86,8 +86,6 @@ class CameraManager {
     }
 
     createUI() {
-        // Set root font size
-        document.documentElement.style.fontSize = '16px';
         
         // Create UI container if it doesn't exist
         let uiContainer = document.getElementById('yaga-ui-container');
@@ -101,16 +99,17 @@ class CameraManager {
             uiContainer.style.display = 'flex';
             uiContainer.style.flexDirection = 'column';
             uiContainer.style.gap = '1rem';
+            uiContainer.style.fontSize = '1rem';
+            uiContainer.style.fontFamily = 'monospace';
             document.body.appendChild(uiContainer);
         }
         
         const cameraUI = document.createElement('div');
         cameraUI.style.width = '90vw';
-        cameraUI.style.maxWidth = '32rem';
+        cameraUI.style.maxWidth = '40rem';
         cameraUI.style.padding = '1rem';
         cameraUI.style.borderRadius = '0.5rem';
         cameraUI.style.color = 'white';
-        cameraUI.style.fontSize = '1rem';
         cameraUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
         cameraUI.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
         
@@ -121,33 +120,30 @@ class CameraManager {
         cameraSelect.style.backgroundColor = 'rgba(255,255,255,0.1)';
         cameraSelect.style.color = 'white';
         cameraSelect.style.border = '1px solid rgba(255,255,255,0.3)';
-        cameraSelect.style.borderRadius = '0.375rem';
         cameraSelect.style.fontSize = '1rem';
+        cameraSelect.style.borderRadius = '0.375rem';
         cameraSelect.style.marginBottom = '0.75rem';
         
         // Create dimensions display row
         const dimensionsDiv = document.createElement('div');
         dimensionsDiv.style.display = 'flex';
         dimensionsDiv.style.gap = '1rem';
-        dimensionsDiv.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         dimensionsDiv.style.padding = '0.75rem';
         dimensionsDiv.style.backgroundColor = 'rgba(0,0,0,0.3)';
         dimensionsDiv.style.borderRadius = '0.375rem';
-        dimensionsDiv.style.fontSize = '1rem';
         dimensionsDiv.style.lineHeight = '1.6';
         
         // Create blocks for each type of information
         const cameraInfoBlock = document.createElement('div');
         cameraInfoBlock.style.flex = '1';
-        cameraInfoBlock.style.padding = '0.75rem';
+        cameraInfoBlock.style.minHeight = '7.5rem';
         cameraInfoBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
         cameraInfoBlock.style.borderRadius = '0.375rem';
-        
-        const dpiInfoBlock = document.createElement('div');
-        dpiInfoBlock.style.flex = '1';
-        dpiInfoBlock.style.padding = '0.75rem';
-        dpiInfoBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
-        dpiInfoBlock.style.borderRadius = '0.375rem';
+        cameraInfoBlock.style.padding = '0.75rem';
+        cameraInfoBlock.style.display = 'flex';
+        cameraInfoBlock.style.flexDirection = 'column';
+        cameraInfoBlock.style.justifyContent = 'center';
+        cameraInfoBlock.style.boxSizing = 'border-box';
         
         // Function to update dimensions
         const updateDimensions = () => {
@@ -156,13 +152,10 @@ class CameraManager {
                 const videoTrack = YAGA.video.srcObject?.getVideoTracks()[0];
                 const settings = videoTrack?.getSettings();
                 const facingMode = settings?.facingMode || 'unknown';
-                
                 cameraInfoBlock.innerHTML = `
                     Camera: ${facingMode}<br>
                     Video: ${YAGA.video.videoWidth}x${YAGA.video.videoHeight}<br>
-                    Canvas: ${canvas.width}x${canvas.height}`;
-                
-                dpiInfoBlock.innerHTML = `
+                    Canvas: ${canvas.width}x${canvas.height}<br>
                     Window: ${window.innerWidth}x${window.innerHeight}<br>
                     DPI: ${window.devicePixelRatio}`;
             }
@@ -181,17 +174,110 @@ class CameraManager {
         
         // Add blocks to dimensions row
         dimensionsDiv.appendChild(cameraInfoBlock);
-        dimensionsDiv.appendChild(dpiInfoBlock);
-        
+        // --- FPS COUNTER ---
+        const fpsBlock = document.createElement('div');
+        fpsBlock.style.flex = '1';
+        fpsBlock.style.minHeight = '7.5rem';
+        fpsBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
+        fpsBlock.style.borderRadius = '0.375rem';
+        fpsBlock.style.padding = '0.75rem';
+        fpsBlock.style.display = 'flex';
+        fpsBlock.style.flexDirection = 'column';
+        fpsBlock.style.justifyContent = 'center';
+        fpsBlock.style.gap = '0.25rem';
+        fpsBlock.style.boxSizing = 'border-box';
+        // Page FPS
+        const pageFpsDiv = document.createElement('div');
+        pageFpsDiv.style.color = '#ffd93d';
+        pageFpsDiv.textContent = 'Page FPS: ...';
+        fpsBlock.appendChild(pageFpsDiv);
+        // Camera FPS from getSettings
+        const cameraFpsSettingsDiv = document.createElement('div');
+        cameraFpsSettingsDiv.style.color = '#ffd93d';
+        cameraFpsSettingsDiv.textContent = 'Camera FPS (settings): ...';
+        fpsBlock.appendChild(cameraFpsSettingsDiv);
+        // Real Camera FPS
+        const cameraFpsDiv = document.createElement('div');
+        cameraFpsDiv.style.color = '#ffd93d';
+        cameraFpsDiv.textContent = 'Camera FPS (real): ...';
+        fpsBlock.appendChild(cameraFpsDiv);
+        // --- END FPS COUNTER ---
+        dimensionsDiv.appendChild(fpsBlock);
         // Add elements to UI
         cameraUI.appendChild(cameraSelect);
         cameraUI.appendChild(dimensionsDiv);
         uiContainer.appendChild(cameraUI);
-        
         this.cameraSelect = cameraSelect;
         this.dimensionsDiv = dimensionsDiv;
         this.cameraInfoBlock = cameraInfoBlock;
-        this.dpiInfoBlock = dpiInfoBlock;
+
+        // FPS logic (всё в той же области видимости!)
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let pageFPS = 0;
+        function updatePageFPS() {
+            const now = performance.now();
+            frameCount++;
+            if (now - lastFrameTime >= 1000) {
+                pageFPS = Math.round(frameCount * 1000 / (now - lastFrameTime));
+                updateFPSDisplay();
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+            requestAnimationFrame(updatePageFPS);
+        }
+        let lastCameraFrameTime = null;
+        let cameraFrameCount = 0;
+        let cameraFPS = 0;
+        function updateCameraFPS() {
+            if (!YAGA.video) return;
+            if (YAGA.video.requestVideoFrameCallback) {
+                YAGA.video.requestVideoFrameCallback(function cb(now, metadata) {
+                    cameraFrameCount++;
+                    if (!lastCameraFrameTime) lastCameraFrameTime = now;
+                    if (now - lastCameraFrameTime >= 1000) {
+                        cameraFPS = Math.round(cameraFrameCount * 1000 / (now - lastCameraFrameTime));
+                        updateFPSDisplay();
+                        cameraFrameCount = 0;
+                        lastCameraFrameTime = now;
+                    }
+                    YAGA.video.requestVideoFrameCallback(cb);
+                });
+            } else {
+                YAGA.video.addEventListener('timeupdate', () => {
+                    cameraFrameCount++;
+                });
+                setInterval(() => {
+                    cameraFPS = cameraFrameCount;
+                    updateFPSDisplay();
+                    cameraFrameCount = 0;
+                }, 1000);
+            }
+        }
+        function updateFPSDisplay() {
+            pageFpsDiv.textContent = `Page FPS: ${pageFPS}`;
+            cameraFpsDiv.textContent = `Camera FPS (real): ${cameraFPS}`;
+            // cameraFpsSettingsDiv обновляется отдельно
+        }
+        function updateCameraFpsSettings() {
+            if (YAGA.video && YAGA.video.srcObject) {
+                const videoTrack = YAGA.video.srcObject.getVideoTracks()[0];
+                if (videoTrack) {
+                    const settings = videoTrack.getSettings();
+                    cameraFpsSettingsDiv.textContent = `Camera FPS (settings): ${settings.frameRate || 'N/A'}`;
+                }
+            }
+        }
+        updatePageFPS();
+        if (YAGA.video && (YAGA.video.readyState >= 2)) {
+            updateCameraFPS();
+            updateCameraFpsSettings();
+        } else if (YAGA.video) {
+            YAGA.video.addEventListener('loadeddata', () => {
+                updateCameraFPS();
+                updateCameraFpsSettings();
+            }, { once: true });
+        }
     }
 
     async updateCameraList() {

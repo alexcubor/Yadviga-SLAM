@@ -44,6 +44,8 @@ class ConsoleUI {
         this.loadDimensions();
         this.createUI();
         this.overrideConsole();
+        // Add initial display update
+        this.updateDisplay();
     }
 
     loadDimensions() {
@@ -54,7 +56,7 @@ class ConsoleUI {
             } else {
                 this.dimensions = {
                     width: '90vw',
-                    maxWidth: '32rem',
+                    maxWidth: '40rem',
                     height: '30vh'
                 };
             }
@@ -62,7 +64,7 @@ class ConsoleUI {
             console.warn('Error loading console dimensions:', err);
             this.dimensions = {
                 width: '90vw',
-                maxWidth: '32rem',
+                maxWidth: '40rem',
                 height: '30vh'
             };
         }
@@ -100,13 +102,13 @@ class ConsoleUI {
         consoleContainer.style.padding = '1rem';
         consoleContainer.style.borderRadius = '0.5rem';
         consoleContainer.style.color = 'white';
-        consoleContainer.style.fontSize = '0.875rem';
         consoleContainer.style.backgroundColor = 'rgba(0,0,0,0.5)';
         consoleContainer.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
         consoleContainer.style.overflow = 'hidden';
         consoleContainer.style.display = 'flex';
         consoleContainer.style.flexDirection = 'column';
         consoleContainer.style.position = 'relative';
+        consoleContainer.style.marginTop = 'auto'; // Push to bottom
 
         // Add resize handle
         const resizeHandle = document.createElement('div');
@@ -134,7 +136,6 @@ class ConsoleUI {
         touchIndicator.style.display = 'flex';
         touchIndicator.style.alignItems = 'center';
         touchIndicator.style.justifyContent = 'center';
-        touchIndicator.style.fontSize = '1.5rem';
         touchIndicator.style.color = 'rgba(255,255,255,0.5)';
         touchIndicator.textContent = '↔';
         touchIndicator.style.transform = 'rotate(45deg)';
@@ -170,7 +171,7 @@ class ConsoleUI {
             let newHeight = Math.max(startHeight + deltaY, 160); // 10rem = 160px
 
             // Apply max width constraint
-            if (newWidth > 512) { // 32rem = 512px
+            if (newWidth > 512) { // 40rem = 512px
                 newWidth = 512;
             }
 
@@ -187,7 +188,7 @@ class ConsoleUI {
             // Save dimensions
             this.dimensions = {
                 width: `${newWidth}px`,
-                maxWidth: '32rem',
+                maxWidth: '40rem',
                 height: `${newHeight}px`
             };
             this.saveDimensions();
@@ -245,10 +246,7 @@ class ConsoleUI {
 
         const consoleTitle = document.createElement('span');
         consoleTitle.textContent = 'Console';
-        consoleTitle.style.fontSize = '1rem';
         consoleTitle.style.fontWeight = '500';
-        consoleTitle.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-
         const clearButton = document.createElement('button');
         clearButton.textContent = 'Clear';
         clearButton.style.padding = '0.25rem 0.5rem';
@@ -257,7 +255,7 @@ class ConsoleUI {
         clearButton.style.border = 'none';
         clearButton.style.color = 'white';
         clearButton.style.cursor = 'pointer';
-        clearButton.style.fontSize = '0.875rem';
+        clearButton.style.fontSize = '1rem';
         clearButton.onclick = (e) => {
             e.stopPropagation(); // Prevent console click event
             this.clearLogs();
@@ -273,8 +271,7 @@ class ConsoleUI {
         consoleContent.style.padding = '0.5rem';
         consoleContent.style.backgroundColor = 'rgba(0,0,0,0.2)';
         consoleContent.style.borderRadius = '0.375rem';
-        consoleContent.style.fontFamily = 'monospace';
-        consoleContent.style.fontSize = '14px';
+        consoleContent.style.fontSize = '1rem';
         consoleContent.style.whiteSpace = 'pre-wrap';
         consoleContent.style.wordBreak = 'break-word';
         consoleContent.style.cursor = 'pointer';
@@ -299,6 +296,9 @@ class ConsoleUI {
         uiContainer.appendChild(consoleContainer);
 
         this.consoleContent = consoleContent;
+        
+        // Add initial display update after console content is created
+        this.updateDisplay();
     }
 
     overrideConsole() {
@@ -393,4 +393,7 @@ class ConsoleUI {
         childList: true,
         subtree: true
     });
-})(); 
+})();
+
+window.isDesktop = window.isDesktop !== undefined ? window.isDesktop : /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
+document.documentElement.style.setProperty('font-size', window.isDesktop ? '0.6rem' : '1rem', 'important');

@@ -94,7 +94,7 @@ class CacheManager {
                 getInfo: async () => {
                     return 'showDirectoryPicker' in window ? 'Available' : 'Not supported';
                 },
-                defaultChecked: true
+                defaultChecked: false
             },
             { 
                 id: 'serviceWorkers', 
@@ -222,9 +222,21 @@ class CacheManager {
                 if (states.minimized !== undefined) {
                     this.isMinimized = states.minimized;
                 }
+            } else {
+                // If no saved states, force File System to be unchecked
+                this.cacheTypes.forEach(type => {
+                    if (type.id === 'fileSystem') {
+                        type.defaultChecked = false;
+                    }
+                });
             }
         } catch (err) {
             console.warn('Error loading checkbox states:', err);
+            this.cacheTypes.forEach(type => {
+                if (type.id === 'fileSystem') {
+                    type.defaultChecked = false;
+                }
+            });
         }
     }
 
@@ -267,9 +279,6 @@ class CacheManager {
     }
 
     createUI() {
-        // Set root font size
-        document.documentElement.style.fontSize = '16px';
-
         // Get or create UI container
         let uiContainer = document.getElementById('yaga-ui-container');
         if (!uiContainer) {
@@ -287,13 +296,12 @@ class CacheManager {
 
         const cacheUI = document.createElement('div');
         cacheUI.style.width = '90vw';
-        cacheUI.style.maxWidth = '32rem';
+        cacheUI.style.maxWidth = '40rem';
         cacheUI.style.minWidth = '20rem';
         cacheUI.style.minHeight = '10rem';
         cacheUI.style.padding = '1rem';
         cacheUI.style.borderRadius = '0.5rem';
         cacheUI.style.color = 'white';
-        cacheUI.style.fontSize = '1rem';
         cacheUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
         cacheUI.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
         cacheUI.style.position = 'relative';
@@ -303,11 +311,8 @@ class CacheManager {
         // Create title
         const title = document.createElement('div');
         title.textContent = 'Cache & Data Manager';
-        title.style.fontSize = '1.125rem';
-        title.style.fontWeight = 'bold';
         title.style.marginBottom = '0.75rem';
         title.style.color = '#fff';
-        title.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         title.style.lineHeight = '1.2';
         cacheUI.appendChild(title);
 
@@ -319,7 +324,6 @@ class CacheManager {
         cacheList.style.padding = '0.75rem';
         cacheList.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         cacheList.style.fontSize = '1rem';
-        cacheList.style.lineHeight = '1.6';
         cacheList.style.transition = 'all 0.3s ease';
 
         // Add minimize button
@@ -409,52 +413,42 @@ class CacheManager {
             label.textContent = type.name;
             label.style.flex = '1';
             label.style.cursor = 'pointer';
-            label.style.fontSize = '1rem';
 
             const info = document.createElement('span');
             info.id = `${type.id}-info`;
             info.style.marginLeft = '0.75rem';
             info.style.color = '#aaa';
-            info.style.fontSize = '0.875rem';
             info.style.cursor = 'pointer';
             info.style.padding = '0.25rem 0.5rem';
             info.style.borderRadius = '0.25rem';
             info.style.transition = 'all 0.2s';
 
-            // Add button-like styling for popup triggers
             if (['webStorage', 'cookies', 'jsCache'].includes(type.id)) {
-                info.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                info.style.border = '1px solid rgba(255,255,255,0.2)';
+                info.style.backgroundColor = 'rgba(255,255,255,0.2)';
                 info.style.color = '#fff';
                 info.style.fontWeight = '500';
                 info.style.display = 'inline-flex';
                 info.style.alignItems = 'center';
                 info.style.gap = '0.5rem';
-                
                 // Add icon
                 const icon = document.createElement('span');
                 icon.textContent = '🔍';
                 icon.style.fontSize = '0.75rem';
                 info.prepend(icon);
-            }
-
-            info.onmouseover = () => {
-                if (['webStorage', 'cookies', 'jsCache'].includes(type.id)) {
+                info.onmouseover = () => {
+                    info.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                };
+                info.onmouseout = () => {
                     info.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                    info.style.borderColor = 'rgba(255,255,255,0.3)';
-                } else {
+                };
+            } else {
+                info.onmouseover = () => {
                     info.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                }
-            };
-
-            info.onmouseout = () => {
-                if (['webStorage', 'cookies', 'jsCache'].includes(type.id)) {
-                    info.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                    info.style.borderColor = 'rgba(255,255,255,0.2)';
-                } else {
+                };
+                info.onmouseout = () => {
                     info.style.backgroundColor = 'transparent';
-                }
-            };
+                };
+            }
 
             info.onclick = async () => {
                 try {
@@ -495,7 +489,7 @@ class CacheManager {
 
         // Create clear button
         const clearButton = document.createElement('button');
-        clearButton.textContent = 'Clear Selected and Reload page';
+        clearButton.textContent = 'Clear Selected & Reload page';
         clearButton.style.padding = '0.75rem 1rem';
         clearButton.style.backgroundColor = '#dc3545';
         clearButton.style.color = 'white';
@@ -503,7 +497,6 @@ class CacheManager {
         clearButton.style.borderRadius = '0.375rem';
         clearButton.style.cursor = 'pointer';
         clearButton.style.fontSize = '1rem';
-        clearButton.style.fontWeight = 'bold';
         clearButton.style.width = '100%';
         clearButton.style.marginTop = '0.75rem';
 
@@ -544,6 +537,12 @@ class CacheManager {
         }
 
         uiContainer.appendChild(cacheUI);
+
+        // Force File System checkbox to be unchecked after UI creation
+        setTimeout(() => {
+            const fileSystemCheckbox = document.getElementById('fileSystem');
+            if (fileSystemCheckbox) fileSystemCheckbox.checked = false;
+        }, 0);
     }
 
     showWebStoragePopup() {
@@ -562,7 +561,7 @@ class CacheManager {
         popup.style.maxHeight = '80vh';
         popup.style.overflow = 'auto';
         popup.style.fontFamily = 'monospace';
-        popup.style.fontSize = '0.75rem';
+        popup.style.fontSize = '1rem';
         popup.style.color = 'white';
 
         // Create title
@@ -670,8 +669,6 @@ class CacheManager {
         closeButton.style.border = 'none';
         closeButton.style.borderRadius = '0.25rem';
         closeButton.style.cursor = 'pointer';
-        closeButton.style.fontSize = '0.875rem';
-        closeButton.style.fontWeight = 'bold';
         closeButton.style.width = '100%';
         closeButton.onclick = () => popup.remove();
         popup.appendChild(closeButton);
@@ -710,13 +707,12 @@ class CacheManager {
         popup.style.maxHeight = '80vh';
         popup.style.overflow = 'auto';
         popup.style.fontFamily = 'monospace';
-        popup.style.fontSize = '0.75rem';
+        popup.style.fontSize = '1rem';
         popup.style.color = 'white';
 
         // Create title
         const title = document.createElement('div');
         title.textContent = 'Cookies Contents';
-        title.style.fontSize = '1rem';
         title.style.fontWeight = 'bold';
         title.style.marginBottom = '1rem';
         title.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
@@ -827,8 +823,6 @@ class CacheManager {
         closeButton.style.border = 'none';
         closeButton.style.borderRadius = '0.25rem';
         closeButton.style.cursor = 'pointer';
-        closeButton.style.fontSize = '0.875rem';
-        closeButton.style.fontWeight = 'bold';
         closeButton.style.width = '100%';
         closeButton.onclick = () => popup.remove();
         popup.appendChild(closeButton);
@@ -866,13 +860,12 @@ class CacheManager {
         popup.style.width = '90vw';
         popup.style.maxWidth = '600px';
         popup.style.fontFamily = 'monospace';
-        popup.style.fontSize = '0.7rem';
+        popup.style.fontSize = '1rem';
         popup.style.color = 'white';
 
         // Create title
         const title = document.createElement('div');
         title.textContent = 'JavaScript Files Cache';
-        title.style.fontSize = '0.9rem';
         title.style.fontWeight = 'bold';
         title.style.marginBottom = '0.5rem';
         title.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
@@ -982,7 +975,6 @@ class CacheManager {
         closeButton.style.border = 'none';
         closeButton.style.borderRadius = '0.25rem';
         closeButton.style.cursor = 'pointer';
-        closeButton.style.fontSize = '0.7rem';
         closeButton.style.fontWeight = 'bold';
         closeButton.style.width = '100%';
         closeButton.onclick = () => popup.remove();
@@ -1182,3 +1174,6 @@ window.CacheManager = CacheManager;
         subtree: true
     });
 })(); 
+
+const isDesktop = /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
+document.documentElement.style.setProperty('font-size', isDesktop ? '0.6rem' : '1rem', 'important');

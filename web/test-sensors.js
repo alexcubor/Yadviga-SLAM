@@ -14,8 +14,8 @@ class SensorManager {
     }
 
     async init() {
-        this.createUI();
         await this.checkSensorAvailability();
+        this.createUI();
         if (this.hasSensors) {
             // Enable sensors by default if available
             this.sensorsEnabled = true;
@@ -24,27 +24,18 @@ class SensorManager {
             this.toggleSlider.style.backgroundColor = '#007AFF';
             this.toggleKnob.style.transform = 'translateX(1.75rem)';
             await this.setupSensors();
+        } else {
+            this.sensorsEnabled = false;
+            this.toggleInput.checked = false;
+            this.toggleInput.disabled = true;
+            this.toggleSlider.style.backgroundColor = '#888';
+            this.toggleKnob.style.transform = 'translateX(0)';
         }
     }
 
     async checkSensorAvailability() {
-        // Check if device has motion and orientation sensors
-        this.hasSensors = 'DeviceMotionEvent' in window && 'DeviceOrientationEvent' in window;
-        
-        if (!this.hasSensors) {
-            return;
-        }
-
-        // Check if permissions are required
-        if (typeof DeviceMotionEvent.requestPermission === 'function') {
-            try {
-                const motionPermission = await DeviceMotionEvent.requestPermission();
-                const orientationPermission = await DeviceOrientationEvent.requestPermission();
-                this.hasSensors = motionPermission === 'granted' && orientationPermission === 'granted';
-            } catch (err) {
-                this.hasSensors = false;
-            }
-        }
+        // Используем только YAGA.imu
+        this.hasSensors = !!(window.YAGA && window.YAGA.imu);
     }
 
     createUI() {
@@ -60,16 +51,17 @@ class SensorManager {
             uiContainer.style.display = 'flex';
             uiContainer.style.flexDirection = 'column';
             uiContainer.style.gap = '1rem';
+            uiContainer.style.fontSize = '1rem';
+            uiContainer.style.fontFamily = 'monospace';
             document.body.appendChild(uiContainer);
         }
 
         const sensorUI = document.createElement('div');
         sensorUI.style.width = '90vw';
-        sensorUI.style.maxWidth = '32rem';
+        sensorUI.style.maxWidth = '40rem';
         sensorUI.style.padding = '1rem';
         sensorUI.style.borderRadius = '0.5rem';
         sensorUI.style.color = 'white';
-        sensorUI.style.fontSize = '1rem';
         sensorUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
         sensorUI.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
 
@@ -85,9 +77,6 @@ class SensorManager {
 
         const toggleLabel = document.createElement('span');
         toggleLabel.textContent = 'Internal Sensors';
-        toggleLabel.style.fontSize = '1.125rem';
-        toggleLabel.style.fontWeight = '500';
-        toggleLabel.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
         const toggleSwitch = document.createElement('label');
         toggleSwitch.style.position = 'relative';
@@ -100,19 +89,18 @@ class SensorManager {
         toggleInput.style.opacity = '0';
         toggleInput.style.width = '0';
         toggleInput.style.height = '0';
-        toggleInput.checked = this.sensorsEnabled;
-        toggleInput.disabled = !this.hasSensors;
+        toggleInput.checked = this.hasSensors ? this.sensorsEnabled : false;
 
         const toggleSlider = document.createElement('span');
         toggleSlider.style.position = 'absolute';
-        toggleSlider.style.cursor = 'pointer';
+        toggleSlider.style.cursor = this.hasSensors ? 'pointer' : 'not-allowed';
         toggleSlider.style.top = '0';
         toggleSlider.style.left = '0';
         toggleSlider.style.right = '0';
         toggleSlider.style.bottom = '0';
-        toggleSlider.style.backgroundColor = this.hasSensors ? '#ccc' : '#666';
         toggleSlider.style.transition = '.4s';
         toggleSlider.style.borderRadius = '1.75rem';
+        toggleSlider.style.backgroundColor = this.hasSensors ? '#ccc' : '#888';
 
         const toggleKnob = document.createElement('span');
         toggleKnob.style.position = 'absolute';
@@ -152,7 +140,6 @@ class SensorManager {
         sensorData.style.padding = '0.75rem';
         sensorData.style.backgroundColor = 'rgba(0,0,0,0.3)';
         sensorData.style.borderRadius = '0.375rem';
-        sensorData.style.fontSize = '1rem';
         sensorData.style.lineHeight = '1.6';
 
         // Create blocks for each sensor type
