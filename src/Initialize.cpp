@@ -9,9 +9,9 @@ extern "C" void startTracking();
 
 // Autorun function
 int main() {
-    std::cout << "🚀 Initialize ✅ Yadviga SLAM" << std::endl;
 
     EM_ASM_({
+        console.log("🚀 Initialize ✅ Yadviga SLAM");
         // Main SLAM module
         window.YAGA = (function() {
             // Private attributes
@@ -24,23 +24,11 @@ int main() {
             return {
                 init() {
                     isInitialized = true;
-                }
+                },
+                tags: {} // Add tags object to store script attributes
             };
         })();
-    });
 
-    renderFrame();
-    // initThreeScene();
-    startTracking();
-    // startMapping();
-    
-
-    // ========================================================================================
-    // Run functions by tag attributes
-    // ========================================================================================
-
-    // Check script tag attributes for test functions
-    EM_ASM_({
         // Find our script tag
         const scripts = document.getElementsByTagName('script');
         let ourScript = null;
@@ -56,9 +44,15 @@ int main() {
             return;
         }
         
-        // Check for test-fps attribute
-        if (!ourScript.hasAttribute('disable-logo')) {
-            Module._showLogo();
+        // Store all attributes in YAGA.tags
+        for (let attr of ourScript.attributes) {
+            YAGA.tags[attr.name] = attr.value;
         }
     });
+
+    // Initialize YAGA
+    renderFrame();
+    // initThreeScene();
+    startTracking();
+    // startMapping();
 }

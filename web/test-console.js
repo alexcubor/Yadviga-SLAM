@@ -40,6 +40,7 @@ class ConsoleUI {
         this.logs = [...earlyLogs]; // Initialize with early logs
         this.maxLogs = 1000; // Maximum number of logs to keep
         this.isUserScrolling = false;
+        this.showTimestamps = false; // Initialize timestamp state
         this.loadDimensions();
         this.createUI();
         this.overrideConsole();
@@ -257,7 +258,10 @@ class ConsoleUI {
         clearButton.style.color = 'white';
         clearButton.style.cursor = 'pointer';
         clearButton.style.fontSize = '0.875rem';
-        clearButton.onclick = () => this.clearLogs();
+        clearButton.onclick = (e) => {
+            e.stopPropagation(); // Prevent console click event
+            this.clearLogs();
+        };
 
         consoleHeader.appendChild(consoleTitle);
         consoleHeader.appendChild(clearButton);
@@ -270,13 +274,24 @@ class ConsoleUI {
         consoleContent.style.backgroundColor = 'rgba(0,0,0,0.2)';
         consoleContent.style.borderRadius = '0.375rem';
         consoleContent.style.fontFamily = 'monospace';
+        consoleContent.style.fontSize = '14px';
         consoleContent.style.whiteSpace = 'pre-wrap';
         consoleContent.style.wordBreak = 'break-word';
+        consoleContent.style.cursor = 'pointer';
 
         // Add scroll event listener
         consoleContent.addEventListener('scroll', () => {
             const isAtBottom = consoleContent.scrollHeight - consoleContent.scrollTop <= consoleContent.clientHeight + 1;
             this.isUserScrolling = !isAtBottom;
+        });
+
+        // Add click event listener for timestamp toggle
+        consoleContent.addEventListener('click', () => {
+            this.showTimestamps = !this.showTimestamps;
+            const timestamps = consoleContent.getElementsByClassName('timestamp');
+            for (let ts of timestamps) {
+                ts.style.display = this.showTimestamps ? 'inline' : 'none';
+            }
         });
 
         consoleContainer.appendChild(consoleHeader);
@@ -342,10 +357,12 @@ class ConsoleUI {
             }[log.type];
 
             const countHtml = log.count > 1 
-                ? `<span style="color: #666; margin-left: 0.5rem; font-size: 0.8em;">(${log.count})</span>` 
+                ? `<span style="color: #999; margin-left: 0.5rem;">(${log.count})</span>` 
                 : '';
 
-            return `<div style="color: ${color}">[${log.timestamp}] ${log.message}${countHtml}</div>`;
+            const timestampHtml = `<span class="timestamp" style="color: #aaa; margin-right: 0.5rem; display: ${this.showTimestamps ? 'inline' : 'none'};">[${log.timestamp}]</span>`;
+
+            return `<div style="color: ${color};">${timestampHtml}${log.message}${countHtml}</div>`;
         }).join('');
 
         this.consoleContent.innerHTML = html;

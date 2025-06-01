@@ -338,6 +338,11 @@ extern "C" {
                     }
                     
                     processFrame();
+                    
+                    // Show logo if not disabled
+                    if (YAGA.tags['logo'] !== 'false') {
+                        Module._showLogo();
+                    }
                 })
                 .catch(err => {
                     console.error('Error accessing camera:', err);
