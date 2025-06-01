@@ -2,7 +2,6 @@
 #include <iostream>
 
 extern "C" void renderFrame();
-// extern "C" void initThreeScene();
 extern "C" void startTracking();
 // extern "C" void startMapping();
 
@@ -38,11 +37,6 @@ int main() {
                 break;
             }
         }
-
-        if (!ourScript) {
-            console.error('Script tag not found');
-            return;
-        }
         
         // Store all attributes in YAGA.tags
         for (let attr of ourScript.attributes) {
@@ -52,7 +46,6 @@ int main() {
 
     // Initialize YAGA
     renderFrame();
-    // initThreeScene();
     startTracking();
     // startMapping();
 }

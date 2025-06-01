@@ -2,11 +2,59 @@ class SensorAccessManager {
     constructor() {
         this.onAccessGranted = null;
         this.isInitialized = false;
+        
+        // Language dictionary
+        this.translations = {
+            ru: {
+                title: 'Датчики пространства',
+                description: 'Разрешите доступ к датчикам для отслеживания движений устройства',
+                allow: 'Разрешить',
+                tryAgain: 'Попробовать снова',
+                error: '❌ Доступ запрещен. Пожалуйста, разрешите доступ к датчикам в настройках браузера.'
+            },
+            en: {
+                title: 'Motion Sensors',
+                description: 'Allow access to motion sensors to track device movement',
+                allow: 'Allow',
+                tryAgain: 'Try Again',
+                error: '❌ Access denied. Please enable motion sensors in browser settings.'
+            }
+        };
+    }
+
+    // Get current language
+    getLanguage() {
+        // Get browser language
+        const browserLang = navigator.language || navigator.userLanguage;
+        // Return Russian if browser language is Russian, otherwise English
+        return browserLang.startsWith('ru') ? 'ru' : 'en';
+    }
+
+    // Get translation for current language
+    getText(key) {
+        const lang = this.getLanguage();
+        return this.translations[lang][key];
     }
 
     async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
+
+        // Don't show modal on desktop
+        if (!/Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)) {
+            return;
+        }
+
+        // Check for sensor support
+        if (
+            typeof DeviceMotionEvent === 'undefined' ||
+            typeof DeviceOrientationEvent === 'undefined' ||
+            (typeof DeviceMotionEvent.requestPermission !== 'function' && typeof DeviceOrientationEvent.requestPermission !== 'function' && !('ondevicemotion' in window))
+        ) {
+            // No sensor support — don't show modal
+            return;
+        }
+
         this.createUI();
     }
 
@@ -49,21 +97,21 @@ class SensorAccessManager {
         modalContent.style.fontSize = `${24 * baseFontScale}px`;
 
         const modalTitle = document.createElement('h2');
-        modalTitle.textContent = 'Датчики пространства';
+        modalTitle.textContent = this.getText('title');
         modalTitle.style.margin = '0 0 48px 0';
         modalTitle.style.fontSize = `${36 * baseFontScale}px`;
         modalTitle.style.fontWeight = '600';
         modalTitle.style.color = 'var(--system-text-color, #000)';
 
         const modalText = document.createElement('p');
-        modalText.textContent = 'Разрешите доступ к датчикам для отслеживания движений устройства';
+        modalText.textContent = this.getText('description');
         modalText.style.margin = '0 0 60px 0';
         modalText.style.fontSize = `${30 * baseFontScale}px`;
         modalText.style.lineHeight = '1.4';
         modalText.style.color = 'var(--system-secondary-text-color, #666)';
 
         const grantButton = document.createElement('button');
-        grantButton.textContent = 'Разрешить';
+        grantButton.textContent = this.getText('allow');
         grantButton.style.width = '100%';
         grantButton.style.padding = isMobile ? '36px' : '24px';
         grantButton.style.fontSize = `${30 * baseFontScale}px`;
@@ -100,19 +148,24 @@ class SensorAccessManager {
                     }
                 }
 
+                window.YAGA = window.YAGA || {};
                 if (motionPermission === 'granted' && orientationPermission === 'granted') {
+                    window.YAGA.imu = true;
                     modal.style.display = 'none';
                     if (this.onAccessGranted) {
                         this.onAccessGranted();
                     }
                 } else {
+                    window.YAGA.imu = false;
                     throw new Error(`Permission denied: motion=${motionPermission}, orientation=${orientationPermission}`);
                 }
             } catch (err) {
+                window.YAGA = window.YAGA || {};
+                window.YAGA.imu = false;
                 console.error('Error requesting permission:', err);
-                modalText.textContent = '❌ Доступ запрещен. Пожалуйста, разрешите доступ к датчикам в настройках браузера.';
+                modalText.textContent = this.getText('error');
                 modalText.style.color = '#ff4444';
-                grantButton.textContent = 'Попробовать снова';
+                grantButton.textContent = this.getText('tryAgain');
             }
         };
 
