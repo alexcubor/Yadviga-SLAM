@@ -312,3 +312,6 @@ async function testTracking() {
 
     uiContainer.appendChild(trackingControls);
 }
+
+const isDesktop = /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
+document.documentElement.style.setProperty('font-size', isDesktop ? '0.6rem' : '1rem', 'important');

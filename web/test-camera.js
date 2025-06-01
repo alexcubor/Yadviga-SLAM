@@ -156,7 +156,6 @@ class CameraManager {
                     Camera: ${facingMode}<br>
                     Video: ${YAGA.video.videoWidth}x${YAGA.video.videoHeight}<br>
                     Canvas: ${canvas.width}x${canvas.height}<br>
-                    Window: ${window.innerWidth}x${window.innerHeight}<br>
                     DPI: ${window.devicePixelRatio}`;
             }
         };

@@ -91,6 +91,8 @@ class ConsoleUI {
             uiContainer.style.display = 'flex';
             uiContainer.style.flexDirection = 'column';
             uiContainer.style.gap = '1rem';
+            uiContainer.style.fontSize = '1rem';
+            uiContainer.style.fontFamily = 'monospace';
             document.body.appendChild(uiContainer);
         }
 

@@ -310,6 +310,7 @@ window.SensorManager = SensorManager;
     const observer = new MutationObserver((mutations) => {
         if (window.YAGA) {
             observer.disconnect();
+            console.log('🫆 Enable test-sensors.js');
             const sensorManager = new SensorManager();
             sensorManager.init();
         }
