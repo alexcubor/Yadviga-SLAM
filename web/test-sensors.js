@@ -12,10 +12,10 @@ class SensorManager {
 
     async init() {
         this.createUI();
-        // Подписываемся на обновления от Sensors.cpp
+        // Subscribe to updates from Sensors.cpp
         if (typeof Module !== 'undefined' && Module._updateIMU) {
             Module._updateIMU = (wx, wy, wz, ax, ay, az, timestamp) => {
-                // Конвертируем радианы в градусы
+                // Convert radians to degrees
                 const toDeg = 180 / Math.PI;
                 this.orientation = {
                     alpha: wx * toDeg,

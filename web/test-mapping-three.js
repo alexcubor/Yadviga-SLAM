@@ -130,12 +130,12 @@ function startMappingWhenReady() {
             initMappingVisualizer();
         };
     } else {
-        // Попробовать позже, если Module ещё не определён
+        // Try later if Module is not defined
         setTimeout(startMappingWhenReady, 100);
     }
 }
 
-// Ждём появления сцены
+// Wait for scene to appear
 console.log('[test-mapping] MutationObserver set up');
 const observer = new MutationObserver(() => {
     console.log('[test-mapping] MutationObserver triggered');
