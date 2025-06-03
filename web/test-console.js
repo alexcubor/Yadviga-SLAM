@@ -267,22 +267,45 @@ class ConsoleUI {
         const consoleTitle = document.createElement('span');
         consoleTitle.textContent = 'Mobile Console';
         consoleTitle.style.fontWeight = '500';
-        const clearButton = document.createElement('button');
-        clearButton.textContent = 'Clear';
-        clearButton.style.padding = '0.25rem 0.5rem';
-        clearButton.style.borderRadius = '0.25rem';
-        clearButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        clearButton.style.border = 'none';
-        clearButton.style.color = 'white';
-        clearButton.style.cursor = 'pointer';
-        clearButton.style.fontSize = '1rem';
-        clearButton.onclick = (e) => {
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy';
+        copyButton.style.padding = '0.25rem 0.5rem';
+        copyButton.style.borderRadius = '0.25rem';
+        copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        copyButton.style.border = 'none';
+        copyButton.style.color = 'white';
+        copyButton.style.cursor = 'pointer';
+        copyButton.style.fontSize = '1rem';
+        copyButton.onclick = (e) => {
             e.stopPropagation(); // Prevent console click event
-            this.clearLogs();
+            const text = this.logs.map(log => {
+                const timestamp = this.showTimestamps ? `[${log.timestamp}] ` : '';
+                const count = log.count > 1 ? ` (${log.count})` : '';
+                return `${timestamp}${log.message}${count}`;
+            }).join('\n');
+            
+            navigator.clipboard.writeText(text).then(() => {
+                // Визуальная обратная связь
+                const originalText = copyButton.textContent;
+                copyButton.textContent = 'Copied!';
+                copyButton.style.backgroundColor = 'rgba(0,255,0,0.2)';
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                    copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }, 1000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                copyButton.textContent = 'Error!';
+                copyButton.style.backgroundColor = 'rgba(255,0,0,0.2)';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy';
+                    copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }, 1000);
+            });
         };
 
         consoleHeader.appendChild(consoleTitle);
-        consoleHeader.appendChild(clearButton);
+        consoleHeader.appendChild(copyButton);
 
         // Create console content
         const consoleContent = document.createElement('div');
