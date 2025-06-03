@@ -3,9 +3,6 @@ class SensorManager {
         this.orientation = { alpha: 0, beta: 0, gamma: 0 };
         this.acceleration = { x: 0, y: 0, z: 0 };
         this.rotationRate = { alpha: 0, beta: 0, gamma: 0 };
-        this.onSensorUpdate = null;
-        this.sensorsEnabled = false;
-        this.hasSensors = false;
         this.precision = {
             orientation: 1,
             acceleration: 1,
@@ -14,28 +11,30 @@ class SensorManager {
     }
 
     async init() {
-        await this.checkSensorAvailability();
         this.createUI();
-        if (this.hasSensors) {
-            // Enable sensors by default if available
-            this.sensorsEnabled = true;
-            this.toggleInput.checked = true;
-            this.toggleInput.disabled = false;
-            this.toggleSlider.style.backgroundColor = '#007AFF';
-            this.toggleKnob.style.transform = 'translateX(1.75rem)';
-            await this.setupSensors();
-        } else {
-            this.sensorsEnabled = false;
-            this.toggleInput.checked = false;
-            this.toggleInput.disabled = true;
-            this.toggleSlider.style.backgroundColor = '#888';
-            this.toggleKnob.style.transform = 'translateX(0)';
+        // Подписываемся на обновления от Sensors.cpp
+        if (typeof Module !== 'undefined' && Module._updateIMU) {
+            Module._updateIMU = (wx, wy, wz, ax, ay, az, timestamp) => {
+                // Конвертируем радианы в градусы
+                const toDeg = 180 / Math.PI;
+                this.orientation = {
+                    alpha: wx * toDeg,
+                    beta: wy * toDeg,
+                    gamma: wz * toDeg
+                };
+                this.acceleration = {
+                    x: ax,
+                    y: ay,
+                    z: az
+                };
+                this.rotationRate = {
+                    alpha: wx * toDeg,
+                    beta: wy * toDeg,
+                    gamma: wz * toDeg
+                };
+                this.updateDisplay();
+            };
         }
-    }
-
-    async checkSensorAvailability() {
-        // Используем только YAGA.imu
-        this.hasSensors = !!(window.YAGA && window.YAGA.imu);
     }
 
     createUI() {
@@ -65,72 +64,21 @@ class SensorManager {
         sensorUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
         sensorUI.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
 
-        // Create sensor toggle
-        const toggleContainer = document.createElement('div');
-        toggleContainer.style.display = 'flex';
-        toggleContainer.style.alignItems = 'center';
-        toggleContainer.style.justifyContent = 'space-between';
-        toggleContainer.style.marginBottom = '0.75rem';
-        toggleContainer.style.padding = '0.75rem';
-        toggleContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
-        toggleContainer.style.borderRadius = '0.375rem';
+        // Add title
+        const titleContainer = document.createElement('div');
+        titleContainer.style.display = 'flex';
+        titleContainer.style.alignItems = 'center';
+        titleContainer.style.justifyContent = 'space-between';
+        titleContainer.style.marginBottom = '0.75rem';
+        titleContainer.style.padding = '0.75rem';
+        titleContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
+        titleContainer.style.borderRadius = '0.375rem';
 
-        const toggleLabel = document.createElement('span');
-        toggleLabel.textContent = 'Internal Sensors';
-
-        const toggleSwitch = document.createElement('label');
-        toggleSwitch.style.position = 'relative';
-        toggleSwitch.style.display = 'inline-block';
-        toggleSwitch.style.width = '3.5rem';
-        toggleSwitch.style.height = '1.75rem';
-
-        const toggleInput = document.createElement('input');
-        toggleInput.type = 'checkbox';
-        toggleInput.style.opacity = '0';
-        toggleInput.style.width = '0';
-        toggleInput.style.height = '0';
-        toggleInput.checked = this.hasSensors ? this.sensorsEnabled : false;
-
-        const toggleSlider = document.createElement('span');
-        toggleSlider.style.position = 'absolute';
-        toggleSlider.style.cursor = this.hasSensors ? 'pointer' : 'not-allowed';
-        toggleSlider.style.top = '0';
-        toggleSlider.style.left = '0';
-        toggleSlider.style.right = '0';
-        toggleSlider.style.bottom = '0';
-        toggleSlider.style.transition = '.4s';
-        toggleSlider.style.borderRadius = '1.75rem';
-        toggleSlider.style.backgroundColor = this.hasSensors ? '#ccc' : '#888';
-
-        const toggleKnob = document.createElement('span');
-        toggleKnob.style.position = 'absolute';
-        toggleKnob.style.content = '""';
-        toggleKnob.style.height = '1.5rem';
-        toggleKnob.style.width = '1.5rem';
-        toggleKnob.style.left = '0.125rem';
-        toggleKnob.style.bottom = '0.125rem';
-        toggleKnob.style.backgroundColor = 'white';
-        toggleKnob.style.transition = '.4s';
-        toggleKnob.style.borderRadius = '50%';
-
-        toggleInput.onchange = () => {
-            this.sensorsEnabled = toggleInput.checked;
-            toggleSlider.style.backgroundColor = this.sensorsEnabled ? '#007AFF' : '#ccc';
-            toggleKnob.style.transform = this.sensorsEnabled ? 'translateX(1.75rem)' : 'translateX(0)';
-            
-            if (this.sensorsEnabled) {
-                this.startSensors();
-            } else {
-                this.stopSensors();
-            }
-        };
-
-        toggleSwitch.appendChild(toggleInput);
-        toggleSwitch.appendChild(toggleSlider);
-        toggleSwitch.appendChild(toggleKnob);
-        toggleContainer.appendChild(toggleLabel);
-        toggleContainer.appendChild(toggleSwitch);
-        sensorUI.appendChild(toggleContainer);
+        const titleLabel = document.createElement('span');
+        titleLabel.textContent = 'Internal Sensors';
+        titleLabel.style.fontWeight = 'bold';
+        titleContainer.appendChild(titleLabel);
+        sensorUI.appendChild(titleContainer);
 
         // Create sensor data display
         const sensorData = document.createElement('div');
@@ -190,114 +138,30 @@ class SensorManager {
         this.orientationBlock = orientationBlock;
         this.accelerationBlock = accelerationBlock;
         this.rotationBlock = rotationBlock;
-        this.toggleInput = toggleInput;
-        this.toggleSlider = toggleSlider;
-        this.toggleKnob = toggleKnob;
-    }
 
-    async setupSensors() {
-        // Wait for SensorAccessManager to be available
-        const waitForSensorAccessManager = () => {
-            return new Promise((resolve) => {
-                const check = () => {
-                    if (window.SensorAccessManager) {
-                        const sensorAccessManager = new SensorAccessManager();
-                        sensorAccessManager.onAccessGranted = () => {
-                            // Update UI state based on current enabled state
-                            this.toggleInput.disabled = false;
-                            this.toggleSlider.style.backgroundColor = this.sensorsEnabled ? '#007AFF' : '#ccc';
-                            this.toggleKnob.style.transform = this.sensorsEnabled ? 'translateX(1.75rem)' : 'translateX(0)';
-                            
-                            // Start sensors if they are enabled
-                            if (this.sensorsEnabled) {
-                                this.startSensors();
-                            }
-                        };
-                        sensorAccessManager.init();
-                        resolve();
-                    } else {
-                        setTimeout(check, 100);
-                    }
-                };
-                check();
-            });
-        };
-
-        await waitForSensorAccessManager();
-    }
-
-    startSensors() {
-        if (!this.hasSensors) return;
-
-        // Handle device orientation (gyroscope)
-        window.addEventListener('deviceorientation', this.handleOrientation);
-        // Handle device motion (accelerometer)
-        window.addEventListener('devicemotion', this.handleMotion);
-    }
-
-    stopSensors() {
-        if (!this.hasSensors) return;
-
-        window.removeEventListener('deviceorientation', this.handleOrientation);
-        window.removeEventListener('devicemotion', this.handleMotion);
-    }
-
-    handleOrientation = (event) => {
-        if (!this.sensorsEnabled) return;
-        
-        this.orientation = {
-            alpha: event.alpha, // rotation around z-axis
-            beta: event.beta,   // front/back tilt
-            gamma: event.gamma  // left/right tilt
-        };
-        this.updateDisplay();
-    }
-
-    handleMotion = (event) => {
-        if (!this.sensorsEnabled) return;
-
-        this.acceleration = {
-            x: event.acceleration.x,
-            y: event.acceleration.y,
-            z: event.acceleration.z
-        };
-        this.rotationRate = {
-            alpha: event.rotationRate.alpha,
-            beta: event.rotationRate.beta,
-            gamma: event.rotationRate.gamma
-        };
+        // Immediately update display to show all blocks
         this.updateDisplay();
     }
 
     updateDisplay() {
         if (this.orientationBlock && this.accelerationBlock && this.rotationBlock) {
-            
             this.orientationBlock.innerHTML = 
                 `Orientation:<br>
-  α: ${Math.abs(this.orientation.alpha).toFixed(this.precision.orientation)}°<br>
-  β: ${Math.abs(this.orientation.beta).toFixed(this.precision.orientation)}°<br>
-  γ: ${Math.abs(this.orientation.gamma).toFixed(this.precision.orientation)}°`;
+  α: ${this.orientation.alpha ? Math.abs(this.orientation.alpha).toFixed(this.precision.orientation) : '0.0'}°<br>
+  β: ${this.orientation.beta ? Math.abs(this.orientation.beta).toFixed(this.precision.orientation) : '0.0'}°<br>
+  γ: ${this.orientation.gamma ? Math.abs(this.orientation.gamma).toFixed(this.precision.orientation) : '0.0'}°`;
 
             this.accelerationBlock.innerHTML = 
                 `Acceleration:<br>
-  x: ${this.acceleration.x ? Math.abs(this.acceleration.x).toFixed(this.precision.acceleration) : 'N/A'} m/s²<br>
-  y: ${this.acceleration.y ? Math.abs(this.acceleration.y).toFixed(this.precision.acceleration) : 'N/A'} m/s²<br>
-  z: ${this.acceleration.z ? Math.abs(this.acceleration.z).toFixed(this.precision.acceleration) : 'N/A'} m/s²`;
+  x: ${this.acceleration.x ? Math.abs(this.acceleration.x).toFixed(this.precision.acceleration) : '0.0'} m/s²<br>
+  y: ${this.acceleration.y ? Math.abs(this.acceleration.y).toFixed(this.precision.acceleration) : '0.0'} m/s²<br>
+  z: ${this.acceleration.z ? Math.abs(this.acceleration.z).toFixed(this.precision.acceleration) : '0.0'} m/s²`;
 
             this.rotationBlock.innerHTML = 
                 `Rotation Rate:<br>
-  α: ${this.rotationRate.alpha ? Math.abs(this.rotationRate.alpha).toFixed(this.precision.rotation) : 'N/A'} °/s<br>
-  β: ${this.rotationRate.beta ? Math.abs(this.rotationRate.beta).toFixed(this.precision.rotation) : 'N/A'} °/s<br>
-  γ: ${this.rotationRate.gamma ? Math.abs(this.rotationRate.gamma).toFixed(this.precision.rotation) : 'N/A'} °/s`;
-        }
-
-        if (this.onSensorUpdate) {
-            this.onSensorUpdate({
-                orientation: this.orientation,
-                acceleration: this.acceleration,
-                rotationRate: this.rotationRate,
-                enabled: this.sensorsEnabled
-            });
+  α: ${this.rotationRate.alpha ? Math.abs(this.rotationRate.alpha).toFixed(this.precision.rotation) : '0.0'} °/s<br>
+  β: ${this.rotationRate.beta ? Math.abs(this.rotationRate.beta).toFixed(this.precision.rotation) : '0.0'} °/s<br>
+  γ: ${this.rotationRate.gamma ? Math.abs(this.rotationRate.gamma).toFixed(this.precision.rotation) : '0.0'} °/s`;
         }
     }
 }
@@ -305,19 +169,16 @@ class SensorManager {
 // Export for use in other files
 window.SensorManager = SensorManager;
 
-// Wrap observer in IIFE to avoid variable redeclaration
+// Initialize SensorManager after Module is ready
 (function() {
-    const observer = new MutationObserver((mutations) => {
-        if (window.YAGA) {
-            observer.disconnect();
+    function waitForModule() {
+        if (typeof Module !== 'undefined' && Module._malloc) {
             console.log('🫆 Enable test-sensors.js');
-            const sensorManager = new SensorManager();
-            sensorManager.init();
+            window.sensorManager = new SensorManager();
+            window.sensorManager.init();
+        } else {
+            setTimeout(waitForModule, 100);
         }
-    });
-
-    observer.observe(document, {
-        childList: true,
-        subtree: true
-    });
+    }
+    waitForModule();
 })();
