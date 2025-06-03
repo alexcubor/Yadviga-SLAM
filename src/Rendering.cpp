@@ -78,6 +78,11 @@ extern "C" {
             canvas.style.left = '0';
             canvas.style.objectFit = 'cover'; // Save proportions
 
+            // Сохраняем canvas в YAGA.canvas
+            if (typeof YAGA !== 'undefined') {
+                YAGA.canvas = canvas;
+            }
+
             const gl = canvas.getContext('webgl', {
                 alpha: false,
                 antialias: false,
@@ -237,13 +242,15 @@ extern "C" {
                     
                     YAGA.video.srcObject = stream;
                     YAGA.video.play();
-
-                    // Initialize video in YAGA module
-                    // YAGA.video = video;
-                    // YAGA.init();
+                    
+                    // Flag for camera active
+                    YAGA.cameraActive = true;
                     
                     // Function to process frame
                     function processFrame() {
+                        if (!YAGA.cameraActive || !YAGA.video) {
+                            return;
+                        }
                         if (YAGA.video.readyState === YAGA.video.HAVE_ENOUGH_DATA) {
                             // Save current state
                             const previousProgram = gl.getParameter(gl.CURRENT_PROGRAM);
@@ -424,6 +431,22 @@ extern "C" {
                 });
             }
         }, LOGO_SVG);
+    }
+}
+
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE void stopCamera() {
+        EM_ASM(
+            if (typeof YAGA !== 'undefined') {
+                YAGA.cameraActive = false;
+            }
+            if (typeof YAGA !== 'undefined' && YAGA.video && YAGA.video.srcObject) {
+                var tracks = YAGA.video.srcObject.getTracks();
+                for (var i = 0; i < tracks.length; ++i) tracks[i].stop();
+                YAGA.video.srcObject = null;
+                YAGA.video = null;
+            }
+        );
     }
 }
 
