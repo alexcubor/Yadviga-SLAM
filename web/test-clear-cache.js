@@ -1,7 +1,7 @@
 class CacheManager {
     constructor() {
         this.onClear = null;
-        this.isMinimized = false;
+        this.isMinimized = true;
         this.cacheTypes = [
             { 
                 id: 'webStorage', 
@@ -291,6 +291,8 @@ class CacheManager {
             uiContainer.style.display = 'flex';
             uiContainer.style.flexDirection = 'column';
             uiContainer.style.gap = '1rem';
+            uiContainer.style.fontSize = '1rem';
+            uiContainer.style.fontFamily = 'monospace';
             document.body.appendChild(uiContainer);
         }
 
@@ -489,7 +491,7 @@ class CacheManager {
 
         // Create clear button
         const clearButton = document.createElement('button');
-        clearButton.textContent = 'Clear Selected & Reload page';
+        clearButton.textContent = 'Clear & Reload';
         clearButton.style.padding = '0.75rem 1rem';
         clearButton.style.backgroundColor = '#dc3545';
         clearButton.style.color = 'white';
