@@ -1,3 +1,6 @@
+// Enable log for three.js
+console.log('🎲 Enable three.js');
+
 // Load Three.js if not already loaded
 if (!window.THREE) {
     const script = document.createElement('script');
@@ -28,12 +31,69 @@ function initScene() {
             0.1,
             1000
         );
-        window._threeCamera.position.set(0, 5, 5);  // Поднимаем камеру и отодвигаем назад
+        window._threeCamera.position.set(0, 1.5, 2);  // Поднимаем камеру и отодвигаем назад
         window._threeCamera.lookAt(0, 0, 0);  // Смотрим в центр сцены
         
         // Add grid helper
         var gridHelper = new THREE.GridHelper(10, 10, 0x0000ff, 0x808080);
         window._threeScene.add(gridHelper);
+        
+        // === Add axis labels and unit label (meters) ===
+        function makeTextSprite(message, parameters) {
+            if (parameters === undefined) parameters = {};
+            var fontface = parameters.hasOwnProperty('fontface') ? parameters['fontface'] : 'Arial';
+            var fontsize = parameters.hasOwnProperty('fontsize') ? parameters['fontsize'] : 48;
+            var borderThickness = parameters.hasOwnProperty('borderThickness') ? parameters['borderThickness'] : 2;
+            var borderColor = parameters.hasOwnProperty('borderColor') ? parameters['borderColor'] : { r:0, g:0, b:0, a:1.0 };
+            var backgroundColor = parameters.hasOwnProperty('backgroundColor') ? parameters['backgroundColor'] : { r:255, g:255, b:255, a:0.0 };
+            var textColor = parameters.hasOwnProperty('textColor') ? parameters['textColor'] : { r:0, g:0, b:0, a:1.0 };
+
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            context.font = fontsize + 'px ' + fontface;
+            // get size data (height depends only on font size)
+            var metrics = context.measureText(message);
+            var textWidth = metrics.width;
+            canvas.width = textWidth + borderThickness * 8;
+            canvas.height = fontsize + borderThickness * 8;
+            // Need to set font again after resizing canvas
+            context.font = fontsize + 'px ' + fontface;
+            // background
+            context.fillStyle = `rgba(${backgroundColor.r},${backgroundColor.g},${backgroundColor.b},${backgroundColor.a})`;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            // border
+            context.strokeStyle = `rgba(${borderColor.r},${borderColor.g},${borderColor.b},${borderColor.a})`;
+            context.lineWidth = borderThickness;
+            context.strokeRect(0, 0, canvas.width, canvas.height);
+            // text
+            context.fillStyle = `rgba(${textColor.r},${textColor.g},${textColor.b},${textColor.a})`;
+            context.textAlign = 'left';
+            context.textBaseline = 'top';
+            context.fillText(message, borderThickness * 4, borderThickness * 4);
+            var texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true;
+            var spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            var sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(0.5, 0.25, 1.0); // size in world units
+            return sprite;
+        }
+
+        // Add labels along X and Z axes
+        for (let i = -5; i <= 5; i++) {
+            if (i === 0) continue;
+            // X axis labels
+            let labelX = makeTextSprite(i.toString(), { fontsize: 64, textColor: {r:0,g:0,b:255,a:1} });
+            labelX.position.set(i, 0.01, 0);
+            window._threeScene.add(labelX);
+            // Z axis labels
+            let labelZ = makeTextSprite(i.toString(), { fontsize: 64, textColor: {r:255,g:0,b:0,a:1} });
+            labelZ.position.set(0, 0.01, i);
+            window._threeScene.add(labelZ);
+        }
+        // Add 'meters' label
+        let metersLabel = makeTextSprite('meters', { fontsize: 48, textColor: {r:0,g:0,b:0,a:1} });
+        metersLabel.position.set(5.5, 0.01, 0);
+        window._threeScene.add(metersLabel);
         
         // Add axes helper
         var axesHelper = new THREE.AxesHelper(5);
