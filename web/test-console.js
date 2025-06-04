@@ -8,15 +8,22 @@ const originalConsole = {
 };
 
 // Check if running on desktop
-window.isDesktop = /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
+window.isDesktop = !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
-if (!window.isDesktop) {
+// Add initial message only for desktop users
+if (window.isDesktop) {
+    earlyLogs.push({ 
+        type: 'info', 
+        message: 'Disabled for desktop browsers. Please use native DevTools console.',
+        count: 1 
+    });
+} else {
+    // For mobile, start capturing logs immediately
     const addEarlyLog = (type, args) => {
-        const timestamp = new Date().toLocaleTimeString();
         const message = args.map(arg => 
             typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
         ).join(' ');
-        earlyLogs.push({ type, timestamp, message, count: 1 });
+        earlyLogs.push({ type, message, count: 1 });
     };
 
     console.log = (...args) => {
@@ -40,22 +47,11 @@ if (!window.isDesktop) {
     };
 }
 
-// Add initial message for desktop users
-if (window.isDesktop) {
-    earlyLogs.push({ 
-        type: 'info', 
-        timestamp: new Date().toLocaleTimeString(), 
-        message: 'Disabled for desktop browsers. Please use native DevTools console.',
-        count: 1 
-    });
-}
-
 class ConsoleUI {
     constructor() {
         this.logs = [...earlyLogs]; // Initialize with early logs
-        this.maxLogs = 300; // Maximum number of logs to keep
+        this.maxLogs = 100; // Maximum number of logs to keep
         this.isUserScrolling = false;
-        this.showTimestamps = false; // Initialize timestamp state
         this.loadDimensions();
         this.createUI();
         if (!window.isDesktop) {
@@ -69,27 +65,47 @@ class ConsoleUI {
         try {
             const savedDimensions = localStorage.getItem('console_dimensions');
             if (savedDimensions) {
-                this.dimensions = JSON.parse(savedDimensions);
-            } else {
+                const parsed = JSON.parse(savedDimensions);
+                // Ensure we have valid pixel values
                 this.dimensions = {
-                    width: '90vw',
-                    maxWidth: '40rem',
-                    height: window.isDesktop ? 'auto' : '30vh'
+                    width: parsed.width || '320px',
+                    maxWidth: 'none',
+                    height: parsed.height || '250px'
+                };
+            } else {
+                // Get UI container width for default size
+                const uiContainer = document.getElementById('yaga-ui-container');
+                const defaultWidth = uiContainer ? `${uiContainer.offsetWidth}px` : '320px';
+                
+                this.dimensions = {
+                    width: defaultWidth,
+                    maxWidth: 'none',
+                    height: '250px'
                 };
             }
         } catch (err) {
             console.warn('Error loading console dimensions:', err);
+            // Get UI container width for default size
+            const uiContainer = document.getElementById('yaga-ui-container');
+            const defaultWidth = uiContainer ? `${uiContainer.offsetWidth}px` : '320px';
+            
             this.dimensions = {
-                width: '90vw',
-                maxWidth: '40rem',
-                height: window.isDesktop ? 'auto' : '30vh'
+                width: defaultWidth,
+                maxWidth: 'none',
+                height: '250px'
             };
         }
     }
 
     saveDimensions() {
         try {
-            localStorage.setItem('console_dimensions', JSON.stringify(this.dimensions));
+            // Ensure we're saving pixel values
+            const dimensionsToSave = {
+                width: this.dimensions.width,
+                maxWidth: 'none',
+                height: this.dimensions.height
+            };
+            localStorage.setItem('console_dimensions', JSON.stringify(dimensionsToSave));
         } catch (err) {
             console.warn('Error saving console dimensions:', err);
         }
@@ -116,7 +132,7 @@ class ConsoleUI {
         // Create console container
         const consoleContainer = document.createElement('div');
         consoleContainer.style.width = window.isDesktop ? 'auto' : this.dimensions.width;
-        consoleContainer.style.maxWidth = window.isDesktop ? '40rem' : this.dimensions.maxWidth;
+        consoleContainer.style.maxWidth = window.isDesktop ? 'none' : this.dimensions.maxWidth;
         consoleContainer.style.height = window.isDesktop ? 'auto' : this.dimensions.height;
         consoleContainer.style.padding = '1rem';
         consoleContainer.style.borderRadius = '0.5rem';
@@ -188,13 +204,8 @@ class ConsoleUI {
                 const deltaY = clientY - startY;
                 
                 // Calculate new dimensions
-                let newWidth = Math.max(startWidth + deltaX, 320); // 20rem = 320px
-                let newHeight = Math.max(startHeight + deltaY, 160); // 10rem = 160px
-
-                // Apply max width constraint
-                if (newWidth > 512) { // 40rem = 512px
-                    newWidth = 512;
-                }
+                let newWidth = Math.max(startWidth + deltaX, 320); // Minimum width 320px
+                let newHeight = Math.max(startHeight + deltaY, 250); // Minimum height 160px
 
                 // Apply max height constraint
                 const maxHeight = window.innerHeight * 0.8;
@@ -206,10 +217,10 @@ class ConsoleUI {
                 consoleContainer.style.width = `${newWidth}px`;
                 consoleContainer.style.height = `${newHeight}px`;
 
-                // Save dimensions
+                // Save dimensions with pixel units
                 this.dimensions = {
                     width: `${newWidth}px`,
-                    maxWidth: '40rem',
+                    maxWidth: 'none',
                     height: `${newHeight}px`
                 };
                 this.saveDimensions();
@@ -279,13 +290,11 @@ class ConsoleUI {
         copyButton.onclick = (e) => {
             e.stopPropagation(); // Prevent console click event
             const text = this.logs.map(log => {
-                const timestamp = this.showTimestamps ? `[${log.timestamp}] ` : '';
                 const count = log.count > 1 ? ` (${log.count})` : '';
-                return `${timestamp}${log.message}${count}`;
+                return `${log.message}${count}`;
             }).join('\n');
             
             navigator.clipboard.writeText(text).then(() => {
-                // Визуальная обратная связь
                 const originalText = copyButton.textContent;
                 copyButton.textContent = 'Copied!';
                 copyButton.style.backgroundColor = 'rgba(0,255,0,0.2)';
@@ -317,31 +326,47 @@ class ConsoleUI {
         consoleContent.style.fontSize = '1rem';
         consoleContent.style.whiteSpace = 'pre-wrap';
         consoleContent.style.wordBreak = 'break-word';
-        consoleContent.style.cursor = 'pointer';
         consoleContent.style.lineHeight = window.isDesktop ? '1.2' : '1.5';
 
         // Add scroll event listener only for mobile
         if (!window.isDesktop) {
+            let touchStartY = 0;
+            let isTouching = false;
+            let isScrolling = false;
+
+            consoleContent.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+                isTouching = true;
+                isScrolling = false;
+            });
+
+            consoleContent.addEventListener('touchmove', (e) => {
+                if (isTouching) {
+                    const currentY = e.touches[0].clientY;
+                    const deltaY = Math.abs(currentY - touchStartY);
+                    
+                    // Only consider it scrolling if moved more than 5 pixels
+                    if (deltaY > 5) {
+                        isScrolling = true;
+                        this.isUserScrolling = true;
+                    }
+                }
+            });
+
+            consoleContent.addEventListener('touchend', () => {
+                isTouching = false;
+                // Only check bottom position if we were actually scrolling
+                if (isScrolling) {
+                    const isAtBottom = consoleContent.scrollHeight - consoleContent.scrollTop <= consoleContent.clientHeight + 1;
+                    this.isUserScrolling = !isAtBottom;
+                }
+            });
+
             consoleContent.addEventListener('scroll', () => {
                 const isAtBottom = consoleContent.scrollHeight - consoleContent.scrollTop <= consoleContent.clientHeight + 1;
                 this.isUserScrolling = !isAtBottom;
             });
         }
-
-        // Add click event listener for timestamp toggle
-        consoleContent.addEventListener('click', () => {
-            const selection = window.getSelection();
-            const selectedText = selection.toString();
-            
-            // Only toggle timestamps if no text is selected
-            if (selectedText.length === 0) {
-                this.showTimestamps = !this.showTimestamps;
-                const timestamps = consoleContent.getElementsByClassName('timestamp');
-                for (let ts of timestamps) {
-                    ts.style.display = this.showTimestamps ? 'inline' : 'none';
-                }
-            }
-        });
 
         consoleContainer.appendChild(consoleHeader);
         consoleContainer.appendChild(consoleContent);
@@ -355,7 +380,11 @@ class ConsoleUI {
 
     overrideConsole() {
         const addLog = (type, args) => {
-            const timestamp = new Date().toLocaleTimeString();
+            // If we've reached max logs, don't add any more
+            if (this.logs.length >= this.maxLogs) {
+                return;
+            }
+
             const message = args.map(arg => 
                 typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
             ).join(' ');
@@ -364,16 +393,19 @@ class ConsoleUI {
             const lastLog = this.logs[this.logs.length - 1];
             if (lastLog && lastLog.message === message && lastLog.type === type) {
                 lastLog.count = (lastLog.count || 1) + 1;
-                lastLog.timestamp = timestamp; // Update timestamp
             } else {
-                // Если достигли лимита, добавляем сообщение о переполнении
+                this.logs.push({ type, message, count: 1 });
+                
+                // If we've reached max logs, add the message and restore original console
                 if (this.logs.length >= this.maxLogs) {
-                    const overflowMessage = "Too many logs... Clear for update";
-                    if (this.logs[this.logs.length - 1].message !== overflowMessage) {
-                        this.logs.push({ type: 'warn', timestamp, message: overflowMessage, count: 1 });
-                    }
-                } else {
-                    this.logs.push({ type, timestamp, message, count: 1 });
+                    // Restore original console methods
+                    console.log = originalConsole.log;
+                    console.error = originalConsole.error;
+                    console.warn = originalConsole.warn;
+                    console.info = originalConsole.info;
+                    
+                    // Add the message at the very end
+                    this.logs.push({ type: 'warn', message: "Too many logs...", count: 1 });
                 }
             }
 
@@ -424,16 +456,16 @@ class ConsoleUI {
                 ? `<span style="color: #999; margin-left: 0.5rem;">(${log.count})</span>` 
                 : '';
 
-            const timestampHtml = `<span class="timestamp" style="color: #aaa; margin-right: 0.5rem; display: ${this.showTimestamps ? 'inline' : 'none'};">[${log.timestamp}]</span>`;
-
-            return `<div style="color: ${color};">${timestampHtml}${log.message}${countHtml}</div>`;
+            return `<div style="color: ${color};">${log.message}${countHtml}</div>`;
         }).join('');
 
         this.consoleContent.innerHTML = html;
         
-        // Only auto-scroll if user is not manually scrolling
+        // Only auto-scroll if user is at the bottom
         if (!this.isUserScrolling) {
-            this.consoleContent.scrollTop = this.consoleContent.scrollHeight;
+            requestAnimationFrame(() => {
+                this.consoleContent.scrollTop = this.consoleContent.scrollHeight;
+            });
         }
     }
 
@@ -459,5 +491,4 @@ class ConsoleUI {
     });
 })();
 
-window.isDesktop = window.isDesktop !== undefined ? window.isDesktop : /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
-document.documentElement.style.setProperty('font-size', window.isDesktop ? '0.6rem' : '1rem', 'important');
+window.isDesktop = window.isDesktop !== undefined ? window.isDesktop : !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));

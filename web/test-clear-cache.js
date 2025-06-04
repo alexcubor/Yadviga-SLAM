@@ -2,7 +2,12 @@ class CacheManager {
     constructor() {
         this.onClear = null;
         this.isMinimized = true;
-        this.cacheTypes = [
+        this.cacheTypes = this.initializeCacheTypes();
+        this.loadCheckboxStates();
+    }
+
+    initializeCacheTypes() {
+        return [
             { 
                 id: 'webStorage', 
                 name: 'Web Storage', 
@@ -203,313 +208,208 @@ class CacheManager {
                 defaultChecked: true
             }
         ];
-
-        // Load saved checkbox states
-        this.loadCheckboxStates();
     }
 
-    loadCheckboxStates() {
-        try {
-            const savedStates = localStorage.getItem('cache_manager_states');
-            if (savedStates) {
-                const states = JSON.parse(savedStates);
-                this.cacheTypes.forEach(type => {
-                    if (states[type.id] !== undefined) {
-                        type.defaultChecked = states[type.id];
-                    }
-                });
-                // Load minimized state
-                if (states.minimized !== undefined) {
-                    this.isMinimized = states.minimized;
-                }
-            } else {
-                // If no saved states, force File System to be unchecked
-                this.cacheTypes.forEach(type => {
-                    if (type.id === 'fileSystem') {
-                        type.defaultChecked = false;
-                    }
-                });
-            }
-        } catch (err) {
-            console.warn('Error loading checkbox states:', err);
-            this.cacheTypes.forEach(type => {
-                if (type.id === 'fileSystem') {
-                    type.defaultChecked = false;
-                }
-            });
-        }
-    }
-
-    saveCheckboxStates() {
-        try {
-            const states = {};
-            this.cacheTypes.forEach(type => {
-                const checkbox = document.getElementById(type.id);
-                if (checkbox) {
-                    states[type.id] = checkbox.checked;
-                }
-            });
-            // Save minimized state
-            states.minimized = this.isMinimized;
-            localStorage.setItem('cache_manager_states', JSON.stringify(states));
-        } catch (err) {
-            console.warn('Error saving checkbox states:', err);
-        }
-    }
-
-    async init() {
-        this.createUI();
-        this.startInfoUpdates();
-    }
-
-    startInfoUpdates() {
-        // Update info every second
-        setInterval(async () => {
-            for (const type of this.cacheTypes) {
-                const infoElement = document.getElementById(`${type.id}-info`);
-                if (infoElement) {
-                    try {
-                        infoElement.textContent = await type.getInfo();
-                    } catch (err) {
-                        infoElement.textContent = 'Error';
-                    }
-                }
-            }
-        }, 1000);
-    }
-
+    // UI Components
     createUI() {
-        // Get or create UI container
+        const uiContainer = this.getOrCreateUIContainer();
+        const cacheUI = this.createCacheUI();
+        uiContainer.appendChild(cacheUI);
+    }
+
+    getOrCreateUIContainer() {
         let uiContainer = document.getElementById('yaga-ui-container');
         if (!uiContainer) {
             uiContainer = document.createElement('div');
             uiContainer.id = 'yaga-ui-container';
-            uiContainer.style.position = 'fixed';
-            uiContainer.style.top = '2vh';
-            uiContainer.style.left = '2vw';
-            uiContainer.style.zIndex = '1000';
-            uiContainer.style.display = 'flex';
-            uiContainer.style.flexDirection = 'column';
-            uiContainer.style.gap = '1rem';
-            uiContainer.style.fontSize = '1rem';
-            uiContainer.style.fontFamily = 'monospace';
+            Object.assign(uiContainer.style, {
+                position: 'fixed',
+                top: '2vh',
+                left: '2vw',
+                zIndex: '1000',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                fontSize: '1rem',
+                fontFamily: 'monospace'
+            });
             document.body.appendChild(uiContainer);
         }
+        return uiContainer;
+    }
 
+    createCacheUI() {
         const cacheUI = document.createElement('div');
-        cacheUI.style.width = '90vw';
-        cacheUI.style.maxWidth = '40rem';
-        cacheUI.style.minWidth = '20rem';
-        cacheUI.style.minHeight = '10rem';
-        cacheUI.style.padding = '1rem';
-        cacheUI.style.borderRadius = '0.5rem';
-        cacheUI.style.color = 'white';
-        cacheUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        cacheUI.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-        cacheUI.style.position = 'relative';
-        cacheUI.style.overflow = 'auto';
-        cacheUI.style.transition = 'all 0.3s ease';
+        Object.assign(cacheUI.style, {
+            width: '90vw',
+            maxWidth: '40rem',
+            minWidth: '20rem',
+            minHeight: '10rem',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            color: 'white',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+            position: 'relative',
+            overflow: 'auto',
+            transition: 'all 0.3s ease'
+        });
 
-        // Create title
+        const title = this.createTitle();
+        const cacheList = this.createCacheList();
+        const clearButton = this.createClearButton();
+        const minimizeButton = this.createMinimizeButton(cacheUI, cacheList, title);
+
+        cacheUI.appendChild(title);
+        cacheUI.appendChild(minimizeButton);
+        cacheUI.appendChild(cacheList);
+        cacheUI.appendChild(clearButton);
+
+        if (this.isMinimized) {
+            this.minimizeUI(cacheUI, cacheList, title);
+        }
+
+        return cacheUI;
+    }
+
+    createTitle() {
         const title = document.createElement('div');
         title.textContent = 'Cache & Data Manager';
-        title.style.marginBottom = '0.75rem';
-        title.style.color = '#fff';
-        title.style.lineHeight = '1.2';
-        cacheUI.appendChild(title);
+        Object.assign(title.style, {
+            marginBottom: '0.75rem',
+            color: '#fff',
+            lineHeight: '1.2'
+        });
+        return title;
+    }
 
-        // Create cache type list
+    createCacheList() {
         const cacheList = document.createElement('div');
-        cacheList.className = 'cache-list';
-        cacheList.style.backgroundColor = 'rgba(0,0,0,0.3)';
-        cacheList.style.borderRadius = '0.375rem';
-        cacheList.style.padding = '0.75rem';
-        cacheList.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        cacheList.style.fontSize = '1rem';
-        cacheList.style.transition = 'all 0.3s ease';
+        Object.assign(cacheList.style, {
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: '0.375rem',
+            padding: '0.75rem',
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            fontSize: '1rem',
+            transition: 'all 0.3s ease'
+        });
 
-        // Add minimize button
-        const minimizeButton = document.createElement('button');
-        minimizeButton.innerHTML = this.isMinimized ? '+' : '−';
-        minimizeButton.style.position = 'absolute';
-        minimizeButton.style.top = '0.5rem';
-        minimizeButton.style.right = '0.5rem';
-        minimizeButton.style.width = '1.5rem';
-        minimizeButton.style.height = '1.5rem';
-        minimizeButton.style.padding = '0';
-        minimizeButton.style.border = 'none';
-        minimizeButton.style.background = 'rgba(255,255,255,0.2)';
-        minimizeButton.style.color = 'white';
-        minimizeButton.style.borderRadius = '0.25rem';
-        minimizeButton.style.cursor = 'pointer';
-        minimizeButton.style.fontSize = '1.25rem';
-        minimizeButton.style.lineHeight = '1';
-        minimizeButton.style.display = 'flex';
-        minimizeButton.style.alignItems = 'center';
-        minimizeButton.style.justifyContent = 'center';
-        minimizeButton.style.transition = 'all 0.2s';
-
-        minimizeButton.onmouseover = () => {
-            minimizeButton.style.background = 'rgba(255,255,255,0.3)';
-        };
-
-        minimizeButton.onmouseout = () => {
-            minimizeButton.style.background = 'rgba(255,255,255,0.2)';
-        };
-
-        minimizeButton.onclick = () => {
-            this.isMinimized = !this.isMinimized;
-            
-            if (this.isMinimized) {
-                minimizeButton.innerHTML = '+';
-                cacheUI.style.height = 'auto';
-                cacheUI.style.minHeight = 'auto';
-                cacheList.style.display = 'none';
-                cacheList.style.opacity = '0';
-                title.style.marginBottom = '0.5rem';
-                cacheUI.style.padding = '0.5rem';
-            } else {
-                minimizeButton.innerHTML = '−';
-                cacheUI.style.height = '';
-                cacheUI.style.minHeight = '10rem';
-                cacheList.style.display = '';
-                cacheList.style.opacity = '1';
-                title.style.marginBottom = '0.75rem';
-                cacheUI.style.padding = '1rem';
-            }
-            
-            // Save state to localStorage
-            this.saveCheckboxStates();
-        };
-
-        cacheUI.appendChild(minimizeButton);
-
-        // Add cache types
         this.cacheTypes.forEach(type => {
-            const item = document.createElement('div');
-            item.style.display = 'flex';
-            item.style.alignItems = 'center';
-            item.style.padding = '0.5rem';
-            item.style.cursor = 'pointer';
-            item.style.borderRadius = '0.375rem';
-            item.style.marginBottom = '0.5rem';
-            item.style.transition = 'background-color 0.2s';
-
-            item.onmouseover = () => item.style.backgroundColor = 'rgba(255,255,255,0.1)';
-            item.onmouseout = () => item.style.backgroundColor = 'transparent';
-
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = type.id;
-            checkbox.style.marginRight = '0.75rem';
-            checkbox.style.width = '1rem';
-            checkbox.style.height = '1rem';
-            checkbox.checked = type.defaultChecked;
-
-            checkbox.onchange = () => {
-                this.saveCheckboxStates();
-            };
-
-            const label = document.createElement('label');
-            label.htmlFor = type.id;
-            label.textContent = type.name;
-            label.style.flex = '1';
-            label.style.cursor = 'pointer';
-
-            const info = document.createElement('span');
-            info.id = `${type.id}-info`;
-            info.style.marginLeft = '0.75rem';
-            info.style.color = '#aaa';
-            info.style.cursor = 'pointer';
-            info.style.padding = '0.25rem 0.5rem';
-            info.style.borderRadius = '0.25rem';
-            info.style.transition = 'all 0.2s';
-
-            if (['webStorage', 'cookies', 'jsCache'].includes(type.id)) {
-                info.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                info.style.color = '#fff';
-                info.style.fontWeight = '500';
-                info.style.display = 'inline-flex';
-                info.style.alignItems = 'center';
-                info.style.gap = '0.5rem';
-                // Add icon
-                const icon = document.createElement('span');
-                icon.textContent = '🔍';
-                icon.style.fontSize = '0.75rem';
-                info.prepend(icon);
-                info.onmouseover = () => {
-                    info.style.backgroundColor = 'rgba(255,255,255,0.3)';
-                };
-                info.onmouseout = () => {
-                    info.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                };
-            } else {
-                info.onmouseover = () => {
-                    info.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                };
-                info.onmouseout = () => {
-                    info.style.backgroundColor = 'transparent';
-                };
-            }
-
-            info.onclick = async () => {
-                try {
-                    switch(type.id) {
-                        case 'webStorage':
-                            this.showWebStoragePopup();
-                            break;
-                        case 'cookies':
-                            this.showCookiesPopup();
-                            break;
-                        case 'jsCache':
-                            this.showJSCachePopup();
-                            break;
-                        default:
-                            const result = await type.getInfo();
-                            info.textContent = result;
-                            info.style.color = '#4CAF50';
-                            setTimeout(() => {
-                                info.style.color = '#aaa';
-                            }, 2000);
-                    }
-                } catch (err) {
-                    info.textContent = 'Error';
-                    info.style.color = '#ff4444';
-                    setTimeout(() => {
-                        info.style.color = '#aaa';
-                    }, 2000);
-                }
-            };
-
-            item.appendChild(checkbox);
-            item.appendChild(label);
-            item.appendChild(info);
+            const item = this.createCacheTypeItem(type);
             cacheList.appendChild(item);
         });
 
-        cacheUI.appendChild(cacheList);
+        return cacheList;
+    }
 
-        // Create clear button
+    createCacheTypeItem(type) {
+        const item = document.createElement('div');
+        Object.assign(item.style, {
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0.5rem',
+            cursor: 'pointer',
+            borderRadius: '0.375rem',
+            marginBottom: '0.5rem',
+            transition: 'background-color 0.2s'
+        });
+
+        const checkbox = this.createCheckbox(type);
+        const label = this.createLabel(type);
+        const info = this.createInfo(type);
+
+        item.appendChild(checkbox);
+        item.appendChild(label);
+        item.appendChild(info);
+
+        return item;
+    }
+
+    createCheckbox(type) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = type.id;
+        Object.assign(checkbox.style, {
+            marginRight: '0.75rem',
+            width: '1rem',
+            height: '1rem'
+        });
+        checkbox.checked = type.defaultChecked;
+        checkbox.onchange = () => this.saveCheckboxStates();
+        return checkbox;
+    }
+
+    createLabel(type) {
+        const label = document.createElement('label');
+        label.htmlFor = type.id;
+        label.textContent = type.name;
+        Object.assign(label.style, {
+            flex: '1',
+            cursor: 'pointer'
+        });
+        return label;
+    }
+
+    createInfo(type) {
+        const info = document.createElement('span');
+        info.id = `${type.id}-info`;
+        Object.assign(info.style, {
+            marginLeft: '0.75rem',
+            color: '#aaa',
+            cursor: 'pointer',
+            padding: '0.25rem 0.5rem',
+            borderRadius: '0.25rem',
+            transition: 'all 0.2s'
+        });
+
+        if (['webStorage', 'cookies', 'jsCache'].includes(type.id)) {
+            this.styleInfoButton(info);
+        }
+
+        info.onclick = () => this.handleInfoClick(type, info);
+        return info;
+    }
+
+    styleInfoButton(info) {
+        Object.assign(info.style, {
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            color: '#fff',
+            fontWeight: '500',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+        });
+
+        const icon = document.createElement('span');
+        icon.textContent = '🔍';
+        icon.style.fontSize = '0.75rem';
+        info.prepend(icon);
+
+        info.onmouseover = () => info.style.backgroundColor = 'rgba(255,255,255,0.3)';
+        info.onmouseout = () => info.style.backgroundColor = 'rgba(255,255,255,0.2)';
+    }
+
+    createClearButton() {
         const clearButton = document.createElement('button');
         clearButton.textContent = 'Clear & Reload';
-        clearButton.style.padding = '0.75rem 1rem';
-        clearButton.style.backgroundColor = '#dc3545';
-        clearButton.style.color = 'white';
-        clearButton.style.border = 'none';
-        clearButton.style.borderRadius = '0.375rem';
-        clearButton.style.cursor = 'pointer';
-        clearButton.style.fontSize = '1rem';
-        clearButton.style.width = '100%';
-        clearButton.style.marginTop = '0.75rem';
+        Object.assign(clearButton.style, {
+            padding: '0.75rem 1rem',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            width: '100%',
+            marginTop: '0.75rem'
+        });
 
         clearButton.onclick = async () => {
             const selectedTypes = this.cacheTypes.filter(type => 
                 document.getElementById(type.id).checked
             );
 
-            if (selectedTypes.length === 0) {
-                return;
-            }
+            if (selectedTypes.length === 0) return;
 
             try {
                 for (const type of selectedTypes) {
@@ -526,102 +426,209 @@ class CacheManager {
             }
         };
 
-        cacheUI.appendChild(clearButton);
+        return clearButton;
+    }
 
-        // Apply initial minimized state if needed
-        if (this.isMinimized) {
-            cacheUI.style.height = 'auto';
-            cacheUI.style.minHeight = 'auto';
-            cacheList.style.display = 'none';
-            cacheList.style.opacity = '0';
-            title.style.marginBottom = '0.5rem';
-            cacheUI.style.padding = '0.5rem';
-        }
+    createMinimizeButton(cacheUI, cacheList, title) {
+        const minimizeButton = document.createElement('button');
+        minimizeButton.innerHTML = this.isMinimized ? '+' : '−';
+        Object.assign(minimizeButton.style, {
+            position: 'absolute',
+            top: '0.5rem',
+            right: '0.5rem',
+            width: '1.5rem',
+            height: '1.5rem',
+            padding: '0',
+            border: 'none',
+            background: 'rgba(255,255,255,0.2)',
+            color: 'white',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+            fontSize: '1.25rem',
+            lineHeight: '1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s'
+        });
 
-        uiContainer.appendChild(cacheUI);
+        minimizeButton.onmouseover = () => minimizeButton.style.background = 'rgba(255,255,255,0.3)';
+        minimizeButton.onmouseout = () => minimizeButton.style.background = 'rgba(255,255,255,0.2)';
 
-        // Force File System checkbox to be unchecked after UI creation
-        setTimeout(() => {
-            const fileSystemCheckbox = document.getElementById('fileSystem');
-            if (fileSystemCheckbox) fileSystemCheckbox.checked = false;
-        }, 0);
+        minimizeButton.onclick = () => {
+            this.isMinimized = !this.isMinimized;
+            if (this.isMinimized) {
+                this.minimizeUI(cacheUI, cacheList, title);
+                minimizeButton.innerHTML = '+';
+            } else {
+                this.maximizeUI(cacheUI, cacheList, title);
+                minimizeButton.innerHTML = '−';
+            }
+            this.saveCheckboxStates();
+        };
+
+        return minimizeButton;
+    }
+
+    minimizeUI(cacheUI, cacheList, title) {
+        Object.assign(cacheUI.style, {
+            height: 'auto',
+            minHeight: 'auto',
+            padding: '0.5rem'
+        });
+        Object.assign(cacheList.style, {
+            display: 'none',
+            opacity: '0'
+        });
+        Object.assign(title.style, {
+            marginBottom: '0.5rem'
+        });
+    }
+
+    maximizeUI(cacheUI, cacheList, title) {
+        Object.assign(cacheUI.style, {
+            height: '',
+            minHeight: '10rem',
+            padding: '1rem'
+        });
+        Object.assign(cacheList.style, {
+            display: '',
+            opacity: '1'
+        });
+        Object.assign(title.style, {
+            marginBottom: '0.75rem'
+        });
+    }
+
+    // Modal Windows
+    createModalWindow(title) {
+        const popup = document.createElement('div');
+        const modalWidth = window.innerWidth - 50; // 10px from each side
+        Object.assign(popup.style, {
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            zIndex: '2000',
+            width: `${modalWidth}px`,
+            maxWidth: 'none',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            fontFamily: 'monospace',
+            fontSize: '1rem',
+            color: 'white'
+        });
+
+        const titleElement = document.createElement('div');
+        titleElement.textContent = title;
+        Object.assign(titleElement.style, {
+            fontWeight: 'bold',
+            marginBottom: '1rem',
+            borderBottom: '1px solid rgba(255,255,255,0.2)',
+            paddingBottom: '0.5rem'
+        });
+        popup.appendChild(titleElement);
+
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: '1999'
+        });
+
+        const updateWidth = () => {
+            popup.style.width = `${window.innerWidth - 20}px`;
+        };
+        window.addEventListener('resize', updateWidth);
+
+        const cleanup = () => {
+            window.removeEventListener('resize', updateWidth);
+            overlay.removeEventListener('click', cleanup);
+            popup.remove();
+            overlay.remove();
+        };
+        overlay.addEventListener('click', cleanup);
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(popup);
+
+        return { popup, overlay, cleanup };
     }
 
     showWebStoragePopup() {
-        // Create popup container
-        const popup = document.createElement('div');
-        popup.style.position = 'fixed';
-        popup.style.top = '50%';
-        popup.style.left = '50%';
-        popup.style.transform = 'translate(-50%, -50%)';
-        popup.style.backgroundColor = 'rgba(0,0,0,0.9)';
-        popup.style.padding = '1rem';
-        popup.style.borderRadius = '0.5rem';
-        popup.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
-        popup.style.zIndex = '2000';
-        popup.style.maxWidth = '80vw';
-        popup.style.maxHeight = '80vh';
-        popup.style.overflow = 'auto';
-        popup.style.fontFamily = 'monospace';
-        popup.style.fontSize = '1rem';
-        popup.style.color = 'white';
+        const { popup } = this.createModalWindow('Web Storage Contents');
 
-        // Create title
-        const title = document.createElement('div');
-        title.textContent = 'Web Storage Contents';
-        title.style.fontSize = '1rem';
-        title.style.fontWeight = 'bold';
-        title.style.marginBottom = '1rem';
-        title.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
-        title.style.paddingBottom = '0.5rem';
-        popup.appendChild(title);
-
-        // Create table
         const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.marginBottom = '1rem';
+        Object.assign(table.style, {
+            width: '100%',
+            borderCollapse: 'collapse',
+            marginBottom: '1rem',
+            tableLayout: 'fixed'
+        });
 
-        // Create header
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-        ['Storage', 'Key', 'Value'].forEach(text => {
+        [
+            { text: 'Storage', width: '15%' },
+            { text: 'Key', width: '25%' },
+            { text: 'Value', width: '60%' }
+        ].forEach(({ text, width }) => {
             const th = document.createElement('th');
             th.textContent = text;
-            th.style.textAlign = 'left';
-            th.style.padding = '0.5rem';
-            th.style.borderBottom = '2px solid rgba(255,255,255,0.2)';
+            Object.assign(th.style, {
+                textAlign: 'left',
+                padding: '0.5rem',
+                borderBottom: '2px solid rgba(255,255,255,0.2)',
+                width
+            });
             headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // Create body
         const tbody = document.createElement('tbody');
 
         // Add localStorage items
         Object.entries(localStorage).forEach(([key, value]) => {
             const row = document.createElement('tr');
-            row.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+            Object.assign(row.style, {
+                borderBottom: '1px solid rgba(255,255,255,0.1)'
+            });
 
             const storageCell = document.createElement('td');
             storageCell.textContent = 'localStorage';
-            storageCell.style.padding = '0.5rem';
-            storageCell.style.color = '#4CAF50';
+            Object.assign(storageCell.style, {
+                padding: '0.5rem',
+                color: '#4CAF50',
+                wordBreak: 'break-word',
+                whiteSpace: 'normal'
+            });
 
             const keyCell = document.createElement('td');
             keyCell.textContent = key;
-            keyCell.style.padding = '0.5rem';
-            keyCell.style.fontFamily = 'monospace';
+            Object.assign(keyCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace',
+                wordBreak: 'break-word',
+                whiteSpace: 'normal'
+            });
 
             const valueCell = document.createElement('td');
             valueCell.textContent = value;
-            valueCell.style.padding = '0.5rem';
-            valueCell.style.fontFamily = 'monospace';
-            valueCell.style.maxWidth = '300px';
-            valueCell.style.wordBreak = 'break-all';
-            valueCell.style.whiteSpace = 'pre-wrap';
-            valueCell.style.overflow = 'hidden';
+            Object.assign(valueCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace',
+                wordBreak: 'break-word',
+                whiteSpace: 'normal'
+            });
 
             row.appendChild(storageCell);
             row.appendChild(keyCell);
@@ -632,26 +639,36 @@ class CacheManager {
         // Add sessionStorage items
         Object.entries(sessionStorage).forEach(([key, value]) => {
             const row = document.createElement('tr');
-            row.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+            Object.assign(row.style, {
+                borderBottom: '1px solid rgba(255,255,255,0.1)'
+            });
 
             const storageCell = document.createElement('td');
             storageCell.textContent = 'sessionStorage';
-            storageCell.style.padding = '0.5rem';
-            storageCell.style.color = '#2196F3';
+            Object.assign(storageCell.style, {
+                padding: '0.5rem',
+                color: '#2196F3',
+                wordBreak: 'break-word',
+                whiteSpace: 'normal'
+            });
 
             const keyCell = document.createElement('td');
             keyCell.textContent = key;
-            keyCell.style.padding = '0.5rem';
-            keyCell.style.fontFamily = 'monospace';
+            Object.assign(keyCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace',
+                wordBreak: 'break-word',
+                whiteSpace: 'normal'
+            });
 
             const valueCell = document.createElement('td');
             valueCell.textContent = value;
-            valueCell.style.padding = '0.5rem';
-            valueCell.style.fontFamily = 'monospace';
-            valueCell.style.maxWidth = '300px';
-            valueCell.style.wordBreak = 'break-all';
-            valueCell.style.whiteSpace = 'pre-wrap';
-            valueCell.style.overflow = 'hidden';
+            Object.assign(valueCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace',
+                wordBreak: 'break-word',
+                whiteSpace: 'normal'
+            });
 
             row.appendChild(storageCell);
             row.appendChild(keyCell);
@@ -662,146 +679,113 @@ class CacheManager {
         table.appendChild(tbody);
         popup.appendChild(table);
 
-        // Create close button
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
-        closeButton.style.padding = '0.5rem 1rem';
-        closeButton.style.backgroundColor = '#dc3545';
-        closeButton.style.color = 'white';
-        closeButton.style.border = 'none';
-        closeButton.style.borderRadius = '0.25rem';
-        closeButton.style.cursor = 'pointer';
-        closeButton.style.width = '100%';
+        Object.assign(closeButton.style, {
+            padding: '0.5rem 1rem',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+            width: '100%'
+        });
         closeButton.onclick = () => popup.remove();
         popup.appendChild(closeButton);
-
-        // Add overlay
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.right = '0';
-        overlay.style.bottom = '0';
-        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        overlay.style.zIndex = '1999';
-        overlay.onclick = () => {
-            overlay.remove();
-            popup.remove();
-        };
-
-        document.body.appendChild(overlay);
-        document.body.appendChild(popup);
     }
 
     showCookiesPopup() {
-        // Create popup container
-        const popup = document.createElement('div');
-        popup.style.position = 'fixed';
-        popup.style.top = '50%';
-        popup.style.left = '50%';
-        popup.style.transform = 'translate(-50%, -50%)';
-        popup.style.backgroundColor = 'rgba(0,0,0,0.9)';
-        popup.style.padding = '1rem';
-        popup.style.borderRadius = '0.5rem';
-        popup.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
-        popup.style.zIndex = '2000';
-        popup.style.maxWidth = '80vw';
-        popup.style.maxHeight = '80vh';
-        popup.style.overflow = 'auto';
-        popup.style.fontFamily = 'monospace';
-        popup.style.fontSize = '1rem';
-        popup.style.color = 'white';
+        const { popup } = this.createModalWindow('Cookies Contents');
 
-        // Create title
-        const title = document.createElement('div');
-        title.textContent = 'Cookies Contents';
-        title.style.fontWeight = 'bold';
-        title.style.marginBottom = '1rem';
-        title.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
-        title.style.paddingBottom = '0.5rem';
-        popup.appendChild(title);
-
-        // Create table
         const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.marginBottom = '1rem';
+        Object.assign(table.style, {
+            width: '100%',
+            borderCollapse: 'collapse',
+            marginBottom: '1rem'
+        });
 
-        // Create header
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
         ['Name', 'Value', 'Domain', 'Path', 'Expires', 'Secure', 'HttpOnly'].forEach(text => {
             const th = document.createElement('th');
             th.textContent = text;
-            th.style.textAlign = 'left';
-            th.style.padding = '0.5rem';
-            th.style.borderBottom = '2px solid rgba(255,255,255,0.2)';
+            Object.assign(th.style, {
+                textAlign: 'left',
+                padding: '0.5rem',
+                borderBottom: '2px solid rgba(255,255,255,0.2)'
+            });
             headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // Create body
         const tbody = document.createElement('tbody');
 
-        // Parse cookies
         const cookies = document.cookie.split(';').map(cookie => {
             const [name, ...rest] = cookie.trim().split('=');
-            const value = rest.join('='); // Handle values that might contain '='
+            const value = rest.join('=');
             return { name, value };
         });
 
-        // Add cookie items
         cookies.forEach(cookie => {
             const row = document.createElement('tr');
-            row.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+            Object.assign(row.style, {
+                borderBottom: '1px solid rgba(255,255,255,0.1)'
+            });
 
-            // Name
             const nameCell = document.createElement('td');
             nameCell.textContent = cookie.name;
-            nameCell.style.padding = '0.5rem';
-            nameCell.style.fontFamily = 'monospace';
-            nameCell.style.color = '#4CAF50';
+            Object.assign(nameCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace',
+                color: '#4CAF50'
+            });
 
-            // Value
             const valueCell = document.createElement('td');
             valueCell.textContent = cookie.value;
-            valueCell.style.padding = '0.5rem';
-            valueCell.style.fontFamily = 'monospace';
-            valueCell.style.maxWidth = '200px';
-            valueCell.style.wordBreak = 'break-all';
-            valueCell.style.whiteSpace = 'pre-wrap';
-            valueCell.style.overflow = 'hidden';
+            Object.assign(valueCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace',
+                maxWidth: '200px',
+                wordBreak: 'break-all',
+                whiteSpace: 'pre-wrap',
+                overflow: 'hidden'
+            });
 
-            // Domain
             const domainCell = document.createElement('td');
             domainCell.textContent = window.location.hostname;
-            domainCell.style.padding = '0.5rem';
-            domainCell.style.fontFamily = 'monospace';
+            Object.assign(domainCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace'
+            });
 
-            // Path
             const pathCell = document.createElement('td');
             pathCell.textContent = '/';
-            pathCell.style.padding = '0.5rem';
-            pathCell.style.fontFamily = 'monospace';
+            Object.assign(pathCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace'
+            });
 
-            // Expires
             const expiresCell = document.createElement('td');
             expiresCell.textContent = 'Session';
-            expiresCell.style.padding = '0.5rem';
-            expiresCell.style.fontFamily = 'monospace';
+            Object.assign(expiresCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace'
+            });
 
-            // Secure
             const secureCell = document.createElement('td');
             secureCell.textContent = window.location.protocol === 'https:' ? 'Yes' : 'No';
-            secureCell.style.padding = '0.5rem';
-            secureCell.style.fontFamily = 'monospace';
+            Object.assign(secureCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace'
+            });
 
-            // HttpOnly
             const httpOnlyCell = document.createElement('td');
             httpOnlyCell.textContent = 'Unknown';
-            httpOnlyCell.style.padding = '0.5rem';
-            httpOnlyCell.style.fontFamily = 'monospace';
+            Object.assign(httpOnlyCell.style, {
+                padding: '0.5rem',
+                fontFamily: 'monospace'
+            });
 
             row.appendChild(nameCell);
             row.appendChild(valueCell);
@@ -816,133 +800,98 @@ class CacheManager {
         table.appendChild(tbody);
         popup.appendChild(table);
 
-        // Create close button
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
-        closeButton.style.padding = '0.5rem 1rem';
-        closeButton.style.backgroundColor = '#dc3545';
-        closeButton.style.color = 'white';
-        closeButton.style.border = 'none';
-        closeButton.style.borderRadius = '0.25rem';
-        closeButton.style.cursor = 'pointer';
-        closeButton.style.width = '100%';
+        Object.assign(closeButton.style, {
+            padding: '0.5rem 1rem',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+            width: '100%'
+        });
         closeButton.onclick = () => popup.remove();
         popup.appendChild(closeButton);
-
-        // Add overlay
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.right = '0';
-        overlay.style.bottom = '0';
-        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        overlay.style.zIndex = '1999';
-        overlay.onclick = () => {
-            overlay.remove();
-            popup.remove();
-        };
-
-        document.body.appendChild(overlay);
-        document.body.appendChild(popup);
     }
 
     showJSCachePopup() {
-        // Create popup container
-        const popup = document.createElement('div');
-        popup.style.position = 'fixed';
-        popup.style.top = '50%';
-        popup.style.left = '50%';
-        popup.style.transform = 'translate(-50%, -50%)';
-        popup.style.backgroundColor = 'rgba(0,0,0,0.9)';
-        popup.style.padding = '0.75rem';
-        popup.style.borderRadius = '0.5rem';
-        popup.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
-        popup.style.zIndex = '2000';
-        popup.style.width = '90vw';
-        popup.style.maxWidth = '600px';
-        popup.style.fontFamily = 'monospace';
-        popup.style.fontSize = '1rem';
-        popup.style.color = 'white';
+        const { popup } = this.createModalWindow('JavaScript Files Cache');
 
-        // Create title
-        const title = document.createElement('div');
-        title.textContent = 'JavaScript Files Cache';
-        title.style.fontWeight = 'bold';
-        title.style.marginBottom = '0.5rem';
-        title.style.borderBottom = '1px solid rgba(255,255,255,0.2)';
-        title.style.paddingBottom = '0.25rem';
-        popup.appendChild(title);
-
-        // Create table
         const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.marginBottom = '0.5rem';
-        table.style.tableLayout = 'fixed';
+        Object.assign(table.style, {
+            width: '100%',
+            borderCollapse: 'collapse',
+            marginBottom: '0.5rem',
+            tableLayout: 'fixed'
+        });
 
-        // Create header
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
         [
-            { text: 'File', width: '30%' },
-            { text: 'Status', width: '15%' },
-            { text: 'Size', width: '15%' },
+            { text: 'File', width: '40%' },
+            { text: 'Status', width: '10%' },
+            { text: 'Size', width: '10%' },
             { text: 'Modified', width: '40%' }
         ].forEach(({ text, width }) => {
             const th = document.createElement('th');
             th.textContent = text;
-            th.style.textAlign = 'left';
-            th.style.padding = '0.25rem';
-            th.style.borderBottom = '2px solid rgba(255,255,255,0.2)';
-            th.style.width = width;
+            Object.assign(th.style, {
+                textAlign: 'left',
+                padding: '0.25rem',
+                borderBottom: '2px solid rgba(255,255,255,0.2)',
+                width
+            });
             headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // Create body
         const tbody = document.createElement('tbody');
 
-        // Get all scripts
         const scripts = Array.from(document.scripts);
         scripts.forEach(script => {
             if (script.src) {
                 const row = document.createElement('tr');
-                row.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                Object.assign(row.style, {
+                    borderBottom: '1px solid rgba(255,255,255,0.1)'
+                });
 
-                // File name
                 const fileCell = document.createElement('td');
                 fileCell.textContent = script.src.split('/').pop();
-                fileCell.style.padding = '0.25rem';
-                fileCell.style.fontFamily = 'monospace';
-                fileCell.style.color = '#4CAF50';
-                fileCell.style.overflow = 'hidden';
-                fileCell.style.textOverflow = 'ellipsis';
-                fileCell.style.whiteSpace = 'nowrap';
+                Object.assign(fileCell.style, {
+                    padding: '0.25rem',
+                    fontFamily: 'monospace',
+                    color: '#4CAF50',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                });
 
-                // Status
                 const statusCell = document.createElement('td');
                 statusCell.textContent = 'Cached';
-                statusCell.style.padding = '0.25rem';
-                statusCell.style.fontFamily = 'monospace';
+                Object.assign(statusCell.style, {
+                    padding: '0.25rem',
+                    fontFamily: 'monospace'
+                });
 
-                // Size
                 const sizeCell = document.createElement('td');
                 sizeCell.textContent = 'Unknown';
-                sizeCell.style.padding = '0.25rem';
-                sizeCell.style.fontFamily = 'monospace';
+                Object.assign(sizeCell.style, {
+                    padding: '0.25rem',
+                    fontFamily: 'monospace'
+                });
 
-                // Last Modified
                 const modifiedCell = document.createElement('td');
                 modifiedCell.textContent = 'Unknown';
-                modifiedCell.style.padding = '0.25rem';
-                modifiedCell.style.fontFamily = 'monospace';
-                modifiedCell.style.overflow = 'hidden';
-                modifiedCell.style.textOverflow = 'ellipsis';
-                modifiedCell.style.whiteSpace = 'nowrap';
+                Object.assign(modifiedCell.style, {
+                    padding: '0.25rem',
+                    fontFamily: 'monospace',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                });
 
-                // Try to get file info
                 fetch(script.src, { method: 'HEAD' })
                     .then(response => {
                         if (response.ok) {
@@ -968,39 +917,121 @@ class CacheManager {
         table.appendChild(tbody);
         popup.appendChild(table);
 
-        // Create close button
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
-        closeButton.style.padding = '0.25rem 0.5rem';
-        closeButton.style.backgroundColor = '#dc3545';
-        closeButton.style.color = 'white';
-        closeButton.style.border = 'none';
-        closeButton.style.borderRadius = '0.25rem';
-        closeButton.style.cursor = 'pointer';
-        closeButton.style.fontWeight = 'bold';
-        closeButton.style.width = '100%';
+        Object.assign(closeButton.style, {
+            padding: '0.25rem 0.5rem',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            width: '100%'
+        });
         closeButton.onclick = () => popup.remove();
         popup.appendChild(closeButton);
-
-        // Add overlay
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.right = '0';
-        overlay.style.bottom = '0';
-        overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        overlay.style.zIndex = '1999';
-        overlay.onclick = () => {
-            overlay.remove();
-            popup.remove();
-        };
-
-        document.body.appendChild(overlay);
-        document.body.appendChild(popup);
     }
 
-    // Clear methods for each type
+    // State Management
+    loadCheckboxStates() {
+        try {
+            const savedStates = localStorage.getItem('cache_manager_states');
+            if (savedStates) {
+                const states = JSON.parse(savedStates);
+                this.cacheTypes.forEach(type => {
+                    if (states[type.id] !== undefined) {
+                        type.defaultChecked = states[type.id];
+                    }
+                });
+                if (states.minimized !== undefined) {
+                    this.isMinimized = states.minimized;
+                }
+            } else {
+                this.cacheTypes.forEach(type => {
+                    if (type.id === 'fileSystem') {
+                        type.defaultChecked = false;
+                    }
+                });
+            }
+        } catch (err) {
+            console.warn('Error loading checkbox states:', err);
+            this.cacheTypes.forEach(type => {
+                if (type.id === 'fileSystem') {
+                    type.defaultChecked = false;
+                }
+            });
+        }
+    }
+
+    saveCheckboxStates() {
+        try {
+            const states = {};
+            this.cacheTypes.forEach(type => {
+                const checkbox = document.getElementById(type.id);
+                if (checkbox) {
+                    states[type.id] = checkbox.checked;
+                }
+            });
+            states.minimized = this.isMinimized;
+            localStorage.setItem('cache_manager_states', JSON.stringify(states));
+        } catch (err) {
+            console.warn('Error saving checkbox states:', err);
+        }
+    }
+
+    // Event Handlers
+    async handleInfoClick(type, info) {
+        try {
+            switch(type.id) {
+                case 'webStorage':
+                    this.showWebStoragePopup();
+                    break;
+                case 'cookies':
+                    this.showCookiesPopup();
+                    break;
+                case 'jsCache':
+                    this.showJSCachePopup();
+                    break;
+                default:
+                    const result = await type.getInfo();
+                    info.textContent = result;
+                    info.style.color = '#4CAF50';
+                    setTimeout(() => {
+                        info.style.color = '#aaa';
+                    }, 2000);
+            }
+        } catch (err) {
+            info.textContent = 'Error';
+            info.style.color = '#ff4444';
+            setTimeout(() => {
+                info.style.color = '#aaa';
+            }, 2000);
+        }
+    }
+
+    // Initialization
+    async init() {
+        this.createUI();
+        this.startInfoUpdates();
+    }
+
+    startInfoUpdates() {
+        setInterval(async () => {
+            for (const type of this.cacheTypes) {
+                const infoElement = document.getElementById(`${type.id}-info`);
+                if (infoElement) {
+                    try {
+                        infoElement.textContent = await type.getInfo();
+                    } catch (err) {
+                        infoElement.textContent = 'Error';
+                    }
+                }
+            }
+        }, 1000);
+    }
+
+    // Clear Methods
     async clearWebStorage() {
         window.localStorage.clear();
         window.sessionStorage.clear();
@@ -1047,7 +1078,6 @@ class CacheManager {
 
     async clearFileSystem() {
         if ('showDirectoryPicker' in window) {
-            // Request permission to clear file system
             try {
                 const dirHandle = await window.showDirectoryPicker();
                 for await (const entry of dirHandle.values()) {
@@ -1069,12 +1099,10 @@ class CacheManager {
     }
 
     async clearSharedWorkers() {
-        // Shared workers can't be cleared programmatically
         console.warn('Shared workers can only be cleared by closing all tabs');
     }
 
     async clearWebRTC() {
-        // WebRTC connections are automatically closed when the page is unloaded
         console.warn('WebRTC connections are automatically closed when the page is unloaded');
     }
 
@@ -1105,7 +1133,6 @@ class CacheManager {
         if ('permissions' in navigator) {
             const result = await navigator.permissions.query({ name: 'notifications' });
             if (result.state === 'granted') {
-                // Can't revoke permissions programmatically
                 console.warn('Notification permissions can only be revoked in browser settings');
             }
         }
@@ -1115,7 +1142,6 @@ class CacheManager {
         if ('permissions' in navigator) {
             const result = await navigator.permissions.query({ name: 'geolocation' });
             if (result.state === 'granted') {
-                // Can't revoke permissions programmatically
                 console.warn('Geolocation permissions can only be revoked in browser settings');
             }
         }
@@ -1125,7 +1151,6 @@ class CacheManager {
         if ('permissions' in navigator) {
             const result = await navigator.permissions.query({ name: 'camera' });
             if (result.state === 'granted') {
-                // Can't revoke permissions programmatically
                 console.warn('Media device permissions can only be revoked in browser settings');
             }
         }
@@ -1133,19 +1158,16 @@ class CacheManager {
 
     async clearPermissions() {
         if ('permissions' in navigator) {
-            // Can't revoke permissions programmatically
             console.warn('Permissions can only be revoked in browser settings');
         }
     }
 
     async clearJSCache() {
-        // Clear browser cache for JavaScript files
         if ('caches' in window) {
             const cacheNames = await caches.keys();
             await Promise.all(cacheNames.map(name => caches.delete(name)));
         }
         
-        // Force reload all scripts
         const scripts = Array.from(document.scripts);
         scripts.forEach(script => {
             if (script.src) {
@@ -1160,7 +1182,7 @@ class CacheManager {
 // Export for use in other files
 window.CacheManager = CacheManager;
 
-// Wrap observer in IIFE to avoid variable redeclaration
+// Initialize when YAGA is ready
 (function() {
     const observer = new MutationObserver((mutations) => {
         if (window.YAGA) {
@@ -1175,7 +1197,8 @@ window.CacheManager = CacheManager;
         childList: true,
         subtree: true
     });
-})(); 
+})();
 
+// Set base font size
 const isDesktop = /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
 document.documentElement.style.setProperty('font-size', isDesktop ? '0.6rem' : '1rem', 'important');
