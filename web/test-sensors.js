@@ -6,32 +6,61 @@ class SensorManager {
         this.precision = {
             orientation: 1,
             acceleration: 1,
-            rotation: 0
+            rotation: 1
         };
+        this.selectedValue = null;
     }
 
     async init() {
         this.createUI();
         // Subscribe to updates from Sensors.cpp
         if (typeof Module !== 'undefined' && Module._updateIMU) {
-            Module._updateIMU = (wx, wy, wz, ax, ay, az, timestamp) => {
+            Module._updateIMU = (wx, wy, wz, ax, ay, az, timestamp, rx, ry, rz) => {
                 // Convert radians to degrees
                 const toDeg = 180 / Math.PI;
-                this.orientation = {
-                    alpha: wx * toDeg,
-                    beta: wy * toDeg,
-                    gamma: wz * toDeg
-                };
-                this.acceleration = {
-                    x: ax,
-                    y: ay,
-                    z: az
-                };
+                
+                // Update rotation rate values with smoothing
+                const smoothingFactor = 0.3; // Adjust this value between 0 and 1
                 this.rotationRate = {
-                    alpha: wx * toDeg,
-                    beta: wy * toDeg,
-                    gamma: wz * toDeg
+                    alpha: this.rotationRate ? 
+                        this.rotationRate.alpha * (1 - smoothingFactor) + (rx * toDeg) * smoothingFactor :
+                        rx * toDeg,
+                    beta: this.rotationRate ?
+                        this.rotationRate.beta * (1 - smoothingFactor) + (ry * toDeg) * smoothingFactor :
+                        ry * toDeg,
+                    gamma: this.rotationRate ?
+                        this.rotationRate.gamma * (1 - smoothingFactor) + (rz * toDeg) * smoothingFactor :
+                        rz * toDeg
                 };
+                
+                // Update orientation values with smoothing
+                this.orientation = {
+                    alpha: this.orientation ?
+                        this.orientation.alpha * (1 - smoothingFactor) + (wx * toDeg) * smoothingFactor :
+                        wx * toDeg,
+                    beta: this.orientation ?
+                        this.orientation.beta * (1 - smoothingFactor) + (wy * toDeg) * smoothingFactor :
+                        wy * toDeg,
+                    gamma: this.orientation ?
+                        this.orientation.gamma * (1 - smoothingFactor) + (wz * toDeg) * smoothingFactor :
+                        wz * toDeg
+                };
+                
+                // Update acceleration values with smoothing
+                this.acceleration = {
+                    x: this.acceleration ?
+                        this.acceleration.x * (1 - smoothingFactor) + ax * smoothingFactor :
+                        ax,
+                    y: this.acceleration ?
+                        this.acceleration.y * (1 - smoothingFactor) + ay * smoothingFactor :
+                        ay,
+                    z: this.acceleration ?
+                        this.acceleration.z * (1 - smoothingFactor) + az * smoothingFactor :
+                        az
+                };
+
+                
+                // Update the UI
                 this.updateDisplay();
             };
         }
@@ -102,6 +131,7 @@ class SensorManager {
             this.precision.orientation = this.precision.orientation === 2 ? 1 : 2;
             this.updateDisplay();
         };
+        orientationBlock.ondblclick = (e) => this.handleDoubleClick(e, 'orientation');
 
         const accelerationBlock = document.createElement('div');
         accelerationBlock.style.flex = '1';
@@ -114,6 +144,7 @@ class SensorManager {
             this.precision.acceleration = this.precision.acceleration === 2 ? 1 : 2;
             this.updateDisplay();
         };
+        accelerationBlock.ondblclick = (e) => this.handleDoubleClick(e, 'acceleration');
 
         const rotationBlock = document.createElement('div');
         rotationBlock.style.flex = '1';
@@ -126,6 +157,7 @@ class SensorManager {
             this.precision.rotation = this.precision.rotation === 0 ? 1 : 0;
             this.updateDisplay();
         };
+        rotationBlock.ondblclick = (e) => this.handleDoubleClick(e, 'rotation');
 
         sensorData.appendChild(orientationBlock);
         sensorData.appendChild(accelerationBlock);
@@ -141,6 +173,66 @@ class SensorManager {
 
         // Immediately update display to show all blocks
         this.updateDisplay();
+    }
+
+    handleDoubleClick(event, type) {
+        const target = event.target;
+
+        if (target.tagName === 'BR') return;
+
+        // Get the value from the clicked text
+        const text = target.textContent;
+        
+        // Try to find the value in the clicked line
+        const lines = text.split('\n');
+        let valueLine = '';
+        for (const line of lines) {
+            if (line.includes('α:') || line.includes('β:') || line.includes('γ:') || 
+                line.includes('x:') || line.includes('y:') || line.includes('z:')) {
+                valueLine = line.trim();
+                break;
+            }
+        }
+        
+        if (!valueLine) return;
+        
+        // Match both formats: "x: 1.23" and "α: 1.23"
+        const match = valueLine.match(/([xyzαβγ]):\s*([-\d.]+)/);
+        
+        if (!match) return;
+
+        const axis = match[1];
+        let value;
+        
+        // Get the actual value based on type and axis
+        if (type === 'orientation') {
+            const axisMap = { 'α': 'alpha', 'β': 'beta', 'γ': 'gamma' };
+            value = this.orientation[axisMap[axis]];
+        } else if (type === 'acceleration') {
+            value = this.acceleration[axis];
+        } else if (type === 'rotation') {
+            const axisMap = { 'α': 'alpha', 'β': 'beta', 'γ': 'gamma' };
+            value = this.rotationRate[axisMap[axis]];
+        }
+
+        if (value === undefined) return;
+
+        // Copy value to clipboard
+        navigator.clipboard.writeText(value.toString()).then(() => {
+            // Show temporary feedback
+            const originalText = target.textContent;
+            const originalHTML = target.innerHTML;
+            target.innerHTML = '✓ Copied!';
+            target.style.color = '#4CAF50';  // Green color for success
+            
+            // Restore original text after 1 second
+            setTimeout(() => {
+                target.innerHTML = originalHTML;
+                target.style.color = '';
+            }, 1000);
+        }).catch(err => {
+            console.error('Failed to copy value:', err);
+        });
     }
 
     updateDisplay() {
@@ -169,16 +261,17 @@ class SensorManager {
 // Export for use in other files
 window.SensorManager = SensorManager;
 
-// Initialize SensorManager after Module is ready
-(function() {
-    function waitForModule() {
-        if (typeof Module !== 'undefined' && Module._malloc) {
-            console.log('🫆 Enable test-sensors.js');
-            window.sensorManager = new SensorManager();
-            window.sensorManager.init();
-        } else {
-            setTimeout(waitForModule, 100);
-        }
+// Initialize SensorManager after YAGA is ready
+const observer = new MutationObserver((mutations) => {
+    if (window.YAGA) {
+        observer.disconnect();
+        console.log('🕹️ Enable test-sensors.js');
+        window.sensorManager = new SensorManager();
+        window.sensorManager.init();
     }
-    waitForModule();
-})();
+});
+
+observer.observe(document, {
+    childList: true,
+    subtree: true
+});

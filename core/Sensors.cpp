@@ -16,10 +16,11 @@ public:
         orientation = Quaternion();
         position = {0, 0, 0};
         velocity = {0, 0, 0};
+        rotationRate = {0, 0, 0};
     }
 
     // Update IMU state with new sensor data
-    void update(float wx, float wy, float wz, float ax, float ay, float az, float newTimestamp) {
+    void update(float wx, float wy, float wz, float ax, float ay, float az, float newTimestamp, float rx = 0, float ry = 0, float rz = 0) {
         std::lock_guard<std::mutex> lock(mutex);
         
         // Check validity of input data
@@ -31,6 +32,11 @@ public:
         
         float dt = (timestamp > 0) ? (newTimestamp - timestamp) : 0;
         timestamp = newTimestamp;
+
+        // Update rotation rate
+        rotationRate[0] = rx;
+        rotationRate[1] = ry;
+        rotationRate[2] = rz;
 
         // Integrate gyroscope to update orientation
         integrateGyro(wx, wy, wz, dt);
@@ -62,10 +68,16 @@ public:
         return position;
     }
 
+    std::array<float, 3> getRotationRate() {
+        std::lock_guard<std::mutex> lock(mutex);
+        return rotationRate;
+    }
+
 private:
     Quaternion orientation;
     std::array<float, 3> position;
     std::array<float, 3> velocity;
+    std::array<float, 3> rotationRate;
     float timestamp;
     std::mutex mutex;
 
@@ -115,6 +127,7 @@ extern "C" {
                 
                 // On desktop, add handlers immediately
                 if (isDesktop) {
+                    console.log('📱 Sensors ✅ Emulated');
                     hasRequestedPermissions = true;
                     setupSensorListeners();
                     return;
@@ -136,7 +149,9 @@ extern "C" {
                             if (motionPermission === 'granted') {
                                 permissionsGranted = true;
                             }
-                        } catch (motionError) {}
+                        } catch (motionError) {
+                            console.warn('Requesting motion permission');
+                        }
                     }
                     
                     // Request permission for orientation
@@ -146,14 +161,18 @@ extern "C" {
                             if (orientationPermission === 'granted') {
                                 permissionsGranted = true;
                             }
-                        } catch (orientationError) {}
+                        } catch (orientationError) {
+                            console.warn('Requesting orientation permission');
+                        }
                     }
 
                     if (permissionsGranted) {
+                        console.log('📱 Sensors ✅ IMU');
                         hasRequestedPermissions = true;
                         setupSensorListeners();
                     }
                 } catch (error) {
+                    console.error('Permission request error:', error);
                     hasRequestedPermissions = false;
                 }
             }
@@ -164,15 +183,20 @@ extern "C" {
                     motionListener = function(event) {
                         if (event.acceleration && event.rotationRate) {
                             const toRad = Math.PI / 180;
-                            Module._updateIMU(
-                                event.rotationRate.alpha * toRad || 0,
-                                event.rotationRate.beta * toRad || 0,
-                                event.rotationRate.gamma * toRad || 0,
-                                event.acceleration.x || 0,
-                                event.acceleration.y || 0,
-                                event.acceleration.z || 0,
-                                event.timeStamp / 1000.0
-                            );
+                            // Check if we have actual data
+                            if (event.acceleration.x !== null || event.acceleration.y !== null || event.acceleration.z !== null ||
+                                event.rotationRate.alpha !== null || event.rotationRate.beta !== null || event.rotationRate.gamma !== null) {
+                                Module._updateIMU(
+                                    0, 0, 0,  // orientation data will come from deviceorientation
+                                    event.acceleration.x || 0,
+                                    event.acceleration.y || 0,
+                                    event.acceleration.z || 0,
+                                    event.timeStamp / 1000.0,
+                                    event.rotationRate.alpha * toRad || 0,
+                                    event.rotationRate.beta * toRad || 0,
+                                    event.rotationRate.gamma * toRad || 0
+                                );
+                            }
                         }
                     };
                     window.addEventListener('devicemotion', motionListener);
@@ -187,8 +211,9 @@ extern "C" {
                                 event.alpha * toRad || 0,
                                 event.beta * toRad || 0,
                                 event.gamma * toRad || 0,
-                                0, 0, 0,
-                                event.timeStamp / 1000.0
+                                0, 0, 0,  // acceleration data will come from devicemotion
+                                event.timeStamp / 1000.0,
+                                0, 0, 0   // rotation rate data will come from devicemotion
                             );
                         }
                     };
@@ -250,7 +275,7 @@ extern "C" {
         });
     }
 
-    EMSCRIPTEN_KEEPALIVE void updateIMU(float wx, float wy, float wz, float ax, float ay, float az, float timestamp) {
-        g_imuState.update(wx, wy, wz, ax, ay, az, timestamp);
+    EMSCRIPTEN_KEEPALIVE void updateIMU(float wx, float wy, float wz, float ax, float ay, float az, float timestamp, float rx = 0, float ry = 0, float rz = 0) {
+        g_imuState.update(wx, wy, wz, ax, ay, az, timestamp, rx, ry, rz);
     }
 } 
