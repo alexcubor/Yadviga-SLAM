@@ -22,17 +22,17 @@ find_package(OpenCV REQUIRED COMPONENTS
 # Add include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/core
     ${OpenCV_INCLUDE_DIRS}
 )
 
 # Add source files
 set(SOURCES
-    src/Initialize.cpp
-    src/Tracking.cpp
-    src/Sensors.cpp
-    src/Rendering.cpp
-    # src/Mapping.cpp
+    core/Initialize.cpp
+    core/Tracking.cpp
+    core/Sensors.cpp
+    core/Rendering.cpp
+    # core/Mapping.cpp
 )
 
 # Create executable
