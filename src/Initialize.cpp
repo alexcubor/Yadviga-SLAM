@@ -3,6 +3,7 @@
 
 extern "C" void renderFrame();
 extern "C" void startTracking();
+extern "C" void initIMU();
 // extern "C" void startMapping();
 
 
@@ -46,6 +47,7 @@ int main() {
 
     // Initialize YAGA
     renderFrame();
-    startTracking();
+    // startTracking();
+    initIMU();
     // startMapping();
 }

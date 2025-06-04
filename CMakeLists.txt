@@ -30,6 +30,7 @@ include_directories(
 set(SOURCES
     src/Initialize.cpp
     src/Tracking.cpp
+    src/Sensors.cpp
     src/Rendering.cpp
     # src/Mapping.cpp
 )
@@ -56,6 +57,8 @@ set(EXPORTED_FUNCS
     "_getTrackingPoints"
     "_getTrackingPointsCount"
     "_arePointsReady"
+    "_initIMU"
+    "_updateIMU"
 )
 # Convert list to string with square brackets and commas
 string(JOIN "," EXPORTED_FUNCS_STR ${EXPORTED_FUNCS})
