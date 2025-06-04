@@ -13,14 +13,36 @@ class SensorManager {
 
     async init() {
         this.createUI();
-        // Subscribe to updates from Sensors.cpp
+        
+        // Handle emulator data directly
+        window.addEventListener('deviceorientation', (event) => {
+            if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
+                this.orientation = {
+                    alpha: event.alpha,
+                    beta: event.beta,
+                    gamma: event.gamma
+                };
+                this.updateDisplay();
+            }
+        });
+
+        // Subscribe to updates from Sensors.cpp for real device
         if (typeof Module !== 'undefined' && Module._updateIMU) {
             Module._updateIMU = (wx, wy, wz, ax, ay, az, timestamp, rx, ry, rz) => {
                 // Convert radians to degrees
                 const toDeg = 180 / Math.PI;
                 
+                // Skip if all values are 0 (emulator mode)
+                if (wx === 0 && wy === 0 && wz === 0 && 
+                    ax === 0 && ay === 0 && az === 0 && 
+                    rx === 0 && ry === 0 && rz === 0) {
+                    return;
+                }
+                
+                // For real device, use smoothing
+                const smoothingFactor = 0.1;
+                
                 // Update rotation rate values with smoothing
-                const smoothingFactor = 0.3; // Adjust this value between 0 and 1
                 this.rotationRate = {
                     alpha: this.rotationRate ? 
                         this.rotationRate.alpha * (1 - smoothingFactor) + (rx * toDeg) * smoothingFactor :
@@ -58,7 +80,6 @@ class SensorManager {
                         this.acceleration.z * (1 - smoothingFactor) + az * smoothingFactor :
                         az
                 };
-
                 
                 // Update the UI
                 this.updateDisplay();

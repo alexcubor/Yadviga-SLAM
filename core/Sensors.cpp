@@ -8,6 +8,16 @@ struct Quaternion {
     float w, x, y, z;
     Quaternion() : w(1), x(0), y(0), z(0) {}
     Quaternion(float w_, float x_, float y_, float z_) : w(w_), x(x_), y(y_), z(z_) {}
+
+    // Quaternion multiplication operator
+    Quaternion operator*(const Quaternion& q) const {
+        return Quaternion(
+            w * q.w - x * q.x - y * q.y - z * q.z,  // w
+            w * q.x + x * q.w + y * q.z - z * q.y,  // x
+            w * q.y - x * q.z + y * q.w + z * q.x,  // y
+            w * q.z + x * q.y - y * q.x + z * q.w   // z
+        );
+    }
 };
 
 class IMUState {
@@ -30,32 +40,20 @@ public:
             return;
         }
         
-        float dt = (timestamp > 0) ? (newTimestamp - timestamp) : 0;
         timestamp = newTimestamp;
 
-        // Update rotation rate
+        // Store raw orientation
+        orientation = Quaternion(1, wx, wy, wz);
+        
+        // Store raw rotation rate
         rotationRate[0] = rx;
         rotationRate[1] = ry;
         rotationRate[2] = rz;
-
-        // Integrate gyroscope to update orientation
-        integrateGyro(wx, wy, wz, dt);
-        // Integrate acceleration to update velocity and position
-        integrateAccel(ax, ay, az, dt);
         
-        // Check validity of results for orientation
-        if (std::isnan(orientation.w) || std::isnan(orientation.x) || 
-            std::isnan(orientation.y) || std::isnan(orientation.z)) {
-            orientation = Quaternion();
-        }
-        
-        // Check validity of results for position and velocity
-        for (int i = 0; i < 3; ++i) {
-            if (std::isnan(position[i]) || std::isnan(velocity[i])) {
-                position[i] = 0;
-                velocity[i] = 0;
-            }
-        }
+        // Store raw acceleration
+        position[0] = ax;
+        position[1] = ay;
+        position[2] = az;
     }
     
     Quaternion getOrientation() {
@@ -80,30 +78,6 @@ private:
     std::array<float, 3> rotationRate;
     float timestamp;
     std::mutex mutex;
-
-    // Stub: integrate gyroscope data (replace with real filter)
-    void integrateGyro(float wx, float wy, float wz, float dt) {
-        // Very basic: just accumulate yaw (wz) for demonstration
-        if (dt > 0) {
-            float angle = wz * dt;
-            float halfAngle = angle * 0.5f;
-            float sinHalf = std::sin(halfAngle);
-            float cosHalf = std::cos(halfAngle);
-            // Yaw-only update (for demo)
-            orientation = Quaternion(cosHalf, 0, 0, sinHalf);
-        }
-    }
-
-    // Stub: integrate acceleration (replace with real filter)
-    void integrateAccel(float ax, float ay, float az, float dt) {
-        if (dt > 0) {
-            // Simple integration (no gravity compensation)
-            for (int i = 0; i < 3; ++i) {
-                velocity[i] += (i == 0 ? ax : (i == 1 ? ay : az)) * dt;
-                position[i] += velocity[i] * dt;
-            }
-        }
-    }
 };
 
 // Global IMU state instance
