@@ -56,6 +56,10 @@ function getOrCreateBabylonContext() {
         camera.lowerRadiusLimit = 2;
         camera.upperRadiusLimit = 20;
         camera.wheelDeltaPercentage = 0.01;
+        camera.pinchDeltaPercentage = 0.0005;
+        camera.panningSensibility = 1000;
+        camera.angularSensibilityX = 1000;
+        camera.angularSensibilityY = 1000;
         window._babylonCamera = camera;
         scene.activeCamera = camera;
         // Light
