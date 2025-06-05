@@ -47,7 +47,7 @@ int main() {
 
     // Initialize YAGA
     renderFrame();
-    // startTracking();
+    startTracking();
     initIMU();
     // startMapping();
 }
