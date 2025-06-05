@@ -76,14 +76,14 @@ function initBabylonGridScene() {
     // Grid material
     if (!scene.getMeshByName('grid')) {
         const gridMaterial = new BABYLON.GridMaterial('grid', scene);
-        gridMaterial.majorUnitFrequency = 1;
+        gridMaterial.majorUnitFrequency = 10;  // Major lines every meter
         gridMaterial.minorUnitVisibility = 0.45;
-        gridMaterial.gridRatio = 1; // 1 unit = 1 meter
+        gridMaterial.gridRatio = 0.1;  // 1 unit = 0.1 meter (decimeter)
         gridMaterial.backFaceCulling = false;
         gridMaterial.mainColor = new BABYLON.Color3(0.5, 0.5, 0.5);
         gridMaterial.lineColor = new BABYLON.Color3(0.2, 0.2, 0.8);
         gridMaterial.opacity = 0.85;
-        const grid = BABYLON.MeshBuilder.CreateGround('grid', {width: 10, height: 10, subdivisions: 10}, scene);
+        const grid = BABYLON.MeshBuilder.CreateGround('grid', {width: 2, height: 2, subdivisions: 20}, scene);
         grid.material = gridMaterial;
         grid.position.y = 0;
     }
@@ -98,15 +98,15 @@ function initBabylonGridScene() {
             axisLine.color = color;
             return axisLine;
         }
-        createAxis(5, new BABYLON.Color3(1,0,0), new BABYLON.Vector3(1,0,0), 'axisX'); // X
-        createAxis(5, new BABYLON.Color3(0,1,0), new BABYLON.Vector3(0,1,0), 'axisY'); // Y
-        createAxis(5, new BABYLON.Color3(0,0,1), new BABYLON.Vector3(0,0,1), 'axisZ'); // Z
+        createAxis(0.2, new BABYLON.Color3(1,0,0), new BABYLON.Vector3(1,0,0), 'axisX'); // X
+        createAxis(0.2, new BABYLON.Color3(0,1,0), new BABYLON.Vector3(0,1,0), 'axisY'); // Y
+        createAxis(0.2, new BABYLON.Color3(0,0,1), new BABYLON.Vector3(0,0,1), 'axisZ'); // Z
     }
     // Axis labels and meters label
     function makeTextPlane(text, color, size, name) {
         const dynamicTexture = new BABYLON.DynamicTexture('DynamicTexture', 128, scene, true);
         dynamicTexture.hasAlpha = true;
-        dynamicTexture.drawText(text, 10, 80, 'bold 64px Arial', color, 'transparent', true);
+        dynamicTexture.drawText(text, 50, 70, 'bold 20px Arial', color, 'transparent', true);
         const plane = BABYLON.MeshBuilder.CreatePlane(name, {size: size}, scene);
         const mat = new BABYLON.StandardMaterial('textPlaneMat', scene);
         mat.diffuseTexture = dynamicTexture;
@@ -117,22 +117,16 @@ function initBabylonGridScene() {
         return plane;
     }
     if (!scene.getMeshByName('labelX_1')) {
-        for (let i = -5; i <= 5; i++) {
+        for (let i = -1; i <= 1; i++) {
             if (i === 0) continue;
-            let labelX = makeTextPlane(i.toString(), 'blue', 0.35, 'labelX_' + i);
+            let labelX = makeTextPlane(i + 'm', 'blue', 0.35, 'labelX_' + i);
             labelX.position = new BABYLON.Vector3(i, 0.01, 0);
             labelX.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
             scene.addMesh(labelX);
-            let labelZ = makeTextPlane(i.toString(), 'red', 0.35, 'labelZ_' + i);
+            let labelZ = makeTextPlane(i + 'm', 'red', 0.35, 'labelZ_' + i);
             labelZ.position = new BABYLON.Vector3(0, 0.01, i);
             labelZ.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
             scene.addMesh(labelZ);
         }
-    }
-    if (!scene.getMeshByName('metersLabel')) {
-        let metersLabel = makeTextPlane('meters', 'black', 0.5, 'metersLabel');
-        metersLabel.position = new BABYLON.Vector3(5.5, 0.01, 0);
-        metersLabel.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
-        scene.addMesh(metersLabel);
     }
 } 

@@ -180,11 +180,10 @@ extern "C" {
                 if (!orientationListener) {
                     orientationListener = function(event) {
                         if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
-                            const toRad = Math.PI / 180;
                             Module._updateIMU(
-                                event.alpha * toRad || 0,
-                                event.beta * toRad || 0,
-                                event.gamma * toRad || 0,
+                                event.alpha || 0,
+                                event.beta || 0,
+                                event.gamma || 0,
                                 0, 0, 0,  // acceleration data will come from devicemotion
                                 event.timeStamp / 1000.0,
                                 0, 0, 0   // rotation rate data will come from devicemotion
