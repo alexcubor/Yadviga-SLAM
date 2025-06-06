@@ -7,21 +7,59 @@
             testTracking();
         }
     });
+    
     observer.observe(document, { childList: true, subtree: true });
 })();
 
 // Use saved context from renderFrame
 async function waitForGL() {
-    if (window._gl) return window._gl;
-
-    return new Promise(resolve => {
-        window.addEventListener('gl-ready', (e) => {
-            resolve(e.detail);
-        }, { once: true });
-    });
+    console.log('🟡 test-tracking.js: Waiting for GL context');
+    
+    // Try different ways to get the canvas
+    const getCanvas = () => {
+        // Try to get canvas from Babylon
+        if (window._babylonEngine) {
+            return window._babylonEngine.getRenderingCanvas();
+        }
+        
+        // Try to get canvas from YAGA
+        if (window.YAGA && window.YAGA.canvas) {
+            return window.YAGA.canvas;
+        }
+        
+        // Try to find canvas in DOM
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+            return canvas;
+        }
+        
+        return null;
+    };
+    
+    // Wait for canvas to be available
+    let canvas = null;
+    while (!canvas) {
+        canvas = getCanvas();
+        if (!canvas) {
+            console.log('🟡 test-tracking.js: Waiting for canvas...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+    
+    console.log('🟡 test-tracking.js: Canvas found');
+    
+    // Get GL context
+    const gl = canvas.getContext('webgl2');
+    if (!gl) {
+        throw new Error('WebGL2 not supported');
+    }
+    
+    console.log('🟡 test-tracking.js: GL context ready');
+    return gl;
 }
 
 function compileShader(gl, type, source) {
+    console.log('🟡 test-tracking.js: Compiling shader');
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
@@ -32,12 +70,11 @@ function compileShader(gl, type, source) {
         gl.deleteShader(shader);
         return null;
     }
+    console.log('🟡 test-tracking.js: Shader compiled successfully');
     return shader;
 }
 
 async function testTracking() {
-    const gl = await waitForGL();
-    
     // Create UI container if it doesn't exist
     let uiContainer = document.getElementById('yaga-ui-container');
     if (!uiContainer) {
@@ -141,7 +178,11 @@ async function testTracking() {
         lkKnob.style.transform = lkInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
         console.log('🔄 Lucas-Kanade toggle:', lkInput.checked);
         try {
-            Module._setLucasKanadeEnabled(lkInput.checked);
+            if (typeof Module._setLucasKanadeEnabled === 'function') {
+                Module._setLucasKanadeEnabled(lkInput.checked);
+            } else {
+                console.warn('⚠️ setLucasKanadeEnabled function not found');
+            }
         } catch (e) {
             console.error('❌ Error toggling Lucas-Kanade:', e);
         }
@@ -209,7 +250,11 @@ async function testTracking() {
         imuKnob.style.transform = imuInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
         console.log('🔄 IMU toggle:', imuInput.checked);
         try {
-            Module._setIMUEnabled(imuInput.checked);
+            if (typeof Module._setIMUEnabled === 'function') {
+                Module._setIMUEnabled(imuInput.checked);
+            } else {
+                console.warn('⚠️ setIMUEnabled function not found');
+            }
         } catch (e) {
             console.error('❌ Error toggling IMU:', e);
         }
@@ -224,94 +269,66 @@ async function testTracking() {
 
     trackingControls.appendChild(togglesBlock);
 
-    // Create shaders for points
-    const vertexShader = compileShader(gl, gl.VERTEX_SHADER, `
-        attribute vec2 a_position;
-        void main() {
-            gl_Position = vec4(a_position, 0, 1);
-            gl_PointSize = 12.0;
-        }
-    `);
+    // Create canvas for points
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '999';
+    document.body.appendChild(canvas);
 
-    const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, `
-        precision mediump float;
-        void main() {
-            // Create sharp square point
-            vec2 coord = gl_PointCoord - vec2(0.5);
-            if (abs(coord.x) > 0.45 || abs(coord.y) > 0.45) {
-                discard;
-            }
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-        }
-    `);
-
-    if (!vertexShader || !fragmentShader) {
-        console.error('Failed to compile shaders');
-        return;
+    // Get 2D context
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size to match window
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
     }
-
-    // Create program for points
-    const pointProgram = gl.createProgram();
-    gl.attachShader(pointProgram, vertexShader);
-    gl.attachShader(pointProgram, fragmentShader);
-    gl.linkProgram(pointProgram);
-
-    // Check for linking errors
-    if (!gl.getProgramParameter(pointProgram, gl.LINK_STATUS)) {
-        console.error('Program linking error:', gl.getProgramInfoLog(pointProgram));
-        gl.deleteProgram(pointProgram);
-        return;
-    }
-
-    // Save program in global variable
-    window._pointProgram = pointProgram;
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     // Create function for points rendering
-    const renderPoints = function(gl) {
-        if (!window._pointProgram) return;
-        
-        const pointsPtr = Module._getTrackingPoints();
-        const pointsCount = Module._getTrackingPointsCount();
-        const pointsReady = Module._arePointsReady();
-        
-        if (pointsReady && pointsPtr && pointsCount > 0) {
-            const points = new Float32Array(Module.HEAPF32.buffer, pointsPtr, pointsCount * 2);
+    const renderPoints = function() {
+        try {
+            const pointsPtr = Module._getTrackingPoints();
+            const pointsCount = Module._getTrackingPointsCount();
+            const pointsReady = Module._arePointsReady();
             
-            // Create buffer for points
-            const pointBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, pointBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, points, gl.DYNAMIC_DRAW);
-
-            // Disable blending
-            gl.disable(gl.BLEND);
-
-            // Use program for points
-            gl.useProgram(window._pointProgram);
-
-            // Set attributes for points
-            const pointPositionLocation = gl.getAttribLocation(window._pointProgram, 'a_position');
-            gl.enableVertexAttribArray(pointPositionLocation);
-            gl.vertexAttribPointer(pointPositionLocation, 2, gl.FLOAT, false, 0, 0);
-
-            // Draw points
-            gl.drawArrays(gl.POINTS, 0, pointsCount);
-
-            // Cleanup
-            gl.deleteBuffer(pointBuffer);
+            if (pointsReady && pointsPtr && pointsCount > 0) {
+                const points = new Float32Array(Module.HEAPF32.buffer, pointsPtr, pointsCount * 2);
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw points
+                ctx.fillStyle = 'red';
+                for (let i = 0; i < pointsCount; i++) {
+                    const x = (points[i * 2] + 1) * canvas.width / 2;
+                    const y = (-points[i * 2 + 1] + 1) * canvas.height / 2;  // Flip Y coordinate
+                    ctx.fillRect(x - 3, y - 3, 6, 6);
+                }
+            }
+        } catch (e) {
+            console.error('❌ Error rendering points:', e);
         }
     };
 
-    // Register rendering stage in pipeline
-    if (!window._renderPipeline) {
-        window._renderPipeline = [];
+    // Start render loop
+    function renderLoop() {
+        renderPoints();
+        requestAnimationFrame(renderLoop);
     }
-    window._renderPipeline.push({
-        name: 'trackingPoints',
-        render: renderPoints
-    });
+    renderLoop();
 
     uiContainer.appendChild(trackingControls);
 }
 
-const isDesktop = /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
-document.documentElement.style.setProperty('font-size', isDesktop ? '0.6rem' : '1rem', 'important');
+// Set base font size
+(function() {
+    const isDesktop = /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
+    document.documentElement.style.setProperty('font-size', isDesktop ? '0.6rem' : '1rem', 'important');
+})();

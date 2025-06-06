@@ -77,12 +77,10 @@ function getOrCreateBabylonContext() {
 }
 
 function initBabylonMappingScene() {
-    console.log('🟪 Initializing Babylon mapping scene');
     const {scene} = getOrCreateBabylonContext();
     
     // Add grid
     if (!scene.getMeshByName('grid')) {
-        console.log('🟪 Creating grid');
         const gridMaterial = new BABYLON.GridMaterial('grid', scene);
         gridMaterial.majorUnitFrequency = 10;  // Major lines every meter
         gridMaterial.minorUnitVisibility = 0.45;
@@ -98,7 +96,6 @@ function initBabylonMappingScene() {
 
     // Add axes
     if (!scene.getMeshByName('axisX')) {
-        console.log('🟪 Creating axes');
         function createAxis(size, color, axis, name) {
             const points = [
                 BABYLON.Vector3.Zero(),
@@ -115,7 +112,6 @@ function initBabylonMappingScene() {
 
     // Add axis labels
     if (!scene.getMeshByName('labelX_1')) {
-        console.log('🟪 Creating axis labels');
         function makeTextPlane(text, color, size, name) {
             const dynamicTexture = new BABYLON.DynamicTexture('DynamicTexture', 128, scene, true);
             dynamicTexture.hasAlpha = true;
@@ -145,7 +141,6 @@ function initBabylonMappingScene() {
     
     // Camera frustum (pyramid)
     function addCameraFrustumBabylon() {
-        console.log('🟪 Creating camera frustum');
         // Frustum parameters
         const h = 0.3; // height
         const b = 0.2; // base size
@@ -231,6 +226,4 @@ function initBabylonMappingScene() {
     if (!scene.getMeshByName('cameraFrustum')) {
         addCameraFrustumBabylon();
     }
-
-    console.log('🟪 Scene initialization complete');
 } 
