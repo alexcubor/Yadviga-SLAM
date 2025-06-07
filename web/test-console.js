@@ -475,20 +475,8 @@ class ConsoleUI {
     }
 }
 
-// Wrap observer in IIFE to avoid variable redeclaration
-(function() {
-    const observer = new MutationObserver((mutations) => {
-        if (window.YAGA) {
-            observer.disconnect();
-            console.log('📝 Enable test-console.js');
-            window.consoleUI = new ConsoleUI();
-        }
-    });
-
-    observer.observe(document, {
-        childList: true,
-        subtree: true
-    });
-})();
+// Initialize console UI immediately
+console.log('📝 Enable test-console.js');
+window.consoleUI = new ConsoleUI();
 
 window.isDesktop = window.isDesktop !== undefined ? window.isDesktop : !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
