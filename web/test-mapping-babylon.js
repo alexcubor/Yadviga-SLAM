@@ -1,6 +1,47 @@
 // Enable log for Babylon.js mapping
 console.log('🟪 Enable test-mapping-babylon.js');
 
+// Tracking points averaging functions
+function calculatePointWeight(point, centerX = 0, centerY = 0) {
+    // Distance from center (closer points get higher weight)
+    const distanceFromCenter = Math.sqrt(
+        Math.pow(point.x - centerX, 2) + 
+        Math.pow(point.y - centerY, 2)
+    );
+    const distanceWeight = Math.exp(-distanceFromCenter); // Exponential decay
+    return distanceWeight;
+}
+
+function averageTrackingPoints(points) {
+    if (!points || points.length === 0) {
+        return null;
+    }
+
+    // First pass: calculate center of mass
+    const center = points.reduce((acc, p) => ({
+        x: acc.x + p.x,
+        y: acc.y + p.y
+    }), {x: 0, y: 0});
+    center.x /= points.length;
+    center.y /= points.length;
+
+    // Second pass: calculate weighted average
+    const weightedSum = points.reduce((acc, p) => {
+        const weight = calculatePointWeight(p, center.x, center.y);
+        return {
+            x: acc.x + p.x * weight,
+            y: acc.y + p.y * weight,
+            totalWeight: acc.totalWeight + weight
+        };
+    }, {x: 0, y: 0, totalWeight: 0});
+
+    // Normalize by total weight
+    return {
+        x: weightedSum.x / weightedSum.totalWeight,
+        y: weightedSum.y / weightedSum.totalWeight
+    };
+}
+
 (function() {
     function loadScript(src, onload) {
         const script = document.createElement('script');
@@ -77,7 +118,10 @@ function getOrCreateBabylonContext() {
 }
 
 function initBabylonMappingScene() {
-    const {scene} = getOrCreateBabylonContext();
+    const {scene, canvas} = getOrCreateBabylonContext();
+    
+    // Create a container for all scene objects
+    const sceneContainer = new BABYLON.TransformNode('sceneContainer', scene);
     
     // Add grid
     if (!scene.getMeshByName('grid')) {
@@ -92,6 +136,7 @@ function initBabylonMappingScene() {
         const grid = BABYLON.MeshBuilder.CreateGround('grid', {width: 2, height: 2, subdivisions: 20}, scene);
         grid.material = gridMaterial;
         grid.position.y = 0;
+        grid.parent = sceneContainer;
     }
 
     // Add axes
@@ -103,6 +148,7 @@ function initBabylonMappingScene() {
             ];
             const axisLine = BABYLON.MeshBuilder.CreateLines(name, {points: points}, scene);
             axisLine.color = color;
+            axisLine.parent = sceneContainer;
             return axisLine;
         }
         createAxis(0.2, new BABYLON.Color3(1,0,0), new BABYLON.Vector3(1,0,0), 'axisX'); // X
@@ -123,6 +169,7 @@ function initBabylonMappingScene() {
             mat.backFaceCulling = false;
             mat.specularColor = BABYLON.Color3.Black();
             plane.material = mat;
+            plane.parent = sceneContainer;
             return plane;
         }
 
@@ -166,6 +213,7 @@ function initBabylonMappingScene() {
         const mesh = new BABYLON.Mesh('cameraFrustum', scene);
         vertexData.applyToMesh(mesh);
         mesh.position = new BABYLON.Vector3(0, 1.5, -2);
+        mesh.parent = sceneContainer;  // Make frustum a child of sceneContainer
         
         const mat = new BABYLON.StandardMaterial('frustumMat', scene);
         mat.diffuseColor = new BABYLON.Color3(1, 0, 0.8);
@@ -226,4 +274,86 @@ function initBabylonMappingScene() {
     if (!scene.getMeshByName('cameraFrustum')) {
         addCameraFrustumBabylon();
     }
+
+    // Create mesh for tracking points
+    let trackingPointsMesh = null;
+    function createTrackingPointsMesh() {
+        if (!trackingPointsMesh) {
+            // Create a single mesh for all points using lines
+            const points = [];
+            for (let i = 0; i < 100; i++) { // Max 100 points
+                points.push(new BABYLON.Vector3(0, 0, 0));
+            }
+            trackingPointsMesh = BABYLON.MeshBuilder.CreateLines('trackingPoints', {
+                points: points,
+                updatable: true
+            }, scene);
+            
+            // Create material for points
+            const material = new BABYLON.StandardMaterial('trackingPointsMat', scene);
+            material.emissiveColor = new BABYLON.Color3(1, 0, 0); // Red color
+            material.disableLighting = true;
+            trackingPointsMesh.material = material;
+            trackingPointsMesh.parent = sceneContainer;
+        }
+        return trackingPointsMesh;
+    }
+
+    // Variables for movement
+    let lastAvgPoint = null;
+
+    // Update scene position based on tracking points
+    scene.registerBeforeRender(function() {
+        if (window.Module && window.Module._getTrackingPoints && window.Module.HEAPF32) {
+            try {
+                const pointsPtr = window.Module._getTrackingPoints();
+                const count = window.Module._getTrackingPointsCount();
+                
+                if (count > 0 && pointsPtr) {
+                    // Get points from WebAssembly memory
+                    const points = new Float32Array(window.Module.HEAPF32.buffer, pointsPtr, count * 2);
+                    
+                    // Convert points to array of objects
+                    const trackingPoints = [];
+                    for (let i = 0; i < count; i++) {
+                        const x = points[i * 2];
+                        const y = points[i * 2 + 1];
+                        if (!isNaN(x) && !isNaN(y)) {
+                            trackingPoints.push({x, y});
+                        }
+                    }
+
+                    // Calculate weighted average
+                    const avgPoint = averageTrackingPoints(trackingPoints);
+                    
+                    if (avgPoint) {
+                        // Direct movement without smoothing
+                        sceneContainer.position.x = avgPoint.x; // Remove minus
+                        sceneContainer.position.y = avgPoint.y; // Remove minus
+
+                        // Update tracking points visualization
+                        const mesh = createTrackingPointsMesh();
+                        const positions = trackingPoints.map(p => 
+                            new BABYLON.Vector3(p.x, p.y, 0)
+                        );
+                        
+                        if (positions.length > 0) {
+                            // Update mesh positions
+                            const vertexData = new BABYLON.VertexData();
+                            vertexData.positions = positions.flatMap(p => [p.x, p.y, p.z]);
+                            vertexData.applyToMesh(mesh);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error getting tracking points:', e, {
+                    message: e.message,
+                    stack: e.stack,
+                    module: window.Module ? 'exists' : 'missing',
+                    getTrackingPoints: window.Module && window.Module._getTrackingPoints ? 'exists' : 'missing',
+                    getTrackingPointsCount: window.Module && window.Module._getTrackingPointsCount ? 'exists' : 'missing'
+                });
+            }
+        }
+    });
 } 

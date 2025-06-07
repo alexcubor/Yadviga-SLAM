@@ -177,14 +177,8 @@ async function testTracking() {
         lkSlider.style.backgroundColor = lkInput.checked ? '#007AFF' : '#ccc';
         lkKnob.style.transform = lkInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
         console.log('🔄 Lucas-Kanade toggle:', lkInput.checked);
-        try {
-            if (typeof Module._setLucasKanadeEnabled === 'function') {
-                Module._setLucasKanadeEnabled(lkInput.checked);
-            } else {
-                console.warn('⚠️ setLucasKanadeEnabled function not found');
-            }
-        } catch (e) {
-            console.error('❌ Error toggling Lucas-Kanade:', e);
+        if (typeof Module._setLucasKanadeEnabled === 'function') {
+            Module._setLucasKanadeEnabled(lkInput.checked);
         }
     };
 
@@ -249,14 +243,8 @@ async function testTracking() {
         imuSlider.style.backgroundColor = imuInput.checked ? '#007AFF' : '#ccc';
         imuKnob.style.transform = imuInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
         console.log('🔄 IMU toggle:', imuInput.checked);
-        try {
-            if (typeof Module._setIMUEnabled === 'function') {
-                Module._setIMUEnabled(imuInput.checked);
-            } else {
-                console.warn('⚠️ setIMUEnabled function not found');
-            }
-        } catch (e) {
-            console.error('❌ Error toggling IMU:', e);
+        if (typeof Module._setIMUEnabled === 'function') {
+            Module._setIMUEnabled(imuInput.checked);
         }
     };
 
@@ -309,8 +297,27 @@ async function testTracking() {
                 for (let i = 0; i < pointsCount; i++) {
                     const x = (points[i * 2] + 1) * canvas.width / 2;
                     const y = (-points[i * 2 + 1] + 1) * canvas.height / 2;  // Flip Y coordinate
-                    ctx.fillRect(x - 3, y - 3, 6, 6);
+                    ctx.fillRect(x - 6, y - 6, 12, 12);  // Doubled size from 6x6 to 12x12
                 }
+
+                // Calculate and draw average point
+                let avgX = 0, avgY = 0;
+                for (let i = 0; i < pointsCount; i++) {
+                    avgX += points[i * 2];
+                    avgY += points[i * 2 + 1];
+                }
+                avgX /= pointsCount;
+                avgY /= pointsCount;
+
+                // Convert to screen coordinates
+                const screenX = (avgX + 1) * canvas.width / 2;
+                const screenY = (-avgY + 1) * canvas.height / 2;
+
+                // Draw average point in green
+                ctx.fillStyle = 'lime';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);  // Circle with radius 8
+                ctx.fill();
             }
         } catch (e) {
             console.error('❌ Error rendering points:', e);
