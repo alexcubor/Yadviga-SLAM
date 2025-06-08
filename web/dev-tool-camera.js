@@ -352,9 +352,9 @@ const observer = new MutationObserver((mutations) => {
     if (window.YAGA) {
         observer.disconnect();
         if (window.testContainer) {
-            console.log('🧪 Enable test-camera.js');
-            const cameraManager = new CameraManager();
-            cameraManager.init();
+        console.log('🧪 Enable test-camera.js');
+        const cameraManager = new CameraManager();
+        cameraManager.init();
         } else {
             console.log('🧪 Enable test-camera.js ❌ (Please connect dev-desktop.js first)');
         }

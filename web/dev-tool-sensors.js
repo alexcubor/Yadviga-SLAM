@@ -263,9 +263,9 @@ const sensorObserver = new MutationObserver((mutations) => {
     if (window.YAGA) {
         sensorObserver.disconnect();
         if (window.testContainer) {
-            console.log('🕹️ Enable test-sensors.js');
-            window.sensorManager = new SensorManager();
-            window.sensorManager.init();
+        console.log('🕹️ Enable test-sensors.js');
+        window.sensorManager = new SensorManager();
+        window.sensorManager.init();
         } else {
             console.log('🕹️ Enable test-sensors.js ❌ (Please connect dev-desktop.js first)');
         }
