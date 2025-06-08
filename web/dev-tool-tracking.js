@@ -81,6 +81,7 @@ function compileShader(gl, type, source) {
 async function testTracking() {
     // Create tracking controls
     const trackingControls = document.createElement('div');
+    trackingControls.style.minWidth = '15rem';
 
     // Add title
     const title = document.createElement('div');
@@ -214,6 +215,68 @@ async function testTracking() {
     imuToggleContainer.appendChild(imuSwitch);
     togglesBlock.appendChild(imuToggleContainer);
 
+    // Tracking Points toggle
+    const pointsToggleContainer = document.createElement('div');
+    pointsToggleContainer.style.display = 'flex';
+    pointsToggleContainer.style.alignItems = 'center';
+    pointsToggleContainer.style.justifyContent = 'space-between';
+    pointsToggleContainer.style.marginTop = '0.5rem';
+
+    const pointsLabel = document.createElement('span');
+    pointsLabel.textContent = 'Visible';
+    
+    const pointsSwitch = document.createElement('label');
+    pointsSwitch.style.position = 'relative';
+    pointsSwitch.style.display = 'inline-block';
+    pointsSwitch.style.width = '3.5rem';
+    pointsSwitch.style.height = '1.75rem';
+
+    const pointsInput = document.createElement('input');
+    pointsInput.type = 'checkbox';
+    pointsInput.style.opacity = '0';
+    pointsInput.style.width = '0';
+    pointsInput.style.height = '0';
+    pointsInput.checked = true;
+
+    // Initialize tracking points visibility state
+    window.showTrackingPoints = true;
+
+    const pointsSlider = document.createElement('span');
+    pointsSlider.style.position = 'absolute';
+    pointsSlider.style.cursor = 'pointer';
+    pointsSlider.style.top = '0';
+    pointsSlider.style.left = '0';
+    pointsSlider.style.right = '0';
+    pointsSlider.style.bottom = '0';
+    pointsSlider.style.backgroundColor = '#007AFF';
+    pointsSlider.style.transition = '.4s';
+    pointsSlider.style.borderRadius = '1.75rem';
+
+    const pointsKnob = document.createElement('span');
+    pointsKnob.style.position = 'absolute';
+    pointsKnob.style.content = '""';
+    pointsKnob.style.height = '1.5rem';
+    pointsKnob.style.width = '1.5rem';
+    pointsKnob.style.left = '0.125rem';
+    pointsKnob.style.bottom = '0.125rem';
+    pointsKnob.style.backgroundColor = 'white';
+    pointsKnob.style.transition = '.4s';
+    pointsKnob.style.borderRadius = '50%';
+    pointsKnob.style.transform = 'translateX(1.75rem)';
+
+    pointsInput.onchange = () => {
+        pointsSlider.style.backgroundColor = pointsInput.checked ? '#007AFF' : '#ccc';
+        pointsKnob.style.transform = pointsInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
+        window.showTrackingPoints = pointsInput.checked;
+    };
+
+    pointsSwitch.appendChild(pointsInput);
+    pointsSwitch.appendChild(pointsSlider);
+    pointsSwitch.appendChild(pointsKnob);
+    pointsToggleContainer.appendChild(pointsLabel);
+    pointsToggleContainer.appendChild(pointsSwitch);
+    togglesBlock.appendChild(pointsToggleContainer);
+
     trackingControls.appendChild(togglesBlock);
 
     // Add component to test container
@@ -246,6 +309,12 @@ async function testTracking() {
     // Create function for points rendering
     const renderPoints = function() {
         try {
+            // Skip rendering if points are disabled
+            if (!window.showTrackingPoints) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
             const pointsPtr = Module._getTrackingPoints();
             const pointsCount = Module._getTrackingPointsCount();
             const pointsReady = Module._arePointsReady();

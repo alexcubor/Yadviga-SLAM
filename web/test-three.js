@@ -33,11 +33,56 @@ function loadGLTFLoader(callback) {
 
 function addCharacterModel(scene) {
     const loader = new THREE.GLTFLoader();
-    loader.load('dzinka_rena_rouge.glb', function(gltf) {
+    loader.load('sky_character.glb', function(gltf) {
         const model = gltf.scene;
         model.position.set(0, 0, 0);
-        model.scale.set(1, 1, 1);
         scene.add(model);
+
+        // Find all light sources in the model
+        const lights = [];
+        model.traverse((node) => {
+            if (node.isLight) {
+                lights.push(node);
+            }
+        });
+
+        // Add helpers for each light
+        lights.forEach(light => {
+            let helper;
+            if (light.type === 'DirectionalLight') {
+                helper = new THREE.DirectionalLightHelper(light, 0.125);
+            } else if (light.type === 'PointLight') {
+                helper = new THREE.PointLightHelper(light, 0.125);
+                // For PointLight just add helper without toggle
+                if (helper) {
+                    scene.add(helper);
+                    helper.visible = window.toggleAllInput ? window.toggleAllInput.checked : true;
+                    // Add to the global helpers list
+                    if (window.lightHelpers) {
+                        window.lightHelpers.set(light, { helper, checkbox: window.toggleAllInput });
+                    }
+                }
+                return; // Skip creating toggle for PointLight
+            } else if (light.type === 'SpotLight') {
+                helper = new THREE.SpotLightHelper(light);
+            } else if (light.type === 'HemisphereLight') {
+                helper = new THREE.HemisphereLightHelper(light, 0.125);
+            }
+
+            if (helper) {
+                scene.add(helper);
+                // Add toggle for this light
+                if (window.lightsUI && window.lightsInfo) {
+                    const toggle = createLightToggle(light, helper);
+                    window.lightsUI.insertBefore(toggle, window.lightsInfo);
+                    
+                    // Set initial visibility state
+                    if (window.toggleAllInput) {
+                        helper.visible = window.toggleAllInput.checked;
+                    }
+                }
+            }
+        });
 
         // === Auto-start animation if available ===
         if (gltf.animations && gltf.animations.length > 0) {
@@ -112,12 +157,247 @@ function initScene() {
 
         const rotate = document.createElement('div');
         rotate.style.color = 'white';
+        rotate.style.marginBottom = '1rem';
         ui.appendChild(rotate);
 
-        // Add to test container instead of document.body
+        // === UI for lights ===
+        window.lightsUI = document.createElement('div');
+        window.lightsUI.style.width = '18rem';
+        window.lightsUI.style.border = 'none';
+        window.lightsUI.style.borderRadius = '0.5rem';
+        window.lightsUI.style.fontFamily = 'monospace';
+        window.lightsUI.style.fontSize = '1rem';
+        window.lightsUI.style.color = 'white';
+
+        const lightsTitle = document.createElement('div');
+        lightsTitle.style.display = 'flex';
+        lightsTitle.style.alignItems = 'center';
+        lightsTitle.style.justifyContent = 'space-between';
+        lightsTitle.style.marginBottom = '0.5rem';
+
+        const titleText = document.createElement('span');
+        titleText.textContent = 'Lights';
+        titleText.style.color = 'white';
+        titleText.style.fontWeight = 'bold';
+
+        const toggleAllSwitch = document.createElement('label');
+        toggleAllSwitch.style.position = 'relative';
+        toggleAllSwitch.style.display = 'inline-block';
+        toggleAllSwitch.style.width = '3.5rem';
+        toggleAllSwitch.style.height = '1.75rem';
+
+        window.toggleAllInput = document.createElement('input');
+        window.toggleAllInput.type = 'checkbox';
+        window.toggleAllInput.style.opacity = '0';
+        window.toggleAllInput.style.width = '0';
+        window.toggleAllInput.style.height = '0';
+        window.toggleAllInput.checked = false;
+
+        const toggleAllSlider = document.createElement('span');
+        toggleAllSlider.style.position = 'absolute';
+        toggleAllSlider.style.cursor = 'pointer';
+        toggleAllSlider.style.top = '0';
+        toggleAllSlider.style.left = '0';
+        toggleAllSlider.style.right = '0';
+        toggleAllSlider.style.bottom = '0';
+        toggleAllSlider.style.backgroundColor = '#ccc';
+        toggleAllSlider.style.transition = '.4s';
+        toggleAllSlider.style.borderRadius = '1.75rem';
+
+        const toggleAllKnob = document.createElement('span');
+        toggleAllKnob.style.position = 'absolute';
+        toggleAllKnob.style.content = '""';
+        toggleAllKnob.style.height = '1.5rem';
+        toggleAllKnob.style.width = '1.5rem';
+        toggleAllKnob.style.left = '0.125rem';
+        toggleAllKnob.style.bottom = '0.125rem';
+        toggleAllKnob.style.backgroundColor = 'white';
+        toggleAllKnob.style.transition = '.4s';
+        toggleAllKnob.style.borderRadius = '50%';
+        toggleAllKnob.style.transform = 'translateX(0)';
+
+        window.toggleAllInput.onchange = () => {
+            toggleAllSlider.style.backgroundColor = window.toggleAllInput.checked ? '#007AFF' : '#ccc';
+            toggleAllKnob.style.transform = window.toggleAllInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
+            if (window.lightHelpers) {
+                window.lightHelpers.forEach(({ helper, checkbox }) => {
+                    helper.visible = window.toggleAllInput.checked;
+                    checkbox.checked = window.toggleAllInput.checked;
+                });
+            }
+        };
+
+        toggleAllSwitch.appendChild(window.toggleAllInput);
+        toggleAllSwitch.appendChild(toggleAllSlider);
+        toggleAllSwitch.appendChild(toggleAllKnob);
+        lightsTitle.appendChild(titleText);
+        lightsTitle.appendChild(toggleAllSwitch);
+        window.lightsUI.appendChild(lightsTitle);
+
+        window.lightsInfo = document.createElement('div');
+        window.lightsInfo.style.color = 'white';
+        window.lightsUI.appendChild(window.lightsInfo);
+
+        // Хранилище для хелперов и их переключателей
+        window.lightHelpers = new Map();
+
+        // Функция для создания переключателя для отдельного света
+        window.createLightToggle = function(light, helper) {
+            const toggle = document.createElement('div');
+            toggle.style.display = 'flex';
+            toggle.style.alignItems = 'center';
+            toggle.style.justifyContent = 'space-between';
+            toggle.style.marginTop = '0.5rem';
+
+            const label = document.createElement('span');
+            label.textContent = light.name || 'Light';
+
+            const switchElement = document.createElement('label');
+            switchElement.style.position = 'relative';
+            switchElement.style.display = 'inline-block';
+            switchElement.style.width = '3.5rem';
+            switchElement.style.height = '1.75rem';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.style.opacity = '0';
+            input.style.width = '0';
+            input.style.height = '0';
+            input.checked = true;
+
+            const slider = document.createElement('span');
+            slider.style.position = 'absolute';
+            slider.style.cursor = 'pointer';
+            slider.style.top = '0';
+            slider.style.left = '0';
+            slider.style.right = '0';
+            slider.style.bottom = '0';
+            slider.style.backgroundColor = '#007AFF';
+            slider.style.transition = '.4s';
+            slider.style.borderRadius = '1.75rem';
+
+            const knob = document.createElement('span');
+            knob.style.position = 'absolute';
+            knob.style.content = '""';
+            knob.style.height = '1.5rem';
+            knob.style.width = '1.5rem';
+            knob.style.left = '0.125rem';
+            knob.style.bottom = '0.125rem';
+            knob.style.backgroundColor = 'white';
+            knob.style.transition = '.4s';
+            knob.style.borderRadius = '50%';
+            knob.style.transform = 'translateX(1.75rem)';
+
+            input.onchange = () => {
+                slider.style.backgroundColor = input.checked ? '#007AFF' : '#ccc';
+                knob.style.transform = input.checked ? 'translateX(1.75rem)' : 'translateX(0)';
+                helper.visible = input.checked;
+            };
+
+            switchElement.appendChild(input);
+            switchElement.appendChild(slider);
+            switchElement.appendChild(knob);
+            toggle.appendChild(label);
+            toggle.appendChild(switchElement);
+
+            // Сохраняем хелпер и его переключатель
+            window.lightHelpers.set(light, { helper, checkbox: input });
+
+            return toggle;
+        };
+
+        // === UI for grid ===
+        window.gridUI = document.createElement('div');
+        window.gridUI.style.width = '18rem';
+        window.gridUI.style.border = 'none';
+        window.gridUI.style.borderRadius = '0.5rem';
+        window.gridUI.style.fontFamily = 'monospace';
+        window.gridUI.style.fontSize = '1rem';
+        window.gridUI.style.color = 'white';
+        window.gridUI.style.marginTop = '1rem';
+
+        const gridTitle = document.createElement('div');
+        gridTitle.style.display = 'flex';
+        gridTitle.style.alignItems = 'center';
+        gridTitle.style.justifyContent = 'space-between';
+        gridTitle.style.marginBottom = '0.5rem';
+
+        const gridTitleText = document.createElement('span');
+        gridTitleText.textContent = 'Grid';
+        gridTitleText.style.color = 'white';
+        gridTitleText.style.fontWeight = 'bold';
+
+        const gridSwitch = document.createElement('label');
+        gridSwitch.style.position = 'relative';
+        gridSwitch.style.display = 'inline-block';
+        gridSwitch.style.width = '3.5rem';
+        gridSwitch.style.height = '1.75rem';
+
+        window.gridToggleInput = document.createElement('input');
+        window.gridToggleInput.type = 'checkbox';
+        window.gridToggleInput.style.opacity = '0';
+        window.gridToggleInput.style.width = '0';
+        window.gridToggleInput.style.height = '0';
+        window.gridToggleInput.checked = true;  // По умолчанию включен
+
+        const gridSlider = document.createElement('span');
+        gridSlider.style.position = 'absolute';
+        gridSlider.style.cursor = 'pointer';
+        gridSlider.style.top = '0';
+        gridSlider.style.left = '0';
+        gridSlider.style.right = '0';
+        gridSlider.style.bottom = '0';
+        gridSlider.style.backgroundColor = '#007AFF';  // Начальный цвет синий
+        gridSlider.style.transition = '.4s';
+        gridSlider.style.borderRadius = '1.75rem';
+
+        const gridKnob = document.createElement('span');
+        gridKnob.style.position = 'absolute';
+        gridKnob.style.content = '""';
+        gridKnob.style.height = '1.5rem';
+        gridKnob.style.width = '1.5rem';
+        gridKnob.style.left = '0.125rem';
+        gridKnob.style.bottom = '0.125rem';
+        gridKnob.style.backgroundColor = 'white';
+        gridKnob.style.transition = '.4s';
+        gridKnob.style.borderRadius = '50%';
+        gridKnob.style.transform = 'translateX(1.75rem)';  // Начальная позиция справа
+
+        window.gridToggleInput.onchange = () => {
+            gridSlider.style.backgroundColor = window.gridToggleInput.checked ? '#007AFF' : '#ccc';
+            gridKnob.style.transform = window.gridToggleInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
+            // Control visibility of all helper elements
+            if (window.gridHelper) {
+                window.gridHelper.visible = window.gridToggleInput.checked;
+            }
+            if (window.axesHelper) {
+                window.axesHelper.visible = window.gridToggleInput.checked;
+            }
+            // Control visibility of meter labels
+            window._threeScene.children.forEach(child => {
+                if (child.isSprite && child.userData.isMeterLabel) {
+                    child.visible = window.gridToggleInput.checked;
+                }
+            });
+        };
+
+        gridSwitch.appendChild(window.gridToggleInput);
+        gridSwitch.appendChild(gridSlider);
+        gridSwitch.appendChild(gridKnob);
+        gridTitle.appendChild(gridTitleText);
+        gridTitle.appendChild(gridSwitch);
+        window.gridUI.appendChild(gridTitle);
+
+        // Добавляем компоненты в test container
         if (window.testContainer) {
             window.testContainer.addComponent('camera', {
                 element: ui
+            });
+            window.testContainer.addComponent('lights', {
+                element: window.lightsUI
+            });
+            window.testContainer.addComponent('grid', {
+                element: window.gridUI
             });
         }
 
@@ -132,6 +412,28 @@ function initScene() {
             // Camera rotation in degrees
             const euler = new THREE.Euler().setFromQuaternion(cam.quaternion);
             rotate.textContent = `Rotate: ${(euler.x * 180 / Math.PI).toFixed(2)}° ${(euler.y * 180 / Math.PI).toFixed(2)}° ${(euler.z * 180 / Math.PI).toFixed(2)}°`;
+
+            // Update lights info
+            const lights = [];
+            window._threeScene.traverse((node) => {
+                if (node.isLight) {
+                    lights.push(node);
+                }
+            });
+
+            let lightsText = '';
+            lights.forEach((light, index) => {
+                const pos = light.position;
+                const intensity = light.intensity;
+                const color = light.color ? `#${light.color.getHexString()}` : 'white';
+                lightsText += `${light.name || `Light ${index + 1}`}:\n`;
+                lightsText += `  Type: ${light.type}\n`;
+                lightsText += `  Position: ${pos.x.toFixed(2)} ${pos.y.toFixed(2)} ${pos.z.toFixed(2)}\n`;
+                lightsText += `  Intensity: ${intensity.toFixed(2)}\n`;
+                lightsText += `  Color: ${color}\n`;
+                if (index < lights.length - 1) lightsText += '\n';
+            });
+            window.lightsInfo.textContent = lightsText;
         }
 
         function animateUI() {
@@ -145,8 +447,12 @@ function initScene() {
         var gridDivisions = 20;
         // Line color: all gray, slightly darker than main color
         var gridColor = 0x555555;
-        var gridHelper = new THREE.GridHelper(gridSize, gridDivisions, gridColor, gridColor);
-        window._threeScene.add(gridHelper);
+        window.gridHelper = new THREE.GridHelper(gridSize, gridDivisions, gridColor, gridColor);
+        window._threeScene.add(window.gridHelper);
+        
+        // Add axes helper
+        window.axesHelper = new THREE.AxesHelper(0.2);
+        window._threeScene.add(window.axesHelper);
         
         // === Add axis labels and unit label (meters) ===
         function makeTextSprite(message, parameters) {
@@ -190,6 +496,7 @@ function initScene() {
             texture.needsUpdate = true;
             var spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
             var sprite = new THREE.Sprite(spriteMaterial);
+            sprite.userData.isMeterLabel = true;  // Mark as meter label
 
             // Automatically adjust scale to make numbers compact and prevent stretching
             var scaleFactor = 0.10;
@@ -211,22 +518,6 @@ function initScene() {
             labelZ.position.set(0, 0.01, i);
             window._threeScene.add(labelZ);
         }
-        
-        // Add axes helper
-        var axesHelper = new THREE.AxesHelper(0.2);
-        window._threeScene.add(axesHelper);
-        
-        // === Add lights ===
-        // Soft ambient light from above
-        var hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7);
-        hemiLight.position.set(0, 2, 0);
-        window._threeScene.add(hemiLight);
-
-        // Directional light (sun simulation)
-        var dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
-        dirLight.position.set(2, 4, 2);
-        dirLight.castShadow = false;
-        window._threeScene.add(dirLight);
         
         // Create renderer
         var rendererOptions = Object.create(null);

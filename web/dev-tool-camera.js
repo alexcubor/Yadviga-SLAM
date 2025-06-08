@@ -104,6 +104,7 @@ class CameraManager {
         }
         
         const cameraUI = document.createElement('div');
+        cameraUI.style.minWidth = '30rem';
         cameraUI.style.maxWidth = '40rem';
         
         // Create camera selection row

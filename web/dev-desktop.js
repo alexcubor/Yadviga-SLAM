@@ -17,7 +17,9 @@ class TestContainer {
         this.uiContainer.style.width = '40rem';
         this.uiContainer.style.zIndex = '1000';
         this.uiContainer.style.display = 'flex';
-        this.uiContainer.style.flexDirection = 'column';
+        this.uiContainer.style.flexDirection = 'row';
+        this.uiContainer.style.flexWrap = 'wrap';
+        this.uiContainer.style.alignItems = 'baseline';
         this.uiContainer.style.gap = '1rem';
         this.uiContainer.style.fontSize = '1rem';
         this.uiContainer.style.fontFamily = 'monospace';

@@ -212,6 +212,7 @@ class CacheManager {
     createCacheUI() {
         const cacheUI = document.createElement('div');
         Object.assign(cacheUI.style, {
+            minWidth: '17rem',
             minHeight: '10rem',
         });
 

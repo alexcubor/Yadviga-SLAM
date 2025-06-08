@@ -125,6 +125,7 @@ class ConsoleUI {
 
         // Create console container
         const consoleContainer = document.createElement('div');
+        consoleContainer.style.minWidth = '20rem';
         consoleContainer.style.height = window.isDesktop ? 'auto' : this.dimensions.height;
         consoleContainer.style.willChange = 'width, height';
         consoleContainer.style.transform = 'translateZ(0)';
