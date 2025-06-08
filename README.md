@@ -67,6 +67,14 @@ These configurations provide:
 1. Press `F5` in VS Code to start debugging
 2. The debugger will launch the web application
 
+### Testing on Mobile Devices
+
+To test the application on mobile devices, you can use a tunnel service to expose your local development server to the internet:
+
+1. Start the local web server using the "Start Web Server" task
+2. Use a tunnel service like [Tuna](https://my.tuna.am/) to create a public URL
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
