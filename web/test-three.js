@@ -252,10 +252,10 @@ function initScene() {
         window.lightsInfo.style.color = 'white';
         window.lightsUI.appendChild(window.lightsInfo);
 
-        // Хранилище для хелперов и их переключателей
+        // Storage for helpers and their toggles
         window.lightHelpers = new Map();
 
-        // Функция для создания переключателя для отдельного света
+        // Function to create a toggle for an individual light
         window.createLightToggle = function(light, helper) {
             const toggle = document.createElement('div');
             toggle.style.display = 'flex';
@@ -314,7 +314,7 @@ function initScene() {
             toggle.appendChild(label);
             toggle.appendChild(switchElement);
 
-            // Сохраняем хелпер и его переключатель
+            // Save helper and its toggle
             window.lightHelpers.set(light, { helper, checkbox: input });
 
             return toggle;
@@ -352,7 +352,8 @@ function initScene() {
         window.gridToggleInput.style.opacity = '0';
         window.gridToggleInput.style.width = '0';
         window.gridToggleInput.style.height = '0';
-        window.gridToggleInput.checked = true;  // По умолчанию включен
+        // Load state from localStorage or default to true
+        window.gridToggleInput.checked = localStorage.getItem('showGrid') !== 'false';
 
         const gridSlider = document.createElement('span');
         gridSlider.style.position = 'absolute';
@@ -361,7 +362,7 @@ function initScene() {
         gridSlider.style.left = '0';
         gridSlider.style.right = '0';
         gridSlider.style.bottom = '0';
-        gridSlider.style.backgroundColor = '#007AFF';  // Начальный цвет синий
+        gridSlider.style.backgroundColor = window.gridToggleInput.checked ? '#007AFF' : '#ccc';
         gridSlider.style.transition = '.4s';
         gridSlider.style.borderRadius = '1.75rem';
 
@@ -375,7 +376,7 @@ function initScene() {
         gridKnob.style.backgroundColor = 'white';
         gridKnob.style.transition = '.4s';
         gridKnob.style.borderRadius = '50%';
-        gridKnob.style.transform = 'translateX(1.75rem)';  // Начальная позиция справа
+        gridKnob.style.transform = window.gridToggleInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
 
         window.gridToggleInput.onchange = () => {
             gridSlider.style.backgroundColor = window.gridToggleInput.checked ? '#007AFF' : '#ccc';
@@ -393,6 +394,8 @@ function initScene() {
                     child.visible = window.gridToggleInput.checked;
                 }
             });
+            // Save state to localStorage
+            localStorage.setItem('showGrid', window.gridToggleInput.checked);
         };
 
         gridSwitch.appendChild(window.gridToggleInput);
@@ -462,10 +465,12 @@ function initScene() {
         // Line color: all gray, slightly darker than main color
         var gridColor = 0x555555;
         window.gridHelper = new THREE.GridHelper(gridSize, gridDivisions, gridColor, gridColor);
+        window.gridHelper.visible = window.gridToggleInput.checked;
         window._threeScene.add(window.gridHelper);
         
         // Add axes helper
         window.axesHelper = new THREE.AxesHelper(0.2);
+        window.axesHelper.visible = window.gridToggleInput.checked;
         window._threeScene.add(window.axesHelper);
         
         // Add hemisphere light
@@ -516,6 +521,7 @@ function initScene() {
             var spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
             var sprite = new THREE.Sprite(spriteMaterial);
             sprite.userData.isMeterLabel = true;  // Mark as meter label
+            sprite.visible = window.gridToggleInput.checked;  // Set initial visibility
 
             // Automatically adjust scale to make numbers compact and prevent stretching
             var scaleFactor = 0.10;

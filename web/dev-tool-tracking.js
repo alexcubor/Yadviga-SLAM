@@ -236,10 +236,11 @@ async function testTracking() {
     pointsInput.style.opacity = '0';
     pointsInput.style.width = '0';
     pointsInput.style.height = '0';
-    pointsInput.checked = true;
+    // Load state from localStorage or default to true
+    pointsInput.checked = localStorage.getItem('showTrackingPoints') !== 'false';
 
     // Initialize tracking points visibility state
-    window.showTrackingPoints = true;
+    window.showTrackingPoints = pointsInput.checked;
 
     const pointsSlider = document.createElement('span');
     pointsSlider.style.position = 'absolute';
@@ -248,7 +249,7 @@ async function testTracking() {
     pointsSlider.style.left = '0';
     pointsSlider.style.right = '0';
     pointsSlider.style.bottom = '0';
-    pointsSlider.style.backgroundColor = '#007AFF';
+    pointsSlider.style.backgroundColor = pointsInput.checked ? '#007AFF' : '#ccc';
     pointsSlider.style.transition = '.4s';
     pointsSlider.style.borderRadius = '1.75rem';
 
@@ -262,12 +263,14 @@ async function testTracking() {
     pointsKnob.style.backgroundColor = 'white';
     pointsKnob.style.transition = '.4s';
     pointsKnob.style.borderRadius = '50%';
-    pointsKnob.style.transform = 'translateX(1.75rem)';
+    pointsKnob.style.transform = pointsInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
 
     pointsInput.onchange = () => {
         pointsSlider.style.backgroundColor = pointsInput.checked ? '#007AFF' : '#ccc';
         pointsKnob.style.transform = pointsInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
         window.showTrackingPoints = pointsInput.checked;
+        // Save state to localStorage
+        localStorage.setItem('showTrackingPoints', pointsInput.checked);
     };
 
     pointsSwitch.appendChild(pointsInput);
