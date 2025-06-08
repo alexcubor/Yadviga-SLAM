@@ -3,8 +3,12 @@
     const observer = new MutationObserver(() => {
         if (window.YAGA) {
             observer.disconnect();
-            console.log('🟢 Enable test-tracking.js');
-            testTracking();
+            if (window.testContainer) {
+                console.log('🟢 Enable test-tracking.js');
+                testTracking();
+            } else {
+                console.log('🟢 Enable test-tracking.js ❌ (Please connect dev-desktop.js first)');
+            }
         }
     });
     
@@ -75,52 +79,17 @@ function compileShader(gl, type, source) {
 }
 
 async function testTracking() {
-    // Create UI container if it doesn't exist
-    let uiContainer = document.getElementById('yaga-ui-container');
-    if (!uiContainer) {
-        uiContainer = document.createElement('div');
-        uiContainer.id = 'yaga-ui-container';
-        uiContainer.style.position = 'fixed';
-        uiContainer.style.top = '2vh';
-        uiContainer.style.left = '2vw';
-        uiContainer.style.zIndex = '1000';
-        uiContainer.style.display = 'flex';
-        uiContainer.style.flexDirection = 'column';
-        uiContainer.style.gap = '1rem';
-        uiContainer.style.fontSize = '1rem';
-        uiContainer.style.fontFamily = 'monospace';
-        document.body.appendChild(uiContainer);
-    }
-
     // Create tracking controls
     const trackingControls = document.createElement('div');
-    trackingControls.style.width = '90vw';
-    trackingControls.style.maxWidth = '40rem';
-    trackingControls.style.padding = '1rem';
-    trackingControls.style.borderRadius = '0.5rem';
-    trackingControls.style.color = 'white';
-    trackingControls.style.fontSize = '1rem';
-    trackingControls.style.backgroundColor = 'rgba(0,0,0,0.5)';
-    trackingControls.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-    trackingControls.style.position = 'relative';
-    trackingControls.style.overflow = 'auto';
-    trackingControls.style.transition = 'all 0.3s ease';
 
     // Add title
     const title = document.createElement('div');
     title.textContent = 'Tracking Controls';
-    title.style.fontWeight = '500';
-    title.style.marginBottom = '0.75rem';
+    title.style.marginBottom = '0.5rem';
     trackingControls.appendChild(title);
 
-    // Create toggles block (like cacheList)
+    // Create toggles block
     const togglesBlock = document.createElement('div');
-    togglesBlock.style.backgroundColor = 'rgba(0,0,0,0.3)';
-    togglesBlock.style.borderRadius = '0.375rem';
-    togglesBlock.style.padding = '0.75rem';
-    togglesBlock.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    togglesBlock.style.fontSize = '1rem';
-    togglesBlock.style.transition = 'all 0.3s ease';
 
     // Lucas-Kanade toggle
     const lkToggleContainer = document.createElement('div');
@@ -128,11 +97,6 @@ async function testTracking() {
     lkToggleContainer.style.alignItems = 'center';
     lkToggleContainer.style.justifyContent = 'space-between';
     lkToggleContainer.style.marginBottom = '0.5rem';
-    lkToggleContainer.style.padding = '0.5rem';
-    lkToggleContainer.style.borderRadius = '0.375rem';
-    lkToggleContainer.style.transition = 'background-color 0.2s';
-    lkToggleContainer.onmouseover = () => lkToggleContainer.style.backgroundColor = 'rgba(255,255,255,0.1)';
-    lkToggleContainer.onmouseout = () => lkToggleContainer.style.backgroundColor = 'transparent';
 
     const lkLabel = document.createElement('span');
     lkLabel.textContent = 'Lucas-Kanade';
@@ -194,11 +158,6 @@ async function testTracking() {
     imuToggleContainer.style.display = 'flex';
     imuToggleContainer.style.alignItems = 'center';
     imuToggleContainer.style.justifyContent = 'space-between';
-    imuToggleContainer.style.padding = '0.5rem';
-    imuToggleContainer.style.borderRadius = '0.375rem';
-    imuToggleContainer.style.transition = 'background-color 0.2s';
-    imuToggleContainer.onmouseover = () => imuToggleContainer.style.backgroundColor = 'rgba(255,255,255,0.1)';
-    imuToggleContainer.onmouseout = () => imuToggleContainer.style.backgroundColor = 'transparent';
 
     const imuLabel = document.createElement('span');
     imuLabel.textContent = 'IMU Prediction';
@@ -256,6 +215,11 @@ async function testTracking() {
     togglesBlock.appendChild(imuToggleContainer);
 
     trackingControls.appendChild(togglesBlock);
+
+    // Add component to test container
+    window.testContainer.addComponent('tracking', {
+        element: trackingControls
+    });
 
     // Create canvas for points
     const canvas = document.createElement('canvas');
@@ -330,8 +294,6 @@ async function testTracking() {
         requestAnimationFrame(renderLoop);
     }
     renderLoop();
-
-    uiContainer.appendChild(trackingControls);
 }
 
 // Set base font size
