@@ -180,6 +180,20 @@ function initScene() {
         titleText.style.color = 'white';
         titleText.style.fontWeight = 'bold';
 
+        lightsTitle.appendChild(titleText);
+        window.lightsUI.appendChild(lightsTitle);
+
+        // Add visibility handle section
+        const visibilityHandle = document.createElement('div');
+        visibilityHandle.style.display = 'flex';
+        visibilityHandle.style.alignItems = 'center';
+        visibilityHandle.style.justifyContent = 'space-between';
+        visibilityHandle.style.marginBottom = '0.5rem';
+
+        const handleLabel = document.createElement('span');
+        handleLabel.textContent = 'Visible handle';
+        handleLabel.style.color = 'white';
+
         const toggleAllSwitch = document.createElement('label');
         toggleAllSwitch.style.position = 'relative';
         toggleAllSwitch.style.display = 'inline-block';
@@ -230,9 +244,9 @@ function initScene() {
         toggleAllSwitch.appendChild(window.toggleAllInput);
         toggleAllSwitch.appendChild(toggleAllSlider);
         toggleAllSwitch.appendChild(toggleAllKnob);
-        lightsTitle.appendChild(titleText);
-        lightsTitle.appendChild(toggleAllSwitch);
-        window.lightsUI.appendChild(lightsTitle);
+        visibilityHandle.appendChild(handleLabel);
+        visibilityHandle.appendChild(toggleAllSwitch);
+        window.lightsUI.appendChild(visibilityHandle);
 
         window.lightsInfo = document.createElement('div');
         window.lightsInfo.style.color = 'white';
@@ -453,6 +467,11 @@ function initScene() {
         // Add axes helper
         window.axesHelper = new THREE.AxesHelper(0.2);
         window._threeScene.add(window.axesHelper);
+        
+        // Add hemisphere light
+        const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x3b3b3a, 2.5);
+        hemisphereLight.position.set(0, 1, 0);
+        window._threeScene.add(hemisphereLight);
         
         // === Add axis labels and unit label (meters) ===
         function makeTextSprite(message, parameters) {
