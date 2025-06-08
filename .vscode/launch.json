@@ -8,7 +8,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Debug in Chrome",
-            "url": "http://localhost:3000/index.html",
+            "url": "http://localhost:7070/index.html",
             "webRoot": "${workspaceFolder}/web",
             "sourceMaps": true,
             "sourceMapPathOverrides": {
@@ -25,7 +25,8 @@
                 "--window-position=0,0",
                 "--enable-features=SharedArrayBuffer"
             ],
-            "preLaunchTask": "Start Web Server"
+            "preLaunchTask": "Start Web Server",
+            "postDebugTask": "Stop Web Server"
         }
     ]
 }

@@ -109,7 +109,7 @@
         {
             "label": "Start Web Server",
             "type": "shell",
-            "command": "lsof -ti:3000 || (cd web && python3 -m http.server 3000)",
+            "command": "lsof -ti:7070 || (cd web && python3 -m http.server 7070)",
             "isBackground": true,
             "problemMatcher": {
                 "pattern": {
@@ -117,8 +117,8 @@
                 },
                 "background": {
                     "activeOnStart": true,
-                    "beginsPattern": "Serving HTTP on .* port 3000",
-                    "endsPattern": "Serving HTTP on .* port 3000"
+                    "beginsPattern": "Serving HTTP on .* port 7070",
+                    "endsPattern": "Serving HTTP on .* port 7070"
                 }
             },
             "presentation": {
