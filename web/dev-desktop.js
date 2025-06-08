@@ -35,6 +35,7 @@ class TestContainer {
                 color: white;
                 position: relative;
                 overflow: hidden;
+                line-height: 1.4;
             }
         `;
         document.head.appendChild(style);
