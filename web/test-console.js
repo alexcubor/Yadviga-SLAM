@@ -131,8 +131,8 @@ class ConsoleUI {
 
         // Create console container
         const consoleContainer = document.createElement('div');
-        consoleContainer.style.width = window.isDesktop ? 'auto' : this.dimensions.width;
-        consoleContainer.style.maxWidth = window.isDesktop ? 'none' : this.dimensions.maxWidth;
+        consoleContainer.style.width = 'auto';
+        consoleContainer.style.maxWidth = 'none';
         consoleContainer.style.height = window.isDesktop ? 'auto' : this.dimensions.height;
         consoleContainer.style.padding = '1rem';
         consoleContainer.style.borderRadius = '0.5rem';
