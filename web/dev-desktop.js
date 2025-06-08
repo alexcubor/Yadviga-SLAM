@@ -52,10 +52,60 @@ class TestContainer {
     setupSwipeToHide() {
         let touchStartX = 0;
         let touchEndX = 0;
-        const SWIPE_THRESHOLD = 100;
+        const SWIPE_THRESHOLD = 50; // Уменьшаем порог
         let isSwiping = false;
         let startTime = 0;
         let lastMoveTime = 0;
+        let lastPointerX = 0;
+        let isPointerDown = false;
+        let currentTranslateX = 0;
+
+        // Add trackpad swipe support using pointer events
+        document.addEventListener('pointerdown', (e) => {
+            if (!this.isSwipeEnabled) return;
+            isPointerDown = true;
+            lastPointerX = e.clientX;
+            currentTranslateX = 0;
+            this.uiContainer.style.transition = 'none'; // Отключаем анимацию при начале свайпа
+        }, { passive: true });
+
+        document.addEventListener('pointermove', (e) => {
+            if (!this.isSwipeEnabled || !isPointerDown) return;
+            
+            const deltaX = e.clientX - lastPointerX;
+            currentTranslateX += deltaX;
+            
+            // Ограничиваем перемещение
+            currentTranslateX = Math.max(-200, Math.min(0, currentTranslateX));
+            
+            // Применяем трансформацию
+            this.uiContainer.style.transform = `translateX(${currentTranslateX}px)`;
+            
+            lastPointerX = e.clientX;
+        }, { passive: true });
+
+        document.addEventListener('pointerup', () => {
+            if (!isPointerDown) return;
+            isPointerDown = false;
+            
+            // Включаем анимацию обратно
+            this.uiContainer.style.transition = 'transform 0.3s ease-out';
+            
+            // Определяем, нужно ли скрыть UI
+            if (currentTranslateX < -SWIPE_THRESHOLD) {
+                this.hide();
+                this.showHint(); // Показываем подсказку после скрытия
+            } else {
+                this.show();
+            }
+        }, { passive: true });
+
+        document.addEventListener('pointercancel', () => {
+            if (!isPointerDown) return;
+            isPointerDown = false;
+            this.uiContainer.style.transition = 'transform 0.3s ease-out';
+            this.show();
+        }, { passive: true });
 
         this.uiContainer.addEventListener('touchstart', (e) => {
             if (!this.isSwipeEnabled) return;
