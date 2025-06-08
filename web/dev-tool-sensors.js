@@ -106,27 +106,17 @@ class SensorManager {
         }
 
         const sensorUI = document.createElement('div');
-        sensorUI.style.width = '90vw';
         sensorUI.style.maxWidth = '40rem';
-        sensorUI.style.padding = '1rem';
-        sensorUI.style.borderRadius = '0.5rem';
-        sensorUI.style.color = 'white';
-        sensorUI.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        sensorUI.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
 
         // Add title
         const titleContainer = document.createElement('div');
         titleContainer.style.display = 'flex';
         titleContainer.style.alignItems = 'center';
         titleContainer.style.justifyContent = 'space-between';
-        titleContainer.style.marginBottom = '0.75rem';
-        titleContainer.style.padding = '0.75rem';
-        titleContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
-        titleContainer.style.borderRadius = '0.375rem';
+        titleContainer.style.marginBottom = '0.5rem';
 
         const titleLabel = document.createElement('span');
         titleLabel.textContent = 'Internal Sensors';
-        titleLabel.style.fontWeight = 'bold';
         titleContainer.appendChild(titleLabel);
         sensorUI.appendChild(titleContainer);
 
@@ -134,18 +124,10 @@ class SensorManager {
         const sensorData = document.createElement('div');
         sensorData.style.display = 'flex';
         sensorData.style.gap = '1rem';
-        sensorData.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        sensorData.style.padding = '0.75rem';
-        sensorData.style.backgroundColor = 'rgba(0,0,0,0.3)';
-        sensorData.style.borderRadius = '0.375rem';
-        sensorData.style.lineHeight = '1.6';
 
         // Create blocks for each sensor type
         const orientationBlock = document.createElement('div');
         orientationBlock.style.flex = '1';
-        orientationBlock.style.padding = '0.75rem';
-        orientationBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
-        orientationBlock.style.borderRadius = '0.375rem';
         orientationBlock.style.cursor = 'pointer';
         orientationBlock.style.userSelect = 'none';
         orientationBlock.onclick = () => {
@@ -156,9 +138,6 @@ class SensorManager {
 
         const accelerationBlock = document.createElement('div');
         accelerationBlock.style.flex = '1';
-        accelerationBlock.style.padding = '0.75rem';
-        accelerationBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
-        accelerationBlock.style.borderRadius = '0.375rem';
         accelerationBlock.style.cursor = 'pointer';
         accelerationBlock.style.userSelect = 'none';
         accelerationBlock.onclick = () => {
@@ -169,9 +148,6 @@ class SensorManager {
 
         const rotationBlock = document.createElement('div');
         rotationBlock.style.flex = '1';
-        rotationBlock.style.padding = '0.75rem';
-        rotationBlock.style.backgroundColor = 'rgba(0,0,0,0.2)';
-        rotationBlock.style.borderRadius = '0.375rem';
         rotationBlock.style.cursor = 'pointer';
         rotationBlock.style.userSelect = 'none';
         rotationBlock.onclick = () => {
@@ -283,16 +259,20 @@ class SensorManager {
 window.SensorManager = SensorManager;
 
 // Initialize SensorManager after YAGA is ready
-const observer = new MutationObserver((mutations) => {
+const sensorObserver = new MutationObserver((mutations) => {
     if (window.YAGA) {
-        observer.disconnect();
-        console.log('🕹️ Enable test-sensors.js');
-        window.sensorManager = new SensorManager();
-        window.sensorManager.init();
+        sensorObserver.disconnect();
+        if (window.testContainer) {
+            console.log('🕹️ Enable test-sensors.js');
+            window.sensorManager = new SensorManager();
+            window.sensorManager.init();
+        } else {
+            console.log('🕹️ Enable test-sensors.js ❌ (Please connect dev-desktop.js first)');
+        }
     }
 });
 
-observer.observe(document, {
+sensorObserver.observe(document, {
     childList: true,
     subtree: true
 });

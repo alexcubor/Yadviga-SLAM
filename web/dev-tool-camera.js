@@ -109,13 +109,13 @@ class CameraManager {
         // Create camera selection row
         const cameraSelect = document.createElement('select');
         cameraSelect.style.width = '100%';
-        cameraSelect.style.padding = '0.75rem';
+        cameraSelect.style.padding = '0.5rem';
         cameraSelect.style.backgroundColor = 'rgba(255,255,255,0.1)';
         cameraSelect.style.color = 'white';
         cameraSelect.style.border = '1px solid rgba(255,255,255,0.3)';
         cameraSelect.style.fontSize = '1rem';
         cameraSelect.style.borderRadius = '0.375rem';
-        cameraSelect.style.marginBottom = '0.75rem';
+        cameraSelect.style.marginBottom = '0.5rem';
         
         // Create dimensions display row
         const dimensionsDiv = document.createElement('div');
@@ -351,9 +351,13 @@ class CameraManager {
 const observer = new MutationObserver((mutations) => {
     if (window.YAGA) {
         observer.disconnect();
-        console.log('🧪 Enable test-camera.js');
-        const cameraManager = new CameraManager();
-        cameraManager.init();
+        if (window.testContainer) {
+            console.log('🧪 Enable test-camera.js');
+            const cameraManager = new CameraManager();
+            cameraManager.init();
+        } else {
+            console.log('🧪 Enable test-camera.js ❌ (Please connect dev-desktop.js first)');
+        }
     }
 });
 
