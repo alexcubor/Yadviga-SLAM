@@ -52,6 +52,7 @@ class ConsoleUI {
         this.logs = [...earlyLogs]; // Initialize with early logs
         this.maxLogs = 100; // Maximum number of logs to keep
         this.isUserScrolling = false;
+        this.isResizing = false; // Добавляем флаг для отслеживания изменения размера
         this.loadDimensions();
         this.createUI();
         if (!window.isDesktop) {
@@ -112,80 +113,55 @@ class ConsoleUI {
     }
 
     createUI() {
-        // Get or create UI container
-        let uiContainer = document.getElementById('yaga-ui-container');
-        if (!uiContainer) {
-            uiContainer = document.createElement('div');
-            uiContainer.id = 'yaga-ui-container';
-            uiContainer.style.position = 'fixed';
-            uiContainer.style.top = '2vh';
-            uiContainer.style.left = '2vw';
-            uiContainer.style.zIndex = '1000';
-            uiContainer.style.display = 'flex';
-            uiContainer.style.flexDirection = 'column';
-            uiContainer.style.gap = '1rem';
-            uiContainer.style.fontSize = '1rem';
-            uiContainer.style.fontFamily = 'monospace';
-            document.body.appendChild(uiContainer);
+        // Ensure test container exists
+        if (!window.testContainer) {
+            console.warn('Test container not found, creating temporary container');
+            window.testContainer = {
+                addComponent: (name, component) => {
+                    document.body.appendChild(component.element);
+                }
+            };
         }
 
         // Create console container
         const consoleContainer = document.createElement('div');
-        consoleContainer.style.width = 'auto';
-        consoleContainer.style.maxWidth = 'none';
         consoleContainer.style.height = window.isDesktop ? 'auto' : this.dimensions.height;
-        consoleContainer.style.padding = '1rem';
-        consoleContainer.style.borderRadius = '0.5rem';
-        consoleContainer.style.color = 'white';
-        consoleContainer.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        consoleContainer.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-        consoleContainer.style.overflow = 'hidden';
+        consoleContainer.style.willChange = 'width, height';
+        consoleContainer.style.transform = 'translateZ(0)';
         consoleContainer.style.display = 'flex';
         consoleContainer.style.flexDirection = 'column';
-        consoleContainer.style.position = 'relative';
-        consoleContainer.style.marginTop = 'auto'; // Push to bottom
+        consoleContainer.style.flex = '1';
 
         // Add resize handle only for mobile
         if (!window.isDesktop) {
             const resizeHandle = document.createElement('div');
-            resizeHandle.style.position = 'absolute';
-            resizeHandle.style.right = '0';
-            resizeHandle.style.bottom = '0';
-            resizeHandle.style.width = '3rem';
-            resizeHandle.style.height = '3rem';
-            resizeHandle.style.cursor = 'nwse-resize';
-            resizeHandle.style.background = 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.2) 50%)';
-            resizeHandle.style.borderRadius = '0 0 0.5rem 0';
-            resizeHandle.style.transition = 'all 0.2s';
-            resizeHandle.style.touchAction = 'none';
-            resizeHandle.style.zIndex = '1000';
+            Object.assign(resizeHandle.style, {
+                position: 'absolute',
+                right: '0',
+                bottom: '0',
+                width: '2rem',
+                height: '2rem',
+                cursor: 'nwse-resize',
+                background: 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.2) 50%)',
+                borderRadius: '0 0 0.5rem 0',
+                touchAction: 'none',
+                zIndex: '1000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(255,255,255,0.5)'
+            });
 
-            // Add visual indicator for touch
-            const touchIndicator = document.createElement('div');
-            touchIndicator.style.position = 'absolute';
-            touchIndicator.style.right = '0.5rem';
-            touchIndicator.style.bottom = '0.5rem';
-            touchIndicator.style.width = '1.5rem';
-            touchIndicator.style.height = '1.5rem';
-            touchIndicator.style.background = 'rgba(255,255,255,0.1)';
-            touchIndicator.style.borderRadius = '50%';
-            touchIndicator.style.display = 'flex';
-            touchIndicator.style.alignItems = 'center';
-            touchIndicator.style.justifyContent = 'center';
-            touchIndicator.style.color = 'rgba(255,255,255,0.5)';
-            touchIndicator.textContent = '↔';
-            touchIndicator.style.transform = 'rotate(45deg)';
-            touchIndicator.style.transition = 'all 0.2s';
-
-            resizeHandle.appendChild(touchIndicator);
             consoleContainer.appendChild(resizeHandle);
 
             // Resize functionality
-            let isResizing = false;
             let startX, startY, startWidth, startHeight;
 
             const startResize = (clientX, clientY) => {
-                isResizing = true;
+                this.isResizing = true;
+                if (window.testContainer) {
+                    window.testContainer.disableSwipe();
+                }
                 startX = clientX;
                 startY = clientY;
                 startWidth = consoleContainer.offsetWidth;
@@ -193,19 +169,18 @@ class ConsoleUI {
                 
                 // Add active state styles
                 resizeHandle.style.background = 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.4) 50%)';
-                touchIndicator.style.background = 'rgba(255,255,255,0.3)';
-                touchIndicator.style.color = 'rgba(255,255,255,0.9)';
+                resizeHandle.style.color = 'rgba(255,255,255,0.9)';
             };
 
             const doResize = (clientX, clientY) => {
-                if (!isResizing) return;
+                if (!this.isResizing) return;
 
                 const deltaX = clientX - startX;
                 const deltaY = clientY - startY;
                 
                 // Calculate new dimensions
-                let newWidth = Math.max(startWidth + deltaX, 320); // Minimum width 320px
-                let newHeight = Math.max(startHeight + deltaY, 250); // Minimum height 160px
+                let newWidth = Math.max(startWidth + deltaX, 320);
+                let newHeight = Math.max(startHeight + deltaY, 250);
 
                 // Apply max height constraint
                 const maxHeight = window.innerHeight * 0.8;
@@ -216,6 +191,7 @@ class ConsoleUI {
                 // Update dimensions
                 consoleContainer.style.width = `${newWidth}px`;
                 consoleContainer.style.height = `${newHeight}px`;
+                consoleContent.style.height = `${newHeight - consoleHeader.offsetHeight - 8}px`; // 8px для отступов
 
                 // Save dimensions with pixel units
                 this.dimensions = {
@@ -227,13 +203,15 @@ class ConsoleUI {
             };
 
             const stopResize = () => {
-                if (!isResizing) return;
-                isResizing = false;
+                if (!this.isResizing) return;
+                this.isResizing = false;
+                if (window.testContainer) {
+                    window.testContainer.enableSwipe();
+                }
                 
                 // Reset styles
                 resizeHandle.style.background = 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.2) 50%)';
-                touchIndicator.style.background = 'rgba(255,255,255,0.1)';
-                touchIndicator.style.color = 'rgba(255,255,255,0.5)';
+                resizeHandle.style.color = 'rgba(255,255,255,0.5)';
             };
 
             // Mouse events
@@ -256,9 +234,11 @@ class ConsoleUI {
             });
 
             document.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                doResize(touch.clientX, touch.clientY);
+                if (this.isResizing) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    doResize(touch.clientX, touch.clientY);
+                }
             });
 
             document.addEventListener('touchend', stopResize);
@@ -274,6 +254,7 @@ class ConsoleUI {
         consoleHeader.style.padding = '0.5rem';
         consoleHeader.style.backgroundColor = 'rgba(0,0,0,0.3)';
         consoleHeader.style.borderRadius = '0.375rem';
+        consoleHeader.style.touchAction = 'none';
 
         const consoleTitle = document.createElement('span');
         consoleTitle.textContent = 'Mobile Console';
@@ -288,7 +269,7 @@ class ConsoleUI {
         copyButton.style.cursor = 'pointer';
         copyButton.style.fontSize = '1rem';
         copyButton.onclick = (e) => {
-            e.stopPropagation(); // Prevent console click event
+            e.stopPropagation();
             const text = this.logs.map(log => {
                 const count = log.count > 1 ? ` (${log.count})` : '';
                 return `${log.message}${count}`;
@@ -318,16 +299,10 @@ class ConsoleUI {
 
         // Create console content
         const consoleContent = document.createElement('div');
-        consoleContent.style.flex = '1';
-        consoleContent.style.overflowY = window.isDesktop ? 'hidden' : 'auto';
+        consoleContent.style.height = window.isDesktop ? 'auto' : '250px';
         consoleContent.style.padding = '0.5rem';
-        consoleContent.style.backgroundColor = 'rgba(0,0,0,0.2)';
-        consoleContent.style.borderRadius = '0.375rem';
-        consoleContent.style.fontSize = '1rem';
-        consoleContent.style.whiteSpace = 'pre-wrap';
-        consoleContent.style.wordBreak = 'break-word';
-        consoleContent.style.lineHeight = window.isDesktop ? '1.2' : '1.5';
-
+        consoleContent.style.touchAction = 'pan-y';
+        
         // Add scroll event listener only for mobile
         if (!window.isDesktop) {
             let touchStartY = 0;
@@ -370,12 +345,14 @@ class ConsoleUI {
 
         consoleContainer.appendChild(consoleHeader);
         consoleContainer.appendChild(consoleContent);
-        uiContainer.appendChild(consoleContainer);
 
-        this.consoleContent = consoleContent;
-        
-        // Add initial display update after console content is created
-        this.updateDisplay();
+        // Store references
+        this.element = consoleContainer;
+        this.content = consoleContent;
+        this.header = consoleHeader;
+
+        // Add to test container
+        window.testContainer.addComponent('console', this);
     }
 
     overrideConsole() {
@@ -434,7 +411,7 @@ class ConsoleUI {
     }
 
     updateDisplay() {
-        if (!this.consoleContent) return;
+        if (!this.content) return;
 
         // Сохраняем текущее выделение
         const selection = window.getSelection();
@@ -444,39 +421,85 @@ class ConsoleUI {
         // Если есть выделение, не обновляем консоль
         if (isSelecting) return;
 
+        const logStyles = {
+            log: { color: '#fff', background: 'none', padding: '0rem' },
+            error: { color: '#ff6b6b', background: 'none', padding: '0rem' },
+            warn: { color: '#ffd93d', background: 'none', padding: '0rem' },
+            info: { color: '#4dabf7', background: 'none', padding: '0rem' }
+        };
+
         const html = this.logs.map(log => {
-            const color = {
-                log: '#fff',
-                error: '#ff6b6b',
-                warn: '#ffd93d',
-                info: '#4dabf7'
-            }[log.type];
+            const style = logStyles[log.type];
+            const styleString = Object.entries(style)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join('; ');
 
             const countHtml = log.count > 1 
                 ? `<span style="color: #999; margin-left: 0.5rem;">(${log.count})</span>` 
                 : '';
 
-            return `<div style="color: ${color};">${log.message}${countHtml}</div>`;
+            return `<div style="${styleString}">${log.message}${countHtml}</div>`;
         }).join('');
 
-        this.consoleContent.innerHTML = html;
+        this.content.innerHTML = html;
         
         // Only auto-scroll if user is at the bottom
         if (!this.isUserScrolling) {
             requestAnimationFrame(() => {
-                this.consoleContent.scrollTop = this.consoleContent.scrollHeight;
+                this.content.scrollTop = this.content.scrollHeight;
             });
         }
     }
 
-    clearLogs() {
-        this.logs = [];
-        this.updateDisplay();
+    init() {
+        // Create console container
+        const consoleContainer = document.createElement('div');
+
+        // Create header
+        const header = document.createElement('div');
+
+        // Create title
+        const title = document.createElement('div');
+        title.textContent = 'Test Console';
+        header.appendChild(title);
+
+        // Create controls
+        const controls = document.createElement('div');
+
+        header.appendChild(controls);
+        consoleContainer.appendChild(header);
+
+        // Store references
+        this.element = consoleContainer;
+        this.content = content;
+        this.header = header;
+
+        // Add to test container
+        window.testContainer.addComponent('console', this);
+
+        // Setup drag functionality
+        this.setupDrag();
     }
 }
 
 // Initialize console UI immediately
-console.log('📝 Enable test-console.js');
-window.consoleUI = new ConsoleUI();
+if (window.testContainer) {
+    console.log('📝 Enable test-console.js');
+    window.consoleUI = new ConsoleUI();
+} else {
+    console.log('📝 Enable test-console.js (Please connect dev-desktop.js first)');
+}
 
-window.isDesktop = window.isDesktop !== undefined ? window.isDesktop : !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+// Добавляем обработчик для блокировки свайпа во время изменения размера
+if (window.testContainer && window.testContainer.uiContainer) {
+    const originalTouchMove = window.testContainer.uiContainer.ontouchmove;
+    window.testContainer.uiContainer.ontouchmove = (e) => {
+        if (window.consoleUI && window.consoleUI.isResizing) {
+            e.preventDefault();
+            return;
+        }
+        if (originalTouchMove) {
+            originalTouchMove.call(window.testContainer.uiContainer, e);
+        }
+    };
+}

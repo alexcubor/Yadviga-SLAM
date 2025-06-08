@@ -115,15 +115,6 @@ class CacheManager {
                 defaultChecked: true
             },
             { 
-                id: 'sharedWorkers', 
-                name: 'Shared Workers', 
-                clear: this.clearSharedWorkers.bind(this),
-                getInfo: async () => {
-                    return 'Shared workers can only be cleared by closing all tabs';
-                },
-                defaultChecked: true
-            },
-            { 
                 id: 'webrtc', 
                 name: 'WebRTC', 
                 clear: this.clearWebRTC.bind(this),
@@ -221,18 +212,7 @@ class CacheManager {
     createCacheUI() {
         const cacheUI = document.createElement('div');
         Object.assign(cacheUI.style, {
-            width: '90vw',
-            maxWidth: '40rem',
-            minWidth: '20rem',
             minHeight: '10rem',
-            padding: '1rem',
-            borderRadius: '0.5rem',
-            color: 'white',
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-            position: 'relative',
-            overflow: 'auto',
-            transition: 'all 0.3s ease'
         });
 
         const title = this.createTitle();
@@ -240,8 +220,8 @@ class CacheManager {
         const clearButton = this.createClearButton();
         const minimizeButton = this.createMinimizeButton(cacheUI, cacheList, title);
 
+        title.appendChild(minimizeButton);
         cacheUI.appendChild(title);
-        cacheUI.appendChild(minimizeButton);
         cacheUI.appendChild(cacheList);
         cacheUI.appendChild(clearButton);
 
@@ -256,9 +236,11 @@ class CacheManager {
         const title = document.createElement('div');
         title.textContent = 'Cache & Data Manager';
         Object.assign(title.style, {
-            marginBottom: '0.75rem',
+            marginBottom: '0.5rem',
             color: '#fff',
-            lineHeight: '1.2'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
         });
         return title;
     }
@@ -266,14 +248,12 @@ class CacheManager {
     createCacheList() {
         const cacheList = document.createElement('div');
         Object.assign(cacheList.style, {
-            backgroundColor: 'rgba(0,0,0,0.3)',
             borderRadius: '0.375rem',
-            padding: '0.75rem',
+            marginBottom: '0.5rem',
             fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             fontSize: '1rem',
             transition: 'all 0.3s ease'
         });
-
         this.cacheTypes.forEach(type => {
             const item = this.createCacheTypeItem(type);
             cacheList.appendChild(item);
@@ -311,8 +291,6 @@ class CacheManager {
         checkbox.id = type.id;
         Object.assign(checkbox.style, {
             marginRight: '0.75rem',
-            width: '1rem',
-            height: '1rem'
         });
         checkbox.checked = type.defaultChecked;
         checkbox.onchange = () => this.saveCheckboxStates();
@@ -361,8 +339,7 @@ class CacheManager {
         });
 
         const icon = document.createElement('span');
-        icon.textContent = '🔍';
-        icon.style.fontSize = '0.75rem';
+        icon.textContent = 'Reading...';
         info.prepend(icon);
 
         info.onmouseover = () => info.style.backgroundColor = 'rgba(255,255,255,0.3)';
@@ -381,7 +358,6 @@ class CacheManager {
             cursor: 'pointer',
             fontSize: '1rem',
             width: '100%',
-            marginTop: '0.75rem'
         });
 
         clearButton.onclick = async () => {
@@ -413,10 +389,7 @@ class CacheManager {
         const minimizeButton = document.createElement('button');
         minimizeButton.innerHTML = this.isMinimized ? '+' : '−';
         Object.assign(minimizeButton.style, {
-            position: 'absolute',
-            top: '0.5rem',
-            right: '0.5rem',
-            width: '1.5rem',
+            width: '3rem',
             height: '1.5rem',
             padding: '0',
             border: 'none',
@@ -454,7 +427,6 @@ class CacheManager {
         Object.assign(cacheUI.style, {
             height: 'auto',
             minHeight: 'auto',
-            padding: '0.5rem'
         });
         Object.assign(cacheList.style, {
             display: 'none',
@@ -469,14 +441,10 @@ class CacheManager {
         Object.assign(cacheUI.style, {
             height: '',
             minHeight: '10rem',
-            padding: '1rem'
         });
         Object.assign(cacheList.style, {
             display: '',
             opacity: '1'
-        });
-        Object.assign(title.style, {
-            marginBottom: '0.75rem'
         });
     }
 
@@ -976,7 +944,6 @@ class CacheManager {
                 default:
                     const result = await type.getInfo();
                     info.textContent = result;
-                    info.style.color = '#4CAF50';
                     setTimeout(() => {
                         info.style.color = '#aaa';
                     }, 2000);
@@ -1078,10 +1045,6 @@ class CacheManager {
         }
     }
 
-    async clearSharedWorkers() {
-        console.warn('Shared workers can only be cleared by closing all tabs');
-    }
-
     async clearWebRTC() {
         console.warn('WebRTC connections are automatically closed when the page is unloaded');
     }
@@ -1168,11 +1131,11 @@ window.CacheManager = CacheManager;
         if (window.YAGA) {
             observer.disconnect();
             if (window.testContainer) {
-                console.log('🧹 Enable test-clear-cache.js');
+                console.log('🧹 Enable dev-tool-cache.js');
                 const cacheManager = new CacheManager();
                 cacheManager.init();
             } else {
-                console.log('🧹 Enable test-clear-cache.js ❌ (Please connect dev-desktop.js first)');
+                console.log('🧹 Enable dev-tool-cache.js ❌ (Please connect dev-desktop.js first)');
             }
         }
     });

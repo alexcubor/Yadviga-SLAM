@@ -4,6 +4,7 @@ class TestContainer {
         this.components = new Map();
         this.uiContainer = null;
         this.isVisible = true;
+        this.isSwipeEnabled = true;
         this.init();
     }
 
@@ -12,9 +13,8 @@ class TestContainer {
         this.uiContainer = document.createElement('div');
         this.uiContainer.id = 'yaga-ui-container';
         this.uiContainer.style.position = 'fixed';
-        this.uiContainer.style.top = '2vh';
-        this.uiContainer.style.left = '2vw';
-        this.uiContainer.style.width = '60vw';
+        this.uiContainer.style.padding = '1rem';
+        this.uiContainer.style.width = '40rem';
         this.uiContainer.style.zIndex = '1000';
         this.uiContainer.style.display = 'flex';
         this.uiContainer.style.flexDirection = 'column';
@@ -22,6 +22,23 @@ class TestContainer {
         this.uiContainer.style.fontSize = '1rem';
         this.uiContainer.style.fontFamily = 'monospace';
         this.uiContainer.style.transition = 'transform 0.3s ease-out';
+
+        // Добавляем глобальные стили
+        const style = document.createElement('style');
+        style.textContent = `
+            #yaga-ui-container div {
+                background-color: rgba(11, 19, 9, 0.5);
+                border-radius: 0.375rem;
+                padding: 0.5rem;
+                font-family: monospace;
+                font-size: 1rem;
+                color: white;
+                position: relative;
+                overflow: hidden;
+            }
+        `;
+        document.head.appendChild(style);
+
         document.body.appendChild(this.uiContainer);
 
         // Add swipe to hide functionality
@@ -40,6 +57,7 @@ class TestContainer {
         let lastMoveTime = 0;
 
         this.uiContainer.addEventListener('touchstart', (e) => {
+            if (!this.isSwipeEnabled) return;
             touchStartX = e.touches[0].clientX;
             isSwiping = false;
             startTime = Date.now();
@@ -47,6 +65,7 @@ class TestContainer {
         }, { passive: true });
 
         this.uiContainer.addEventListener('touchmove', (e) => {
+            if (!this.isSwipeEnabled) return;
             const currentTime = Date.now();
             const timeDiff = currentTime - lastMoveTime;
             lastMoveTime = currentTime;
@@ -72,6 +91,7 @@ class TestContainer {
         }, { passive: true });
 
         this.uiContainer.addEventListener('touchend', () => {
+            if (!this.isSwipeEnabled) return;
             const diff = touchStartX - touchEndX;
             const timeDiff = Date.now() - startTime;
             const velocity = diff / timeDiff;
@@ -187,6 +207,14 @@ class TestContainer {
             hint.style.opacity = '0';
             setTimeout(() => hint.remove(), 300);
         }, 2000);
+    }
+
+    disableSwipe() {
+        this.isSwipeEnabled = false;
+    }
+
+    enableSwipe() {
+        this.isSwipeEnabled = true;
     }
 }
 
