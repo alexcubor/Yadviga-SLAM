@@ -91,14 +91,9 @@ function initScene() {
 
         // === UI for camera transformations ===
         const ui = document.createElement('div');
-        ui.style.position = 'fixed';
-        ui.style.top = '2vh';
-        ui.style.right = '2vw';
-        ui.style.zIndex = '10001';
-        ui.style.background = 'rgba(0,0,0,0.5)';
+        ui.style.width = '18rem';
         ui.style.border = 'none';
         ui.style.borderRadius = '0.5rem';
-        ui.style.padding = '1rem';
         ui.style.fontFamily = 'monospace';
         ui.style.fontSize = '1rem';
         ui.style.color = 'white';
@@ -117,10 +112,14 @@ function initScene() {
 
         const rotate = document.createElement('div');
         rotate.style.color = 'white';
-        rotate.style.marginBottom = '0.5rem';
         ui.appendChild(rotate);
 
-        document.body.appendChild(ui);
+        // Add to test container instead of document.body
+        if (window.testContainer) {
+            window.testContainer.addComponent('camera', {
+                element: ui
+            });
+        }
 
         function updateUI() {
             const cam = window._threeCamera;
