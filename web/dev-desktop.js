@@ -3,7 +3,7 @@ class TestContainer {
     constructor() {
         this.components = new Map();
         this.uiContainer = null;
-        this.isVisible = true;
+        this.isVisible = localStorage.getItem('yaga-ui-visible') !== 'false'; // Restore state from localStorage
         this.isSwipeEnabled = true;
         this.init();
     }
@@ -23,7 +23,14 @@ class TestContainer {
         this.uiContainer.style.fontFamily = 'monospace';
         this.uiContainer.style.transition = 'transform 0.3s ease-out';
 
-        // Добавляем глобальные стили
+        // Set initial position based on saved state
+        if (!this.isVisible) {
+            this.uiContainer.style.transform = 'translateX(-200vw)';
+            // Show hint on load if panels are hidden
+            setTimeout(() => this.showHint(), 500); // Small delay for smoothness
+        }
+
+        // Add global styles
         const style = document.createElement('style');
         style.textContent = `
             #yaga-ui-container div {
@@ -75,10 +82,10 @@ class TestContainer {
             const deltaX = e.clientX - lastPointerX;
             currentTranslateX += deltaX;
             
-            // Ограничиваем перемещение только влево
+            // Limit movement to left only
             currentTranslateX = Math.max(-200, Math.min(0, currentTranslateX));
             
-            // Применяем трансформацию
+            // Apply transformation
             this.uiContainer.style.transform = `translateX(${currentTranslateX}px)`;
             
             lastPointerX = e.clientX;
@@ -88,15 +95,15 @@ class TestContainer {
             if (!isPointerDown) return;
             isPointerDown = false;
             
-            // Включаем анимацию обратно
+            // Re-enable animation
             this.uiContainer.style.transition = 'transform 0.3s ease-out';
             
-            // Определяем, нужно ли скрыть UI
+            // Determine if UI should be hidden
             if (currentTranslateX < -SWIPE_THRESHOLD) {
                 this.hide();
                 this.showHint();
             } else {
-                // Возвращаем на место без показа
+                // Return to original position without showing
                 this.uiContainer.style.transform = 'translateX(0)';
             }
         }, { passive: true });
@@ -105,7 +112,7 @@ class TestContainer {
             if (!isPointerDown) return;
             isPointerDown = false;
             this.uiContainer.style.transition = 'transform 0.3s ease-out';
-            // Возвращаем на место без показа
+            // Return to original position without showing
             this.uiContainer.style.transform = 'translateX(0)';
         }, { passive: true });
 
@@ -123,20 +130,20 @@ class TestContainer {
             const timeDiff = currentTime - lastMoveTime;
             lastMoveTime = currentTime;
 
-            // Если прошло слишком мало времени с последнего движения, пропускаем
+            // Skip if too little time has passed since last movement
             if (timeDiff < 16) return; // ~60fps
 
             touchEndX = e.touches[0].clientX;
             const diff = touchStartX - touchEndX;
             
-            // Если палец сдвинулся достаточно далеко, считаем это свайпом
+            // Consider it a swipe if finger moved far enough
             if (Math.abs(diff) > 10) {
                 isSwiping = true;
             }
             
             // If swiping left, move UI exactly with the finger
             if (diff > 0 && isSwiping) {
-                // Добавляем плавность движения
+                // Add smoothness to movement
                 const velocity = diff / timeDiff;
                 const smoothDiff = diff * (1 + velocity * 0.1);
                 this.uiContainer.style.transform = `translateX(${-smoothDiff}px)`;
@@ -149,19 +156,19 @@ class TestContainer {
             const timeDiff = Date.now() - startTime;
             const velocity = diff / timeDiff;
             
-            // Если это был свайп и свайп был достаточно длинным или быстрым
+            // If it was a swipe and swipe was long enough or fast enough
             if (isSwiping && (diff > SWIPE_THRESHOLD || velocity > 0.5)) {
                 this.uiContainer.style.transition = 'transform 0.3s ease-out';
                 this.uiContainer.style.transform = 'translateX(-200vw)';
                 this.isVisible = false;
                 this.showHint();
             } else {
-                // Иначе возвращаем на место с анимацией
+                // Otherwise return to original position with animation
                 this.uiContainer.style.transition = 'transform 0.3s ease-out';
                 this.uiContainer.style.transform = 'translateX(0)';
             }
 
-            // Сбрасываем transition после анимации
+            // Reset transition after animation
             setTimeout(() => {
                 this.uiContainer.style.transition = '';
             }, 300);
@@ -169,14 +176,14 @@ class TestContainer {
     }
 
     setupEdgeTapShow() {
-        const EDGE_THRESHOLD = 20; // Расстояние от края экрана для активации
+        const EDGE_THRESHOLD = 20; // Distance from screen edge for activation
 
         document.addEventListener('pointerdown', (e) => {
-            if (this.isVisible) return; // Если контейнер уже виден, ничего не делаем
+            if (this.isVisible) return; // If container is already visible, do nothing
 
             const touchX = e.clientX;
             
-            // Если нажатие было в пределах края экрана
+            // If tap was within screen edge
             if (touchX < EDGE_THRESHOLD) {
                 this.show();
             }
@@ -206,12 +213,14 @@ class TestContainer {
     show() {
         this.uiContainer.style.transform = 'translateX(0)';
         this.isVisible = true;
+        localStorage.setItem('yaga-ui-visible', 'true'); // Save state
     }
 
     // Hide all UI components
     hide() {
         this.uiContainer.style.transform = 'translateX(-200vw)';
         this.isVisible = false;
+        localStorage.setItem('yaga-ui-visible', 'false'); // Save state
     }
 
     // Toggle visibility of all UI components
@@ -224,11 +233,11 @@ class TestContainer {
     }
 
     showHint() {
-        // Удаляем предыдущую подсказку, если она есть
+        // Remove previous hint if exists
         const oldHint = document.getElementById('yaga-hint');
         if (oldHint) oldHint.remove();
 
-        // Создаем новую подсказку
+        // Create new hint
         const hint = document.createElement('div');
         hint.id = 'yaga-hint';
         hint.textContent = 'Tap left edge to show panels';
@@ -255,7 +264,7 @@ class TestContainer {
         });
         document.body.appendChild(hint);
 
-        // Скрываем подсказку через 2 секунды
+        // Hide hint after 2 seconds
         setTimeout(() => {
             hint.style.opacity = '0';
             setTimeout(() => hint.remove(), 300);
