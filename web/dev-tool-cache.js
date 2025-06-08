@@ -212,30 +212,10 @@ class CacheManager {
 
     // UI Components
     createUI() {
-        const uiContainer = this.getOrCreateUIContainer();
         const cacheUI = this.createCacheUI();
-        uiContainer.appendChild(cacheUI);
-    }
-
-    getOrCreateUIContainer() {
-        let uiContainer = document.getElementById('yaga-ui-container');
-        if (!uiContainer) {
-            uiContainer = document.createElement('div');
-            uiContainer.id = 'yaga-ui-container';
-            Object.assign(uiContainer.style, {
-                position: 'fixed',
-                top: '2vh',
-                left: '2vw',
-                zIndex: '1000',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1rem',
-                fontSize: '1rem',
-                fontFamily: 'monospace'
-            });
-            document.body.appendChild(uiContainer);
-        }
-        return uiContainer;
+        window.testContainer.addComponent('cache-manager', {
+            element: cacheUI
+        });
     }
 
     createCacheUI() {
@@ -1187,9 +1167,13 @@ window.CacheManager = CacheManager;
     const observer = new MutationObserver((mutations) => {
         if (window.YAGA) {
             observer.disconnect();
-            console.log('🧹 Enable test-clear-cache.js');
-            const cacheManager = new CacheManager();
-            cacheManager.init();
+            if (window.testContainer) {
+                console.log('🧹 Enable test-clear-cache.js');
+                const cacheManager = new CacheManager();
+                cacheManager.init();
+            } else {
+                console.log('🧹 Enable test-clear-cache.js ❌ (Please connect dev-desktop.js first)');
+            }
         }
     });
 
