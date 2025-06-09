@@ -139,25 +139,17 @@ function initScene() {
         ui.style.width = '18rem';
         ui.style.border = 'none';
         ui.style.borderRadius = '0.5rem';
-        ui.style.fontFamily = 'monospace';
-        ui.style.fontSize = '1rem';
-        ui.style.color = 'white';
 
         const title = document.createElement('div');
         title.textContent = 'Camera';
-        title.style.color = 'white';
         title.style.marginBottom = '0.5rem';
-        title.style.fontWeight = 'bold';
         ui.appendChild(title);
 
         const translate = document.createElement('div');
-        translate.style.color = 'white';
         translate.style.marginBottom = '0.5rem';
         ui.appendChild(translate);
 
         const rotate = document.createElement('div');
-        rotate.style.color = 'white';
-        rotate.style.marginBottom = '1rem';
         ui.appendChild(rotate);
 
         // === UI for lights ===
@@ -177,8 +169,6 @@ function initScene() {
 
         const titleText = document.createElement('span');
         titleText.textContent = 'Lights';
-        titleText.style.color = 'white';
-        titleText.style.fontWeight = 'bold';
 
         lightsTitle.appendChild(titleText);
         window.lightsUI.appendChild(lightsTitle);
@@ -192,7 +182,6 @@ function initScene() {
 
         const handleLabel = document.createElement('span');
         handleLabel.textContent = 'Visible handle';
-        handleLabel.style.color = 'white';
 
         const toggleAllSwitch = document.createElement('label');
         toggleAllSwitch.style.position = 'relative';
@@ -249,7 +238,6 @@ function initScene() {
         window.lightsUI.appendChild(visibilityHandle);
 
         window.lightsInfo = document.createElement('div');
-        window.lightsInfo.style.color = 'white';
         window.lightsUI.appendChild(window.lightsInfo);
 
         // Storage for helpers and their toggles
@@ -328,18 +316,14 @@ function initScene() {
         window.gridUI.style.fontFamily = 'monospace';
         window.gridUI.style.fontSize = '1rem';
         window.gridUI.style.color = 'white';
-        window.gridUI.style.marginTop = '1rem';
 
         const gridTitle = document.createElement('div');
         gridTitle.style.display = 'flex';
         gridTitle.style.alignItems = 'center';
         gridTitle.style.justifyContent = 'space-between';
-        gridTitle.style.marginBottom = '0.5rem';
 
         const gridTitleText = document.createElement('span');
         gridTitleText.textContent = 'Grid';
-        gridTitleText.style.color = 'white';
-        gridTitleText.style.fontWeight = 'bold';
 
         const gridSwitch = document.createElement('label');
         gridSwitch.style.position = 'relative';
