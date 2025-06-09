@@ -238,7 +238,6 @@ class CacheManager {
         title.textContent = 'Cache & Data Manager';
         Object.assign(title.style, {
             marginBottom: '0.5rem',
-            color: '#fff',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
@@ -395,7 +394,6 @@ class CacheManager {
             padding: '0',
             border: 'none',
             background: 'rgba(255,255,255,0.2)',
-            color: 'white',
             borderRadius: '0.25rem',
             cursor: 'pointer',
             fontSize: '1.25rem',

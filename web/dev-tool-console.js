@@ -13,7 +13,7 @@ window.isDesktop = !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera M
 // Add initial message only for desktop users
 if (window.isDesktop) {
     earlyLogs.push({ 
-        type: 'info', 
+        type: 'log', 
         message: 'Disabled for desktop browsers. Please use native DevTools console.',
         count: 1 
     });
@@ -131,7 +131,6 @@ class ConsoleUI {
         consoleContainer.style.transform = 'translateZ(0)';
         consoleContainer.style.display = 'flex';
         consoleContainer.style.flexDirection = 'column';
-        consoleContainer.style.flex = '1';
 
         // Add resize handle only for mobile
         if (!window.isDesktop) {
@@ -266,7 +265,6 @@ class ConsoleUI {
         copyButton.style.borderRadius = '0.25rem';
         copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
         copyButton.style.border = 'none';
-        copyButton.style.color = 'white';
         copyButton.style.cursor = 'pointer';
         copyButton.style.fontSize = '1rem';
         copyButton.onclick = (e) => {

@@ -13,17 +13,31 @@ class TestContainer {
         this.uiContainer = document.createElement('div');
         this.uiContainer.id = 'yaga-ui-container';
         this.uiContainer.style.position = 'fixed';
-        this.uiContainer.style.padding = '1rem';
+        this.uiContainer.style.top = '0';
+        this.uiContainer.style.left = '0.5rem';
         this.uiContainer.style.width = '40rem';
+        this.uiContainer.style.height = '100vh';
         this.uiContainer.style.zIndex = '1000';
-        this.uiContainer.style.display = 'flex';
-        this.uiContainer.style.flexDirection = 'row';
-        this.uiContainer.style.flexWrap = 'wrap';
-        this.uiContainer.style.alignItems = 'baseline';
-        this.uiContainer.style.gap = '1rem';
-        this.uiContainer.style.fontSize = '1rem';
-        this.uiContainer.style.fontFamily = 'monospace';
         this.uiContainer.style.transition = 'transform 0.3s ease-out';
+        this.uiContainer.style.overflowY = 'scroll';
+        this.uiContainer.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+
+        // Create inner container for content
+        this.contentContainer = document.createElement('div');
+        this.contentContainer.style.height = '100%';
+        this.contentContainer.style.overflowY = 'auto';
+        this.contentContainer.style.top = '0.5rem';
+        this.contentContainer.style.padding = '0px';
+        this.contentContainer.style.paddingRight = '1rem';
+        this.contentContainer.style.display = 'flex';
+        this.contentContainer.style.flexDirection = 'column';
+        this.contentContainer.style.flexWrap = 'nowrap';
+        this.contentContainer.style.alignItems = 'stretch';
+        this.contentContainer.style.gap = '0.5rem';
+        this.contentContainer.style.fontSize = '1rem';
+        this.contentContainer.style.fontFamily = 'monospace';
+        this.uiContainer.appendChild(this.contentContainer);
+        this.contentContainer.style.backgroundColor = 'rgba(0, 0, 0, 0)';
 
         // Set initial position based on saved state
         if (!this.isVisible) {
@@ -37,14 +51,26 @@ class TestContainer {
         style.textContent = `
             #yaga-ui-container div {
                 background-color: rgba(11, 19, 9, 0.5);
+                color: rgba(255, 255, 255, 0.6);
                 border-radius: 0.375rem;
                 padding: 0.5rem;
                 font-family: monospace;
                 font-size: 1rem;
-                color: white;
                 position: relative;
                 overflow: hidden;
                 line-height: 1.4;
+            }
+            #yaga-ui-container button {
+                color: rgba(255, 255, 255, 0.6);
+                font-family: monospace;
+                font-size: 1rem;
+                background: none;
+                border: none;
+                padding: 0;
+                cursor: pointer;
+            }
+            #yaga-ui-container button:hover {
+                color: rgba(255, 255, 255, 0.8);
             }
         `;
         document.head.appendChild(style);
@@ -199,14 +225,14 @@ class TestContainer {
             return;
         }
         this.components.set(name, component);
-        this.uiContainer.appendChild(component.element);
+        this.contentContainer.appendChild(component.element);
     }
 
     // Remove a test component
     removeComponent(name) {
         const component = this.components.get(name);
         if (component) {
-            this.uiContainer.removeChild(component.element);
+            this.contentContainer.removeChild(component.element);
             this.components.delete(name);
         }
     }
