@@ -109,7 +109,7 @@
         {
             "label": "Start Web Server",
             "type": "shell",
-            "command": "lsof -ti:7070 || (cd web && python3 -m http.server 7070)",
+            "command": "lsof -ti:7070 | xargs kill -9 2>/dev/null || true; cd web && python3 -m http.server 7070",
             "isBackground": true,
             "problemMatcher": {
                 "pattern": {
