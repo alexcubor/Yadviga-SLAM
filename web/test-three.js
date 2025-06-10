@@ -125,14 +125,14 @@ function initScene() {
         
         // Set initial position
         window._threeCamera.position.set(0, 1, 2);  // Raise camera and move back
-        window._threeCamera.lookAt(0, 0, 0);  // Look at scene center
+        window._threeCamera.lookAt(0, 0.5, 0);  // Look at point slightly above floor level
         
         // Initialize orbital camera parameters
         const pos = window._threeCamera.position;
         cameraDistance = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
         cameraPhi = Math.acos(pos.y / cameraDistance);
         cameraTheta = Math.atan2(pos.z, pos.x);
-        cameraTarget = { x: 0, y: 0, z: 0 };
+        cameraTarget = { x: 0, y: 0.5, z: 0 };  // Set target point slightly above floor level
 
         // === UI for camera transformations ===
         const ui = document.createElement('div');
@@ -680,39 +680,34 @@ function initScene() {
         let lastTouchDist = null;
         let lastTouchCenter = null;
         let panTargetStartTouch = { x: 0, y: 0, z: 0 };
-        canvas.addEventListener('touchstart', function(e) {
-            if (e.touches.length === 2) {
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
+        canvas.addEventListener('touchstart', function(event) {
+            event.preventDefault();
+            if (event.touches.length === 1) {
+                isDragging = true;
+                lastMouseX = event.touches[0].clientX;
+                lastMouseY = event.touches[0].clientY;
+            } else if (event.touches.length === 2) {
+                // Store initial touch positions for rotation
+                const dx = event.touches[0].clientX - event.touches[1].clientX;
+                const dy = event.touches[0].clientY - event.touches[1].clientY;
                 lastTouchDist = Math.sqrt(dx*dx + dy*dy);
                 lastTouchCenter = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                    x: (event.touches[0].clientX + event.touches[1].clientX) / 2,
+                    y: (event.touches[0].clientY + event.touches[1].clientY) / 2
                 };
                 panTargetStartTouch.x = cameraTarget.x;
                 panTargetStartTouch.y = cameraTarget.y;
                 panTargetStartTouch.z = cameraTarget.z;
             }
-        });
-        canvas.addEventListener('touchmove', function(e) {
-            if (e.touches.length === 2 && lastTouchDist !== null && lastTouchCenter !== null) {
-                // Pinch zoom
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                const newDist = Math.sqrt(dx*dx + dy*dy);
-                let scale = lastTouchDist / newDist;
-                scale = 1 + (scale - 1) * 0.2; // smooth pinch effect
-                cameraDistance *= scale;
-                cameraDistance = Math.max(minCameraDistance, Math.min(maxCameraDistance, cameraDistance));
-                lastTouchDist = newDist;
+        }, { passive: false });
+        canvas.addEventListener('touchmove', function(event) {
+            event.preventDefault();
+            if (event.touches.length === 1 && isDragging) {
+                var touch = event.touches[0];
+                var deltaX = touch.clientX - lastMouseX;
+                var deltaY = touch.clientY - lastMouseY;
 
-                // Pan (middle point movement)
-                const newCenter = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-                };
-                const dxCenter = newCenter.x - lastTouchCenter.x;
-                const dyCenter = newCenter.y - lastTouchCenter.y;
+                // Pan camera target
                 var panSpeed = cameraDistance * 0.002;
                 var camera = window._threeCamera;
                 camera.updateMatrixWorld();
@@ -721,50 +716,47 @@ function initScene() {
                 camera.getWorldDirection(right); // forward
                 right.crossVectors(camera.up, right).normalize(); // right = up x forward
                 up.copy(camera.up).normalize();
-                cameraTarget.x = panTargetStartTouch.x + dxCenter * panSpeed * right.x + dyCenter * panSpeed * up.x;
-                cameraTarget.y = panTargetStartTouch.y + dxCenter * panSpeed * right.y + dyCenter * panSpeed * up.y;
-                cameraTarget.z = panTargetStartTouch.z + dxCenter * panSpeed * right.z + dyCenter * panSpeed * up.z;
+                cameraTarget.x += deltaX * panSpeed * right.x + deltaY * panSpeed * up.x;
+                cameraTarget.y += deltaX * panSpeed * right.y + deltaY * panSpeed * up.y;
+                cameraTarget.z += deltaX * panSpeed * right.z + deltaY * panSpeed * up.z;
                 updateCameraPosition();
-                // Don't update panTargetStartTouch to keep pan relative to gesture start
+
+                lastMouseX = touch.clientX;
+                lastMouseY = touch.clientY;
+            } else if (event.touches.length === 2) {
+                // Two-finger rotation
+                const dx = event.touches[0].clientX - event.touches[1].clientX;
+                const dy = event.touches[0].clientY - event.touches[1].clientY;
+                const newDist = Math.sqrt(dx*dx + dy*dy);
+                
+                // Calculate rotation based on touch movement
+                const newCenter = {
+                    x: (event.touches[0].clientX + event.touches[1].clientX) / 2,
+                    y: (event.touches[0].clientY + event.touches[1].clientY) / 2
+                };
+                
+                // Update camera angles based on touch movement
+                const deltaX = newCenter.x - lastTouchCenter.x;
+                const deltaY = newCenter.y - lastTouchCenter.y;
+                
+                cameraTheta += deltaX * 0.01;
+                cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi - deltaY * 0.01));
+                
+                updateCameraPosition();
+                
+                // Update last touch positions
+                lastTouchCenter = newCenter;
+                lastTouchDist = newDist;
             }
-        });
-        canvas.addEventListener('touchend', function(e) {
-            if (e.touches.length < 2) {
-                lastTouchDist = null;
-                lastTouchCenter = null;
-            }
-        });
-
-        // Add touch events for mobile
-        canvas.addEventListener('touchstart', function(event) {
-            event.preventDefault();
-            if (event.touches.length === 1) {
-                isDragging = true;
-                lastMouseX = event.touches[0].clientX;
-                lastMouseY = event.touches[0].clientY;
-            }
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', function(event) {
-            event.preventDefault();
-            if (!isDragging) return;
-
-            var touch = event.touches[0];
-            var deltaX = touch.clientX - lastMouseX;
-            var deltaY = touch.clientY - lastMouseY;
-
-            // Update camera angles
-            cameraTheta -= deltaX * 0.01;
-            cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi + deltaY * 0.01));
-
-            updateCameraPosition();
-            lastMouseX = touch.clientX;
-            lastMouseY = touch.clientY;
         }, { passive: false });
 
         canvas.addEventListener('touchend', function(event) {
             event.preventDefault();
-            isDragging = false;
+            if (event.touches.length === 0) {
+                isDragging = false;
+                lastTouchDist = null;
+                lastTouchCenter = null;
+            }
         }, { passive: false });
 
         // Add pinch zoom
