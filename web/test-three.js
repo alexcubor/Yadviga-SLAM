@@ -845,6 +845,8 @@ function initScene() {
 }
 
 // === Synchronize Three.js canvas position with tracking points ===
+let initialTrackingOffset = null;
+
 function updateSceneFromTracking() {
     if (window.Module && window.Module._getTrackingPoints && window.Module.HEAPF32) {
         try {
@@ -861,6 +863,15 @@ function updateSceneFromTracking() {
                 avgX /= count;
                 avgY /= count;
 
+                // Initialize offset on first tracking point
+                if (initialTrackingOffset === null) {
+                    initialTrackingOffset = { x: avgX, y: avgY };
+                }
+
+                // Calculate relative movement from initial position
+                const relativeX = avgX - initialTrackingOffset.x;
+                const relativeY = avgY - initialTrackingOffset.y;
+
                 // Get Three.js canvas
                 const canvas = window._threeRenderer.domElement;
                 
@@ -871,8 +882,8 @@ function updateSceneFromTracking() {
                 
                 // Scale tracking coordinates (increase movement effect)
                 const TRACKING_SCALE = 500; // Increase movement effect by 500x
-                const offsetX = avgX * TRACKING_SCALE * scaleX;
-                const offsetY = -avgY * TRACKING_SCALE * scaleY; // Invert Y coordinate
+                const offsetX = relativeX * TRACKING_SCALE * scaleX;
+                const offsetY = -relativeY * TRACKING_SCALE * scaleY; // Invert Y coordinate
                 
                 // Apply transformation to canvas
                 canvas.style.position = 'fixed';
