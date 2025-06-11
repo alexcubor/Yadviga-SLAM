@@ -21,6 +21,7 @@ class TestContainer {
         this.uiContainer.style.transition = 'transform 0.3s ease-out';
         this.uiContainer.style.overflowY = 'scroll';
         this.uiContainer.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+        this.uiContainer.style.pointerEvents = 'none'; // Allow events to pass through parent
 
         // Create inner container for content
         this.contentContainer = document.createElement('div');
@@ -36,6 +37,7 @@ class TestContainer {
         this.contentContainer.style.gap = '0.5rem';
         this.contentContainer.style.fontSize = '1rem';
         this.contentContainer.style.fontFamily = 'monospace';
+        this.contentContainer.style.pointerEvents = 'none'; // Allow events to pass through parent
         this.uiContainer.appendChild(this.contentContainer);
         this.contentContainer.style.backgroundColor = 'rgba(0, 0, 0, 0)';
 
@@ -49,6 +51,9 @@ class TestContainer {
         // Add global styles
         const style = document.createElement('style');
         style.textContent = `
+            #yaga-ui-container * {
+                pointer-events: auto;
+            }
             #yaga-ui-container div {
                 background-color: rgba(11, 19, 9, 0.5);
                 color: rgba(255, 255, 255, 0.6);
