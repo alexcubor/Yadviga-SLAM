@@ -141,7 +141,7 @@ function initScene() {
         ui.style.borderRadius = '0.5rem';
 
         const title = document.createElement('div');
-        title.textContent = 'Camera';
+        title.textContent = 'Camera (YAGA.camera)';
         title.style.marginBottom = '0.5rem';
         ui.appendChild(title);
 
@@ -569,6 +569,34 @@ function initScene() {
             window._threeCamera.position.y = cameraTarget.y + cameraDistance * Math.cos(cameraPhi);
             window._threeCamera.position.z = cameraTarget.z + cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
             window._threeCamera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+
+            // Update YAGA.camera
+            if (!window.YAGA) {
+                window.YAGA = {};
+            }
+            if (!window.YAGA.camera) {
+                window.YAGA.camera = {
+                    position: { x: 0, y: 0, z: 0 },
+                    rotation: { x: 0, y: 0, z: 0 },
+                    target: { x: 0, y: 0.5, z: 0 }
+                };
+            }
+
+            // Update position
+            window.YAGA.camera.position.x = window._threeCamera.position.x;
+            window.YAGA.camera.position.y = window._threeCamera.position.y;
+            window.YAGA.camera.position.z = window._threeCamera.position.z;
+
+            // Update target
+            window.YAGA.camera.target.x = cameraTarget.x;
+            window.YAGA.camera.target.y = cameraTarget.y;
+            window.YAGA.camera.target.z = cameraTarget.z;
+
+            // Update rotation
+            const euler = new THREE.Euler().setFromQuaternion(window._threeCamera.quaternion);
+            window.YAGA.camera.rotation.x = euler.x;
+            window.YAGA.camera.rotation.y = euler.y;
+            window.YAGA.camera.rotation.z = euler.z;
         }
         
         // Set initial camera position
