@@ -35,9 +35,17 @@
         
         const blurAmount = calculateBlur(distance);
         
+        // Применяем блюр
         canvas.style.filter = `blur(${blurAmount}px)`;
         canvas.style.webkitFilter = `blur(${blurAmount}px)`;
         canvas.style.backdropFilter = `blur(${blurAmount}px)`;
+
+        // Вычисляем смещение канваса
+        const offsetX = dx * MAX_DISTANCE * 20; // Увеличиваем эффект смещения
+        const offsetY = -dy * MAX_DISTANCE * 20; // Инвертируем Y для естественного движения
+
+        // Применяем смещение
+        canvas.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
     }
 
     function setupInteractiveBlur() {
