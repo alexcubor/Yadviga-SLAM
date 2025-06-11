@@ -30,8 +30,9 @@ These configurations provide:
 1. **Build Process**
    - Press `Ctrl+Shift+B` to open the build tasks menu
    - Three tasks will appear:
-     1. "Build Emscripten" - Run second
-     2. "Build OpenCV" - Run third
+     1. "Build Emscripten" - Run first (only on first setup)
+     2. "Build OpenCV" - Run second (only on first setup)
+     3. "Build Yadviga" - Run third
    - After completing these tasks, the project will be ready for development
 
 2. **Debugging**
