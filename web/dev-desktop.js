@@ -95,9 +95,23 @@ class TestContainer {
         let isPointerDown = false;
         let currentTranslateX = 0;
 
+        // Check if element is direct child or descendant of content container
+        function isDirectChildOrDescendant(element) {
+            let current = element;
+            while (current && current !== document.body) {
+                if (current.parentElement === this.contentContainer) {
+                    return true;
+                }
+                current = current.parentElement;
+            }
+            return false;
+        }
+
         // Add trackpad swipe support using pointer events
         this.uiContainer.addEventListener('pointerdown', (e) => {
             if (!this.isSwipeEnabled) return;
+            if (!isDirectChildOrDescendant.call(this, e.target)) return;
+            
             isPointerDown = true;
             lastPointerX = e.clientX;
             currentTranslateX = 0;
@@ -119,7 +133,7 @@ class TestContainer {
             lastPointerX = e.clientX;
         }, { passive: true });
 
-        this.uiContainer.addEventListener('pointerup', () => {
+        this.uiContainer.addEventListener('pointerup', (e) => {
             if (!isPointerDown) return;
             isPointerDown = false;
             
@@ -136,7 +150,7 @@ class TestContainer {
             }
         }, { passive: true });
 
-        this.uiContainer.addEventListener('pointercancel', () => {
+        this.uiContainer.addEventListener('pointercancel', (e) => {
             if (!isPointerDown) return;
             isPointerDown = false;
             this.uiContainer.style.transition = 'transform 0.3s ease-out';
@@ -146,6 +160,8 @@ class TestContainer {
 
         this.uiContainer.addEventListener('touchstart', (e) => {
             if (!this.isSwipeEnabled) return;
+            if (!isDirectChildOrDescendant.call(this, e.target)) return;
+            
             touchStartX = e.touches[0].clientX;
             isSwiping = false;
             startTime = Date.now();
@@ -178,7 +194,7 @@ class TestContainer {
             }
         }, { passive: true });
 
-        this.uiContainer.addEventListener('touchend', () => {
+        this.uiContainer.addEventListener('touchend', (e) => {
             if (!this.isSwipeEnabled) return;
             const diff = touchStartX - touchEndX;
             const timeDiff = Date.now() - startTime;
