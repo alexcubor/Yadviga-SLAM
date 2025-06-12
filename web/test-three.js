@@ -31,72 +31,225 @@ function loadGLTFLoader(callback) {
     document.head.appendChild(script);
 }
 
-function addCharacterModel(scene) {
-    const loader = new THREE.GLTFLoader();
-    loader.load('sky_character.glb', function(gltf) {
-        const model = gltf.scene;
-        model.position.set(0, 0, 0);
-        scene.add(model);
+// === Camera snap functionality ===
+let initialCameraState = null;
+const SNAP_THRESHOLD = 0.5; // Increased from 0.2 to 0.5 for wider snap range
+const SNAP_ANGLE_THRESHOLD = 0.5; // Increased from 0.2 to 0.5 for wider angle snap range
 
-        // Find all light sources in the model
-        const lights = [];
-        model.traverse((node) => {
-            if (node.isLight) {
-                lights.push(node);
-            }
-        });
+// Easing function for smooth snapping
+function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
-        // Add helpers for each light
-        lights.forEach(light => {
-            let helper;
-            if (light.type === 'DirectionalLight') {
-                helper = new THREE.DirectionalLightHelper(light, 0.125);
-            } else if (light.type === 'PointLight') {
-                helper = new THREE.PointLightHelper(light, 0.125);
-                // For PointLight just add helper without toggle
-                if (helper) {
-                    scene.add(helper);
-                    helper.visible = window.toggleAllInput ? window.toggleAllInput.checked : true;
-                    // Add to the global helpers list
-                    if (window.lightHelpers) {
-                        window.lightHelpers.set(light, { helper, checkbox: window.toggleAllInput });
-                    }
-                }
-                return; // Skip creating toggle for PointLight
-            } else if (light.type === 'SpotLight') {
-                helper = new THREE.SpotLightHelper(light);
-            } else if (light.type === 'HemisphereLight') {
-                helper = new THREE.HemisphereLightHelper(light, 0.125);
-            }
+// Global camera parameters
+let cameraDistance = 2;
+let cameraPhi = Math.PI / 4;
+let cameraTheta = 0;
+let cameraTarget = { x: 0, y: 0.5, z: 0 };
 
-            if (helper) {
-                scene.add(helper);
-                // Add toggle for this light
-                if (window.lightsUI && window.lightsInfo) {
-                    const toggle = createLightToggle(light, helper);
-                    window.lightsUI.insertBefore(toggle, window.lightsInfo);
-                    
-                    // Set initial visibility state
-                    if (window.toggleAllInput) {
-                        helper.visible = window.toggleAllInput.checked;
-                    }
-                }
-            }
-        });
+// Add snap progress tracking
+let snapProgress = 0;
+let isSnapping = false;
+let shouldCheckSnap = false;
 
-        // === Auto-start animation if available ===
-        if (gltf.animations && gltf.animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(model);
-            gltf.animations.forEach(clip => {
-                mixer.clipAction(clip).play();
-            });
-            // Save mixer for animation loop update
-            window._threeAnimationMixers = window._threeAnimationMixers || [];
-            window._threeAnimationMixers.push(mixer);
+// Add inertia tracking
+let lastMouseDelta = { x: 0, y: 0 };
+let cameraInertia = { x: 0, y: 0 };
+let isInertiaActive = false;
+const INERTIA_DECAY = 0.95; // How quickly inertia fades (0.95 = 5% reduction per frame)
+
+function updateCameraPosition() {
+    // Convert spherical coordinates to Cartesian
+    window._threeCamera.position.x = cameraTarget.x + cameraDistance * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+    window._threeCamera.position.y = cameraTarget.y + cameraDistance * Math.cos(cameraPhi);
+    window._threeCamera.position.z = cameraTarget.z + cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+    window._threeCamera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+
+    // Update YAGA.camera
+    if (!window.YAGA) {
+        window.YAGA = {};
+    }
+    if (!window.YAGA.camera) {
+        window.YAGA.camera = {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 },
+            target: { x: 0, y: 0.5, z: 0 }
+        };
+    }
+
+    // Update position
+    window.YAGA.camera.position.x = window._threeCamera.position.x;
+    window.YAGA.camera.position.y = window._threeCamera.position.y;
+    window.YAGA.camera.position.z = window._threeCamera.position.z;
+
+    // Update target
+    window.YAGA.camera.target.x = cameraTarget.x;
+    window.YAGA.camera.target.y = cameraTarget.y;
+    window.YAGA.camera.target.z = cameraTarget.z;
+
+    // Update rotation
+    const euler = new THREE.Euler().setFromQuaternion(window._threeCamera.quaternion);
+    window.YAGA.camera.rotation.x = euler.x;
+    window.YAGA.camera.rotation.y = euler.y;
+    window.YAGA.camera.rotation.z = euler.z;
+}
+
+// Load initial camera state from localStorage or use defaults
+function loadInitialCameraState() {
+    try {
+        const savedState = localStorage.getItem('initialCameraState');
+        if (savedState) {
+            const state = JSON.parse(savedState);
+            initialCameraState = {
+                position: new THREE.Vector3(state.position.x, state.position.y, state.position.z),
+                target: new THREE.Vector3(state.target.x, state.target.y, state.target.z),
+                distance: state.distance,
+                phi: state.phi,
+                theta: state.theta
+            };
         }
-    }, undefined, function(error) {
-        // ignore
-    });
+    } catch (e) {
+        console.warn('Error loading initial camera state:', e);
+    }
+}
+
+function saveInitialCameraState() {
+    if (!initialCameraState) {
+        initialCameraState = {
+            position: window._threeCamera.position.clone(),
+            target: new THREE.Vector3(cameraTarget.x, cameraTarget.y, cameraTarget.z),
+            distance: cameraDistance,
+            phi: cameraPhi,
+            theta: cameraTheta
+        };
+        // Save to localStorage
+        try {
+            localStorage.setItem('initialCameraState', JSON.stringify({
+                position: {
+                    x: initialCameraState.position.x,
+                    y: initialCameraState.position.y,
+                    z: initialCameraState.position.z
+                },
+                target: {
+                    x: initialCameraState.target.x,
+                    y: initialCameraState.target.y,
+                    z: initialCameraState.target.z
+                },
+                distance: initialCameraState.distance,
+                phi: initialCameraState.phi,
+                theta: initialCameraState.theta
+            }));
+        } catch (e) {
+            console.warn('Error saving initial camera state:', e);
+        }
+    }
+}
+
+function checkAndSnapCamera() {
+    if (!initialCameraState || !shouldCheckSnap) return;
+
+    // Create a temporary camera to get initial quaternion
+    const tempCamera = new THREE.PerspectiveCamera();
+    tempCamera.position.copy(initialCameraState.position);
+    tempCamera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+    const initQuaternion = tempCamera.quaternion.clone();
+    
+    // Get current position and quaternion
+    const currentPos = window._threeCamera.position;
+    const currentQuat = window._threeCamera.quaternion;
+    
+    // Check if all position values are close to initial
+    const posXClose = Math.abs(currentPos.x - initialCameraState.position.x) < SNAP_THRESHOLD;
+    const posYClose = Math.abs(currentPos.y - initialCameraState.position.y) < SNAP_THRESHOLD;
+    const posZClose = Math.abs(currentPos.z - initialCameraState.position.z) < SNAP_THRESHOLD;
+    
+    // Check if quaternions are close (dot product close to 1 means they're pointing in same direction)
+    const quatDot = Math.abs(currentQuat.dot(initQuaternion));
+    const quatClose = quatDot > 0.99; // This is roughly equivalent to about 8 degrees difference
+
+    // If all values are close to initial, start or continue snapping
+    if (posXClose && posYClose && posZClose && quatClose) {
+        // Stop inertia when snapping begins
+        if (!isSnapping) {
+            isSnapping = true;
+            snapProgress = 0;
+            isInertiaActive = false;
+            cameraInertia.x = 0;
+            cameraInertia.y = 0;
+        }
+
+        // Update snap progress
+        snapProgress += 0.1; // Increased from 0.02 to 0.05 for faster snapping
+        if (snapProgress > 1) snapProgress = 1;
+
+        // Calculate eased interpolation factor
+        const easedFactor = easeInOutCubic(snapProgress);
+
+        // Direct position setting with eased interpolation
+        window._threeCamera.position.set(
+            currentPos.x + (initialCameraState.position.x - currentPos.x) * easedFactor,
+            currentPos.y + (initialCameraState.position.y - currentPos.y) * easedFactor,
+            currentPos.z + (initialCameraState.position.z - currentPos.z) * easedFactor
+        );
+        
+        // Direct target setting with eased interpolation
+        cameraTarget.x += (initialCameraState.target.x - cameraTarget.x) * easedFactor;
+        cameraTarget.y += (initialCameraState.target.y - cameraTarget.y) * easedFactor;
+        cameraTarget.z += (initialCameraState.target.z - cameraTarget.z) * easedFactor;
+        
+        // Direct distance setting with eased interpolation
+        cameraDistance += (initialCameraState.distance - cameraDistance) * easedFactor;
+        
+        // Direct quaternion interpolation with easing
+        window._threeCamera.quaternion.slerp(initQuaternion, easedFactor);
+        
+        // Force update camera and ensure it's looking at target
+        window._threeCamera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+        
+        // Update YAGA camera state
+        if (window.YAGA && window.YAGA.camera) {
+            window.YAGA.camera.position.x = window._threeCamera.position.x;
+            window.YAGA.camera.position.y = window._threeCamera.position.y;
+            window.YAGA.camera.position.z = window._threeCamera.position.z;
+            
+            const euler = new THREE.Euler().setFromQuaternion(window._threeCamera.quaternion);
+            window.YAGA.camera.rotation.x = euler.x;
+            window.YAGA.camera.rotation.y = euler.y;
+            window.YAGA.camera.rotation.z = euler.z;
+            
+            window.YAGA.camera.target.x = cameraTarget.x;
+            window.YAGA.camera.target.y = cameraTarget.y;
+            window.YAGA.camera.target.z = cameraTarget.z;
+        }
+
+        // Reset snapping state when complete
+        if (snapProgress >= 1) {
+            isSnapping = false;
+            shouldCheckSnap = false;
+        }
+    } else {
+        isSnapping = false;
+        shouldCheckSnap = false;
+    }
+}
+
+function updateCameraWithInertia() {
+    if (!isInertiaActive) return;
+
+    // Apply inertia to camera angles
+    cameraTheta += cameraInertia.x;
+    cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi + cameraInertia.y));
+    
+    // Decay inertia
+    cameraInertia.x *= INERTIA_DECAY;
+    cameraInertia.y *= INERTIA_DECAY;
+    
+    // Stop inertia when it becomes too small
+    if (Math.abs(cameraInertia.x) < 0.0001 && Math.abs(cameraInertia.y) < 0.0001) {
+        isInertiaActive = false;
+    }
+    
+    updateCameraPosition();
 }
 
 function initScene() {
@@ -129,10 +282,40 @@ function initScene() {
         
         // Initialize orbital camera parameters
         const pos = window._threeCamera.position;
-        cameraDistance = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
-        cameraPhi = Math.acos(pos.y / cameraDistance);
+        cameraDistance = Math.sqrt(pos.x * pos.x + (pos.y - 0.5) * (pos.y - 0.5) + pos.z * pos.z); // Adjust for target height
+        cameraPhi = Math.acos((pos.y - 0.5) / cameraDistance); // Adjust for target height
         cameraTheta = Math.atan2(pos.z, pos.x);
         cameraTarget = { x: 0, y: 0.5, z: 0 };  // Set target point slightly above floor level
+
+        // Set initial camera state directly
+        initialCameraState = {
+            position: new THREE.Vector3(0, 1, 2),  // Exact same values as camera position
+            target: new THREE.Vector3(0, 0.5, 0),  // Exact same values as camera target
+            distance: cameraDistance,
+            phi: cameraPhi,
+            theta: cameraTheta
+        };
+
+        // Save to localStorage
+        try {
+            localStorage.setItem('initialCameraState', JSON.stringify({
+                position: {
+                    x: initialCameraState.position.x,
+                    y: initialCameraState.position.y,
+                    z: initialCameraState.position.z
+                },
+                target: {
+                    x: initialCameraState.target.x,
+                    y: initialCameraState.target.y,
+                    z: initialCameraState.target.z
+                },
+                distance: initialCameraState.distance,
+                phi: initialCameraState.phi,
+                theta: initialCameraState.theta
+            }));
+        } catch (e) {
+            console.warn('Error saving initial camera state:', e);
+        }
 
         // === UI for camera transformations ===
         const ui = document.createElement('div');
@@ -141,16 +324,133 @@ function initScene() {
         ui.style.borderRadius = '0.5rem';
 
         const title = document.createElement('div');
-        title.textContent = 'Camera (YAGA.camera)';
+        title.style.display = 'flex';
+        title.style.justifyContent = 'space-between';
+        title.style.alignItems = 'center';
         title.style.marginBottom = '0.5rem';
+        
+        const cameraTitleText = document.createElement('span');
+        cameraTitleText.textContent = 'Camera (YAGA.camera)';
+        title.appendChild(cameraTitleText);
+
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy';
+        copyButton.style.padding = '0.25rem 0.5rem';
+        copyButton.style.borderRadius = '0.25rem';
+        copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        copyButton.style.border = 'none';
+        copyButton.style.cursor = 'pointer';
+        copyButton.style.fontSize = '1rem';
+        copyButton.onclick = (e) => {
+            e.stopPropagation();
+            const text = `Translate: ${window._threeCamera.position.x.toFixed(2)} ${window._threeCamera.position.y.toFixed(2)} ${window._threeCamera.position.z.toFixed(2)}\nRotate: ${(cameraPhi * 180 / Math.PI).toFixed(2)}° ${(cameraTheta * 180 / Math.PI).toFixed(2)}°\n\nInitial State:\n  Pos: ${initialCameraState.position.x.toFixed(2)} ${initialCameraState.position.y.toFixed(2)} ${initialCameraState.position.z.toFixed(2)}\n  Rot: ${(initialCameraState.phi * 180 / Math.PI).toFixed(2)}° ${(initialCameraState.theta * 180 / Math.PI).toFixed(2)}°`;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = copyButton.textContent;
+                copyButton.textContent = 'Copied!';
+                copyButton.style.backgroundColor = 'rgba(0,255,0,0.2)';
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                    copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }, 1000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                copyButton.textContent = 'Error!';
+                copyButton.style.backgroundColor = 'rgba(255,0,0,0.2)';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy';
+                    copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                }, 1000);
+            });
+        };
+        title.appendChild(copyButton);
         ui.appendChild(title);
 
         const translate = document.createElement('div');
         translate.style.marginBottom = '0.5rem';
+        translate.style.display = 'flex';
+        translate.style.gap = '0.5rem';
+        translate.style.alignItems = 'center';
+
+        const translateLabel = document.createElement('span');
+        translateLabel.textContent = 'Translate:';
+        translate.appendChild(translateLabel);
+
+        const posX = document.createElement('div');
+        posX.style.flex = '1';
+        posX.style.textAlign = 'center';
+        posX.style.padding = '0.25rem';
+        posX.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        posX.style.borderRadius = '0.25rem';
+        translate.appendChild(posX);
+
+        const posY = document.createElement('div');
+        posY.style.flex = '1';
+        posY.style.textAlign = 'center';
+        posY.style.padding = '0.25rem';
+        posY.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        posY.style.borderRadius = '0.25rem';
+        translate.appendChild(posY);
+
+        const posZ = document.createElement('div');
+        posZ.style.flex = '1';
+        posZ.style.textAlign = 'center';
+        posZ.style.padding = '0.25rem';
+        posZ.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        posZ.style.borderRadius = '0.25rem';
+        translate.appendChild(posZ);
+
         ui.appendChild(translate);
 
         const rotate = document.createElement('div');
+        rotate.style.marginBottom = '0.5rem';
+        rotate.style.display = 'flex';
+        rotate.style.gap = '0.5rem';
+        rotate.style.alignItems = 'center';
+
+        const rotateLabel = document.createElement('span');
+        rotateLabel.textContent = 'Rotate:';
+        rotate.appendChild(rotateLabel);
+
+        const rotX = document.createElement('div');
+        rotX.style.flex = '1';
+        rotX.style.textAlign = 'center';
+        rotX.style.padding = '0.25rem';
+        rotX.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        rotX.style.borderRadius = '0.25rem';
+        rotate.appendChild(rotX);
+
+        const rotY = document.createElement('div');
+        rotY.style.flex = '1';
+        rotY.style.textAlign = 'center';
+        rotY.style.padding = '0.25rem';
+        rotY.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        rotY.style.borderRadius = '0.25rem';
+        rotate.appendChild(rotY);
+
+        const rotZ = document.createElement('div');
+        rotZ.style.flex = '1';
+        rotZ.style.textAlign = 'center';
+        rotZ.style.padding = '0.25rem';
+        rotZ.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        rotZ.style.borderRadius = '0.25rem';
+        rotate.appendChild(rotZ);
+
         ui.appendChild(rotate);
+
+        // Add initial camera state display
+        const initialState = document.createElement('div');
+        initialState.style.marginBottom = '0.5rem';
+        initialState.style.opacity = '0.7';
+        initialState.textContent = 'Initial State: Loading...';
+        ui.appendChild(initialState);
+
+        // Prevent panel dragging when selecting text
+        ui.addEventListener('mousedown', function(e) {
+            if (e.target === initialState || initialState.contains(e.target)) {
+                e.stopPropagation();  // Prevent panel drag when selecting text
+            }
+        });
 
         // === UI for lights ===
         window.lightsUI = document.createElement('div');
@@ -167,10 +467,10 @@ function initScene() {
         lightsTitle.style.justifyContent = 'space-between';
         lightsTitle.style.marginBottom = '0.5rem';
 
-        const titleText = document.createElement('span');
-        titleText.textContent = 'Lights';
+        const lightsTitleText = document.createElement('span');
+        lightsTitleText.textContent = 'Lights';
 
-        lightsTitle.appendChild(titleText);
+        lightsTitle.appendChild(lightsTitleText);
         window.lightsUI.appendChild(lightsTitle);
 
         // Add visibility handle section
@@ -406,13 +706,58 @@ function initScene() {
             const cam = window._threeCamera;
             if (!cam) return;
             
-            // Camera position relative to scene
-            const relativePos = cam.position.clone().sub(window._threeScene.position);
-            translate.textContent = `Translate: ${relativePos.x.toFixed(2)} ${relativePos.y.toFixed(2)} ${relativePos.z.toFixed(2)}`;
+            // Update position values
+            posX.textContent = cam.position.x.toFixed(2);
+            posY.textContent = cam.position.y.toFixed(2);
+            posZ.textContent = cam.position.z.toFixed(2);
             
-            // Camera rotation in degrees
+            // Get Euler angles from camera quaternion
             const euler = new THREE.Euler().setFromQuaternion(cam.quaternion);
-            rotate.textContent = `Rotate: ${(euler.x * 180 / Math.PI).toFixed(2)}° ${(euler.y * 180 / Math.PI).toFixed(2)}° ${(euler.z * 180 / Math.PI).toFixed(2)}°`;
+            const eulerX = euler.x * 180 / Math.PI;
+            const eulerY = euler.y * 180 / Math.PI;
+            const eulerZ = euler.z * 180 / Math.PI;
+            
+            // Update rotation values
+            rotX.textContent = `${eulerX.toFixed(2)}°`;
+            rotY.textContent = `${eulerY.toFixed(2)}°`;
+            rotZ.textContent = `${eulerZ.toFixed(2)}°`;
+
+            // Update initial state display and highlight values
+            if (initialCameraState) {
+                const initPos = initialCameraState.position;
+                
+                // Create a temporary camera to get Euler angles
+                const tempCamera = new THREE.PerspectiveCamera();
+                tempCamera.position.copy(initPos);
+                tempCamera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+                
+                const initEuler = new THREE.Euler().setFromQuaternion(tempCamera.quaternion);
+                const initEulerX = initEuler.x * 180 / Math.PI;
+                const initEulerY = initEuler.y * 180 / Math.PI;
+                const initEulerZ = initEuler.z * 180 / Math.PI;
+
+                // Highlight position values
+                const posDiff = Math.abs(cam.position.x - initPos.x);
+                posX.style.backgroundColor = posDiff < SNAP_THRESHOLD ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
+                
+                const posYDiff = Math.abs(cam.position.y - initPos.y);
+                posY.style.backgroundColor = posYDiff < SNAP_THRESHOLD ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
+                
+                const posZDiff = Math.abs(cam.position.z - initPos.z);
+                posZ.style.backgroundColor = posZDiff < SNAP_THRESHOLD ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
+
+                // Highlight rotation values
+                const rotXDiff = Math.abs(eulerX - initEulerX);
+                rotX.style.backgroundColor = rotXDiff < SNAP_ANGLE_THRESHOLD * 180 / Math.PI ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
+                
+                const rotYDiff = Math.abs(eulerY - initEulerY);
+                rotY.style.backgroundColor = rotYDiff < SNAP_ANGLE_THRESHOLD * 180 / Math.PI ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
+                
+                const rotZDiff = Math.abs(eulerZ - initEulerZ);
+                rotZ.style.backgroundColor = rotZDiff < SNAP_ANGLE_THRESHOLD * 180 / Math.PI ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
+                
+                initialState.textContent = `Initial State:\n  Pos: ${initPos.x.toFixed(2)} ${initPos.y.toFixed(2)} ${initPos.z.toFixed(2)}\n  Rot: ${initEulerX.toFixed(2)}° ${initEulerY.toFixed(2)}° ${initEulerZ.toFixed(2)}°`;
+            }
 
             // Update lights info
             const lights = [];
@@ -563,42 +908,6 @@ function initScene() {
         var minCameraDistance = 0.5;
         var maxCameraDistance = 10;
         
-        function updateCameraPosition() {
-            // Convert spherical coordinates to Cartesian
-            window._threeCamera.position.x = cameraTarget.x + cameraDistance * Math.sin(cameraPhi) * Math.cos(cameraTheta);
-            window._threeCamera.position.y = cameraTarget.y + cameraDistance * Math.cos(cameraPhi);
-            window._threeCamera.position.z = cameraTarget.z + cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
-            window._threeCamera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
-
-            // Update YAGA.camera
-            if (!window.YAGA) {
-                window.YAGA = {};
-            }
-            if (!window.YAGA.camera) {
-                window.YAGA.camera = {
-                    position: { x: 0, y: 0, z: 0 },
-                    rotation: { x: 0, y: 0, z: 0 },
-                    target: { x: 0, y: 0.5, z: 0 }
-                };
-            }
-
-            // Update position
-            window.YAGA.camera.position.x = window._threeCamera.position.x;
-            window.YAGA.camera.position.y = window._threeCamera.position.y;
-            window.YAGA.camera.position.z = window._threeCamera.position.z;
-
-            // Update target
-            window.YAGA.camera.target.x = cameraTarget.x;
-            window.YAGA.camera.target.y = cameraTarget.y;
-            window.YAGA.camera.target.z = cameraTarget.z;
-
-            // Update rotation
-            const euler = new THREE.Euler().setFromQuaternion(window._threeCamera.quaternion);
-            window.YAGA.camera.rotation.x = euler.x;
-            window.YAGA.camera.rotation.y = euler.y;
-            window.YAGA.camera.rotation.z = euler.z;
-        }
-        
         // Set initial camera position
         updateCameraPosition();
         
@@ -622,9 +931,14 @@ function initScene() {
                 var deltaMove = Object.create(null);
                 deltaMove.x = e.clientX - previousMousePosition.x;
                 deltaMove.y = e.clientY - previousMousePosition.y;
+                
+                // Store last mouse movement for inertia
+                lastMouseDelta.x = deltaMove.x * 0.01;
+                lastMouseDelta.y = -deltaMove.y * 0.01;
+                
                 // Update angles (inverted rotation)
-                cameraTheta += deltaMove.x * 0.01;  // Inverted horizontal rotation
-                cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi - deltaMove.y * 0.01));  // Inverted vertical rotation
+                cameraTheta += lastMouseDelta.x;
+                cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi + lastMouseDelta.y));
                 updateCameraPosition();
                 previousMousePosition.x = e.clientX;
                 previousMousePosition.y = e.clientY;
@@ -650,8 +964,20 @@ function initScene() {
         canvas.addEventListener('mouseup', function(e) {
             if (e.button === 2) {
                 isPanning = false;
+                if (!isDragging) { // Only check for snap if we're not dragging
+                    shouldCheckSnap = true;
+                }
             } else if (e.button === 0) {
                 isDragging = false;
+                // Start inertia with last mouse movement
+                if (Math.abs(lastMouseDelta.x) > 0.001 || Math.abs(lastMouseDelta.y) > 0.001) {
+                    cameraInertia.x = lastMouseDelta.x;
+                    cameraInertia.y = lastMouseDelta.y;
+                    isInertiaActive = true;
+                    shouldCheckSnap = true; // Enable snap checking during inertia
+                } else {
+                    shouldCheckSnap = true;
+                }
             }
         });
         
@@ -679,6 +1005,8 @@ function initScene() {
 
         // === Mouse wheel zoom + pan for desktop and trackpad ===
         canvas.addEventListener('wheel', function(e) {
+            if (isSnapping) return; // Block camera control during snapping
+            
             e.preventDefault();
             var panSpeed = cameraDistance * 0.002;
             var camera = window._threeCamera;
@@ -784,6 +1112,7 @@ function initScene() {
                 isDragging = false;
                 lastTouchDist = null;
                 lastTouchCenter = null;
+                checkAndSnapCamera(); // Check for snap after touch interaction
             }
         }, { passive: false });
 
@@ -831,6 +1160,13 @@ function initScene() {
                 var delta = window._threeRenderer.clock ? window._threeRenderer.clock.getDelta() : 0.016;
                 window._threeAnimationMixers.forEach(mixer => mixer.update(delta));
             }
+            
+            // Update camera with inertia
+            updateCameraWithInertia();
+            
+            // Always check for snap, even during inertia
+            checkAndSnapCamera();
+            
             window._threeRenderer.render(window._threeScene, window._threeCamera);
         }
         // Clock for animations
@@ -897,4 +1233,73 @@ function updateSceneFromTracking() {
     }
     requestAnimationFrame(updateSceneFromTracking);
 }
-updateSceneFromTracking(); 
+updateSceneFromTracking();
+
+// Add character model function
+function addCharacterModel(scene) {
+    const loader = new THREE.GLTFLoader();
+    loader.load('sky_character.glb', function(gltf) {
+        const model = gltf.scene;
+        model.position.set(0, 0, 0);
+        scene.add(model);
+
+        // Find all light sources in the model
+        const lights = [];
+        model.traverse((node) => {
+            if (node.isLight) {
+                lights.push(node);
+            }
+        });
+
+        // Add helpers for each light
+        lights.forEach(light => {
+            let helper;
+            if (light.type === 'DirectionalLight') {
+                helper = new THREE.DirectionalLightHelper(light, 0.125);
+            } else if (light.type === 'PointLight') {
+                helper = new THREE.PointLightHelper(light, 0.125);
+                // For PointLight just add helper without toggle
+                if (helper) {
+                    scene.add(helper);
+                    helper.visible = window.toggleAllInput ? window.toggleAllInput.checked : true;
+                    // Add to the global helpers list
+                    if (window.lightHelpers) {
+                        window.lightHelpers.set(light, { helper, checkbox: window.toggleAllInput });
+                    }
+                }
+                return; // Skip creating toggle for PointLight
+            } else if (light.type === 'SpotLight') {
+                helper = new THREE.SpotLightHelper(light);
+            } else if (light.type === 'HemisphereLight') {
+                helper = new THREE.HemisphereLightHelper(light, 0.125);
+            }
+
+            if (helper) {
+                scene.add(helper);
+                // Add toggle for this light
+                if (window.lightsUI && window.lightsInfo) {
+                    const toggle = createLightToggle(light, helper);
+                    window.lightsUI.insertBefore(toggle, window.lightsInfo);
+                    
+                    // Set initial visibility state
+                    if (window.toggleAllInput) {
+                        helper.visible = window.toggleAllInput.checked;
+                    }
+                }
+            }
+        });
+
+        // === Auto-start animation if available ===
+        if (gltf.animations && gltf.animations.length > 0) {
+            const mixer = new THREE.AnimationMixer(model);
+            gltf.animations.forEach(clip => {
+                mixer.clipAction(clip).play();
+            });
+            // Save mixer for animation loop update
+            window._threeAnimationMixers = window._threeAnimationMixers || [];
+            window._threeAnimationMixers.push(mixer);
+        }
+    }, undefined, function(error) {
+        // ignore
+    });
+} 
