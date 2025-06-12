@@ -64,6 +64,10 @@ class TestContainer {
                 position: relative;
                 overflow: hidden;
                 line-height: 1.4;
+                cursor: pointer;
+            }
+            #yaga-ui-container div:hover {
+                background-color: rgba(11, 19, 9, 0.7);
             }
             #yaga-ui-container button {
                 color: rgba(255, 255, 255, 0.6);
@@ -77,10 +81,50 @@ class TestContainer {
             #yaga-ui-container button:hover {
                 color: rgba(255, 255, 255, 0.8);
             }
+            #copy-feedback {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 1rem 2rem;
+                border-radius: 0.5rem;
+                font-family: monospace;
+                font-size: 1.2rem;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.3s ease-out;
+                z-index: 9999;
+            }
+            #copy-feedback.show {
+                opacity: 1;
+            }
         `;
         document.head.appendChild(style);
 
         document.body.appendChild(this.uiContainer);
+
+        // Create global copy feedback element
+        const copyFeedback = document.createElement('div');
+        copyFeedback.id = 'copy-feedback';
+        document.body.appendChild(copyFeedback);
+
+        // Add click-to-copy functionality
+        this.uiContainer.addEventListener('click', function(e) {
+            const target = e.target;
+            if (target.tagName === 'DIV' && target.textContent.trim()) {
+                navigator.clipboard.writeText(target.textContent.trim()).then(() => {
+                    copyFeedback.textContent = 'Copied!';
+                    copyFeedback.classList.add('show');
+                    setTimeout(() => {
+                        copyFeedback.classList.remove('show');
+                    }, 1000);
+                }).catch(err => {
+                    console.warn('Failed to copy text:', err);
+                });
+            }
+        });
 
         // Add swipe to hide functionality
         this.setupSwipeToHide();
