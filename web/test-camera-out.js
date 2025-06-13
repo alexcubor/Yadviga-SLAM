@@ -157,9 +157,9 @@
             
             isDragging = false;
             
-            if (typeof Module !== 'undefined' && Module._stopCamera) {
-                Module._stopCamera();
-            }
+            // if (typeof Module !== 'undefined' && Module._stopCamera) {
+            //     Module._stopCamera();
+            // }
             
             // Update position for current camera position
             const currentX = e.clientX || e.touches[0].clientX;

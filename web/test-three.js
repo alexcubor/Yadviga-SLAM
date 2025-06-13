@@ -1224,50 +1224,75 @@ function initScene() {
 
 // === Synchronize Three.js canvas position with tracking points ===
 let initialTrackingOffset = null;
+let currentOffset = { x: 0, y: 0 };
+const TRANSITION_SPEED = 0.1; // Speed of transition (0-1)
 
 function updateSceneFromTracking() {
     if (window.Module && window.Module._getTrackingPoints && window.Module.HEAPF32) {
         try {
-            const pointsPtr = window.Module._getTrackingPoints();
-            const count = window.Module._getTrackingPointsCount();
-            if (count > 0 && pointsPtr) {
-                const points = new Float32Array(window.Module.HEAPF32.buffer, pointsPtr, count * 2);
-                // Calculate average
-                let avgX = 0, avgY = 0;
-                for (let i = 0; i < count; i++) {
-                    avgX += points[i * 2];
-                    avgY += points[i * 2 + 1];
+            // Check if camera is close to initial state
+            const isInInitialState = initialCameraState && (
+                Math.abs(window._threeCamera.position.x - initialCameraState.position.x) < SNAP_THRESHOLD &&
+                Math.abs(window._threeCamera.position.y - initialCameraState.position.y) < SNAP_THRESHOLD &&
+                Math.abs(window._threeCamera.position.z - initialCameraState.position.z) < SNAP_THRESHOLD
+            );
+
+            // Get Three.js canvas
+            const canvas = window._threeRenderer.domElement;
+            
+            if (isInInitialState) {
+                const pointsPtr = window.Module._getTrackingPoints();
+                const count = window.Module._getTrackingPointsCount();
+                if (count > 0 && pointsPtr) {
+                    const points = new Float32Array(window.Module.HEAPF32.buffer, pointsPtr, count * 2);
+                    // Calculate average
+                    let avgX = 0, avgY = 0;
+                    for (let i = 0; i < count; i++) {
+                        avgX += points[i * 2];
+                        avgY += points[i * 2 + 1];
+                    }
+                    avgX /= count;
+                    avgY /= count;
+
+                    // Initialize offset on first tracking point
+                    if (initialTrackingOffset === null) {
+                        initialTrackingOffset = { x: avgX, y: avgY };
+                    }
+
+                    // Calculate relative movement from initial position
+                    const relativeX = avgX - initialTrackingOffset.x;
+                    const relativeY = avgY - initialTrackingOffset.y;
+
+                    // Convert tracking coordinates to pixels
+                    const mainCanvas = document.getElementById('xr-canvas');
+                    const scaleX = mainCanvas.width / mainCanvas.clientWidth;
+                    const scaleY = mainCanvas.height / mainCanvas.clientHeight;
+                    
+                    // Scale tracking coordinates (increase movement effect)
+                    const TRACKING_SCALE = 500; // Increase movement effect by 500x
+                    const targetOffsetX = relativeX * TRACKING_SCALE * scaleX;
+                    const targetOffsetY = -relativeY * TRACKING_SCALE * scaleY; // Invert Y coordinate
+                    
+                    // Smoothly interpolate current offset to target offset
+                    currentOffset.x += (targetOffsetX - currentOffset.x) * TRANSITION_SPEED;
+                    currentOffset.y += (targetOffsetY - currentOffset.y) * TRANSITION_SPEED;
+                    
+                    // Apply transformation to canvas
+                    canvas.style.position = 'fixed';
+                    canvas.style.left = '50%';
+                    canvas.style.top = '50%';
+                    canvas.style.transform = `translate(calc(-50% + ${currentOffset.x}px), calc(-50% + ${currentOffset.y}px))`;
                 }
-                avgX /= count;
-                avgY /= count;
-
-                // Initialize offset on first tracking point
-                if (initialTrackingOffset === null) {
-                    initialTrackingOffset = { x: avgX, y: avgY };
-                }
-
-                // Calculate relative movement from initial position
-                const relativeX = avgX - initialTrackingOffset.x;
-                const relativeY = avgY - initialTrackingOffset.y;
-
-                // Get Three.js canvas
-                const canvas = window._threeRenderer.domElement;
-                
-                // Convert tracking coordinates to pixels
-                const mainCanvas = document.getElementById('xr-canvas');
-                const scaleX = mainCanvas.width / mainCanvas.clientWidth;
-                const scaleY = mainCanvas.height / mainCanvas.clientHeight;
-                
-                // Scale tracking coordinates (increase movement effect)
-                const TRACKING_SCALE = 500; // Increase movement effect by 500x
-                const offsetX = relativeX * TRACKING_SCALE * scaleX;
-                const offsetY = -relativeY * TRACKING_SCALE * scaleY; // Invert Y coordinate
+            } else {
+                // Smoothly reset offset to zero when not in initial state
+                currentOffset.x += (0 - currentOffset.x) * TRANSITION_SPEED;
+                currentOffset.y += (0 - currentOffset.y) * TRANSITION_SPEED;
                 
                 // Apply transformation to canvas
                 canvas.style.position = 'fixed';
                 canvas.style.left = '50%';
                 canvas.style.top = '50%';
-                canvas.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+                canvas.style.transform = `translate(calc(-50% + ${currentOffset.x}px), calc(-50% + ${currentOffset.y}px))`;
             }
         } catch (e) {
             // ignore
