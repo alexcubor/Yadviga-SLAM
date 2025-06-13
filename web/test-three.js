@@ -255,16 +255,50 @@ function updateCameraWithInertia() {
 function initScene() {
     // Create Three.js scene if it doesn't exist
     if (!window._threeScene) {
-        // Create scene
-        window._threeScene = new THREE.Scene();
-        
-        // Get main canvas size
-        var mainCanvas = document.getElementById('xr-canvas');
+        // Get main canvas
+        const mainCanvas = document.getElementById('xr-canvas');
         if (!mainCanvas) {
             // ignore
             return;
         }
+
+        // Create scene
+        window._threeScene = new THREE.Scene();
         
+        // Add raycaster for touch/click detection
+        window._raycaster = new THREE.Raycaster();
+        window._mouse = new THREE.Vector2();
+        
+        // Store original materials for meshes
+        window._originalMaterials = new Map();
+        
+        // Create renderer
+        var rendererOptions = Object.create(null);
+        rendererOptions.alpha = true;
+        rendererOptions.antialias = true;
+        window._threeRenderer = new THREE.WebGLRenderer(rendererOptions);
+        
+        // Set Three.js canvas size to match main canvas
+        window._threeRenderer.setSize(mainCanvas.width, mainCanvas.height);
+        window._threeRenderer.setClearColor(0x000000, 0);
+        
+        // Style the canvas to match main canvas
+        var canvas = window._threeRenderer.domElement;
+        canvas.style.position = 'fixed';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.zIndex = '2';
+        
+        // Add renderer to DOM
+        document.body.appendChild(canvas);
+
+        // Add touch/click event listeners to Three.js canvas
+        canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+        canvas.addEventListener('click', onClick);
+        
+        // Get canvas size
         var canvasWidth = mainCanvas.width;
         var canvasHeight = mainCanvas.height;
         
@@ -915,28 +949,6 @@ function initScene() {
             window._threeScene.add(labelZ);
         }
         
-        // Create renderer
-        var rendererOptions = Object.create(null);
-        rendererOptions.alpha = true;
-        rendererOptions.antialias = true;
-        window._threeRenderer = new THREE.WebGLRenderer(rendererOptions);
-        
-        // Set Three.js canvas size to match main canvas
-        window._threeRenderer.setSize(canvasWidth, canvasHeight);
-        window._threeRenderer.setClearColor(0x000000, 0);
-        
-        // Style the canvas to match main canvas
-        var canvas = window._threeRenderer.domElement;
-        canvas.style.position = 'fixed';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
-        canvas.style.width = '100%';  // Changed from mainCanvas.style.width
-        canvas.style.height = '100%'; // Changed from mainCanvas.style.height
-        canvas.style.zIndex = '2';
-        
-        // Add renderer to DOM
-        document.body.appendChild(canvas);
-        
         // Add mouse navigation
         let isDragging = false;
         let isPanning = false;
@@ -1183,6 +1195,12 @@ function initScene() {
             }
         }, { passive: false });
 
+        // Add touch event listeners to Three.js canvas
+        canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+        canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+        canvas.addEventListener('click', onClick);
+
         // Add to render pipeline
         if (!window._renderPipeline) {
             window._renderPipeline = [];
@@ -1369,4 +1387,150 @@ function addCharacterModel(scene) {
     }, undefined, function(error) {
         // ignore
     });
+}
+
+// Handle touch events
+function onTouchStart(event) {
+    event.preventDefault();
+    
+    // Get touch position
+    const touch = event.touches[0];
+    const rect = event.target.getBoundingClientRect();
+    window._mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+    window._mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    // Check if touch hit a mesh
+    window._raycaster.setFromCamera(window._mouse, window._threeCamera);
+    const intersects = window._raycaster.intersectObjects(window._threeScene.children, true);
+    const meshIntersects = intersects.filter(intersect => intersect.object.isMesh);
+    
+    if (meshIntersects.length > 0) {
+        // Touch hit a mesh - handle scene movement
+        const mesh = meshIntersects[0].object;
+        
+        // Store initial touch position and camera target
+        panStart = {
+            x: touch.clientX,
+            y: touch.clientY
+        };
+        panTargetStart = {
+            x: cameraTarget.x,
+            y: cameraTarget.y,
+            z: cameraTarget.z
+        };
+        
+        // Enable panning
+        isPanning = true;
+        
+        // Prevent default camera rotation behavior
+        event.stopPropagation();
+    } else {
+        // Touch hit empty space - handle scene rotation
+        // Store initial touch position
+        previousMousePosition = {
+            x: touch.clientX,
+            y: touch.clientY
+        };
+        
+        // Enable dragging for camera rotation
+        isDragging = true;
+    }
+}
+
+// Handle touch move
+function onTouchMove(event) {
+    const touch = event.touches[0];
+    
+    if (isPanning) {
+        // Handle scene movement
+        const dx = touch.clientX - panStart.x;
+        const dy = touch.clientY - panStart.y;
+        const panSpeed = cameraDistance * 0.002;
+        
+        // Get camera's right and up vectors
+        const camera = window._threeCamera;
+        camera.updateMatrixWorld();
+        const right = new THREE.Vector3();
+        const up = new THREE.Vector3();
+        camera.getWorldDirection(right); // forward
+        right.crossVectors(camera.up, right).normalize(); // right = up x forward
+        up.copy(camera.up).normalize();
+        
+        // Update camera target position
+        cameraTarget.x = panTargetStart.x + dx * panSpeed * right.x + dy * panSpeed * up.x;
+        cameraTarget.y = panTargetStart.y + dx * panSpeed * right.y + dy * panSpeed * up.y;
+        cameraTarget.z = panTargetStart.z + dx * panSpeed * right.z + dy * panSpeed * up.z;
+        
+        updateCameraPosition();
+    } else if (isDragging) {
+        // Handle scene rotation
+        const deltaMove = {
+            x: touch.clientX - previousMousePosition.x,
+            y: touch.clientY - previousMousePosition.y
+        };
+        
+        // Update camera angles based on touch movement
+        cameraTheta += deltaMove.x * 0.01;
+        cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi - deltaMove.y * 0.01));
+        
+        // Update camera position
+        updateCameraPosition();
+        
+        // Update last touch position
+        previousMousePosition = {
+            x: touch.clientX,
+            y: touch.clientY
+        };
+    }
+}
+
+// Handle touch end
+function onTouchEnd(event) {
+    isDragging = false;
+    isPanning = false;
+    previousMousePosition = { x: 0, y: 0 };
+    checkAndSnapCamera(); // Check for snap after touch interaction
+}
+
+// Handle click events
+function onClick(event) {
+    const rect = event.target.getBoundingClientRect();
+    window._mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    window._mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    checkIntersection();
+}
+
+// Check for intersections with meshes
+function checkIntersection() {
+    // Update the picking ray with the camera and mouse position
+    window._raycaster.setFromCamera(window._mouse, window._threeCamera);
+    
+    // Find intersections
+    const intersects = window._raycaster.intersectObjects(window._threeScene.children, true);
+    
+    // Filter only mesh intersections
+    const meshIntersects = intersects.filter(intersect => intersect.object.isMesh);
+    
+    if (meshIntersects.length > 0) {
+        const mesh = meshIntersects[0].object;
+        
+        // If mesh already has a highlight material
+        if (window._originalMaterials.has(mesh)) {
+            // Restore original material
+            mesh.material = window._originalMaterials.get(mesh);
+            window._originalMaterials.delete(mesh);
+        } else {
+            // Store original material
+            window._originalMaterials.set(mesh, mesh.material.clone());
+            
+            // Create highlight material
+            const highlightMaterial = mesh.material.clone();
+            highlightMaterial.color.setHex(0x00ffff); // Cyan color
+            highlightMaterial.transparent = true;
+            highlightMaterial.opacity = 0.5;
+            
+            // Apply highlight material
+            mesh.material = highlightMaterial;
+        }
+    }
 } 
