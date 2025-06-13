@@ -438,6 +438,43 @@ function initScene() {
 
         ui.appendChild(rotate);
 
+        // Add spherical coordinates display
+        const spherical = document.createElement('div');
+        spherical.style.marginBottom = '0.5rem';
+        spherical.style.display = 'flex';
+        spherical.style.gap = '0.5rem';
+        spherical.style.alignItems = 'center';
+
+        const sphericalLabel = document.createElement('span');
+        sphericalLabel.textContent = 'Spherical:';
+        spherical.appendChild(sphericalLabel);
+
+        const distance = document.createElement('div');
+        distance.style.flex = '1';
+        distance.style.textAlign = 'center';
+        distance.style.padding = '0.25rem';
+        distance.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        distance.style.borderRadius = '0.25rem';
+        spherical.appendChild(distance);
+
+        const theta = document.createElement('div');
+        theta.style.flex = '1';
+        theta.style.textAlign = 'center';
+        theta.style.padding = '0.25rem';
+        theta.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        theta.style.borderRadius = '0.25rem';
+        spherical.appendChild(theta);
+
+        const phi = document.createElement('div');
+        phi.style.flex = '1';
+        phi.style.textAlign = 'center';
+        phi.style.padding = '0.25rem';
+        phi.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        phi.style.borderRadius = '0.25rem';
+        spherical.appendChild(phi);
+
+        ui.appendChild(spherical);
+
         // Add initial camera state display
         const initialState = document.createElement('div');
         initialState.style.marginBottom = '0.5rem';
@@ -721,6 +758,11 @@ function initScene() {
             rotX.textContent = `${eulerX.toFixed(2)}°`;
             rotY.textContent = `${eulerY.toFixed(2)}°`;
             rotZ.textContent = `${eulerZ.toFixed(2)}°`;
+
+            // Update spherical coordinates
+            distance.textContent = `d: ${cameraDistance.toFixed(2)}`;
+            theta.textContent = `θ: ${(cameraTheta * 180 / Math.PI).toFixed(2)}°`;
+            phi.textContent = `φ: ${(cameraPhi * 180 / Math.PI).toFixed(2)}°`;
 
             // Update initial state display and highlight values
             if (initialCameraState) {
