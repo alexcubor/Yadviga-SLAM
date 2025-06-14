@@ -66,15 +66,6 @@ class CacheManager {
                 defaultChecked: true
             },
             { 
-                id: 'webgl', 
-                name: 'WebGL Resources', 
-                clear: this.clearWebGL.bind(this),
-                getInfo: async () => {
-                    return window._gl ? 'Active' : 'Not active';
-                },
-                defaultChecked: true
-            },
-            { 
                 id: 'wasm', 
                 name: 'WebAssembly', 
                 clear: this.clearWasm.bind(this),
@@ -1000,13 +991,6 @@ class CacheManager {
     async clearAppCache() {
         if ('applicationCache' in window) {
             window.applicationCache.abort();
-        }
-    }
-
-    async clearWebGL() {
-        if (window._gl) {
-            const gl = window._gl;
-            gl.getExtension('WEBGL_lose_context')?.loseContext();
         }
     }
 

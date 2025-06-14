@@ -91,10 +91,6 @@ extern "C" {
                 preserveDrawingBuffer: true
             });
 
-            // Save context in global variable
-            window._gl = gl;
-            window.dispatchEvent(new CustomEvent('gl-ready', { detail: gl }));
-
             // Set frame dimensions
             Module._setFrameWidth(canvas.width);
             Module._setFrameHeight(canvas.height);
