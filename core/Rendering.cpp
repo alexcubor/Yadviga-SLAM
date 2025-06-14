@@ -78,7 +78,7 @@ extern "C" {
             canvas.style.left = '0';
             canvas.style.objectFit = 'cover'; // Save proportions
 
-            // Сохраняем canvas в YAGA.canvas
+            // Save canvas in YAGA.canvas
             if (typeof YAGA !== 'undefined') {
                 YAGA.canvas = canvas;
             }
@@ -94,11 +94,6 @@ extern "C" {
             // Save context in global variable
             window._gl = gl;
             window.dispatchEvent(new CustomEvent('gl-ready', { detail: gl }));
-
-            // Initialize render pipeline if it doesn't exist
-            if (!window._renderPipeline) {
-                window._renderPipeline = [];
-            }
 
             // Set frame dimensions
             Module._setFrameWidth(canvas.width);
@@ -291,15 +286,6 @@ extern "C" {
                             
                             // Draw video
                             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-                            // Execute all stages of the render pipeline
-                            if (window._renderPipeline && window._renderPipeline.length > 0) {
-                                window._renderPipeline.forEach(stage => {
-                                    if (stage && typeof stage.render === 'function') {
-                                        stage.render(gl);
-                                    }
-                                });
-                            }
                             
                             // Restore previous state
                             gl.useProgram(previousProgram);
