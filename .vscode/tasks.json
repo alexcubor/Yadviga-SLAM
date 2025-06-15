@@ -18,7 +18,7 @@
         {
             "label": "Build Emscripten",
             "type": "shell",
-            "command": "./third_party/emsdk/build_emsdk.sh; npm list terser || npm install terser --save-dev; ln -s ../core web/core",
+            "command": "./third_party/emsdk/build_emsdk.sh; npm list terser || npm install terser --save-dev; rm -f web/core && ln -s ../core web/core",
             "group": {
                 "kind": "build",
                 "isDefault": true
