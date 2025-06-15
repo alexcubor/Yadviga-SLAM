@@ -31,14 +31,12 @@ extern cv::Mat cameraMatrix;
 // Functions for accessing tracking points
 extern "C" float* getTrackingPoints() {
     std::lock_guard<std::mutex> lock(trackingMutex);
-    float* points = (float*)malloc(trackingPoints.size() * 2 * sizeof(float));
-    
+    float* points = (float*)malloc(trackingPoints.size() * 3 * sizeof(float));
     for (size_t i = 0; i < trackingPoints.size(); i++) {
-        // Normalize coordinates when sending
-        points[i * 2] = (trackingPoints[i].x / frameWidth) * 2 - 1;  // x
-        points[i * 2 + 1] = (trackingPoints[i].y / frameHeight) * 2 - 1;  // y
+        points[i * 3] = (trackingPoints[i].x / frameWidth) * 2 - 1;  // x
+        points[i * 3 + 1] = (trackingPoints[i].y / frameHeight) * 2 - 1;  // y
+        points[i * 3 + 2] = (i < pointStatus.size()) ? pointStatus[i] : 0; // status
     }
-    
     return points;
 }
 
@@ -93,10 +91,12 @@ void trackingLoop() {
                     std::lock_guard<std::mutex> lock(trackingMutex);
                     trackingPoints.clear();
                     prevTrackingPoints.clear();
+                    pointStatus.clear();
 
                     for (const auto& corner : corners) {
                         trackingPoints.push_back(corner);  // Save in pixels
                         prevTrackingPoints.push_back(corner);  // Save in pixels
+                        pointStatus.push_back(1); // Новая точка — стабильная
                     }
                     trackingPointsCount = trackingPoints.size();
                 }
@@ -157,6 +157,7 @@ void trackingLoop() {
                 }
 
                 // Find Essential Matrix
+                std::vector<uchar> inlierMask;
                 cv::Mat E = cv::findEssentialMat(
                     trackingPoints,  // points of the current frame
                     prevTrackingPoints,      // points of the previous frame
@@ -164,7 +165,7 @@ void trackingLoop() {
                     cv::RANSAC,      // method
                     0.999,           // probability
                     1.0,             // threshold
-                    pointStatus      // inliers mask
+                    inlierMask      // inliers mask
                 );
                 essentialMatrix = E;  // Save in global variable
             }

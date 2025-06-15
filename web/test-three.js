@@ -1237,80 +1237,69 @@ function initScene() {
         loadGLTFLoader(function() {
             addCharacterModel(window._threeScene);
         });
+
+        updateSceneFromTracking();
     }
 }
 
-// === Synchronize Three.js canvas position with tracking points ===
-let initialTrackingOffset = null;
-let currentOffset = { x: 0, y: 0 };
-const TRANSITION_SPEED = 0.1; // Speed of transition (0-1)
+// === Global variables for virtual tracker ===
+let greenX = 0, greenY = 0;
+let offsets = [];
+let isFirstGreen = true;
 
 function updateSceneFromTracking() {
     if (window.Module && window.Module._getTrackingPoints && window.Module.HEAPF32) {
         try {
-            // Check if camera is close to initial state
-            const isInInitialState = initialCameraState && (
-                Math.abs(window._threeCamera.position.x - initialCameraState.position.x) < SNAP_THRESHOLD &&
-                Math.abs(window._threeCamera.position.y - initialCameraState.position.y) < SNAP_THRESHOLD &&
-                Math.abs(window._threeCamera.position.z - initialCameraState.position.z) < SNAP_THRESHOLD
-            );
+            const canvas = window._threeRenderer && window._threeRenderer.domElement;
+            if (!canvas) return;
 
-            // Get Three.js canvas
-            const canvas = window._threeRenderer.domElement;
-            
-            if (isInInitialState) {
-                const pointsPtr = window.Module._getTrackingPoints();
-                const count = window.Module._getTrackingPointsCount();
-                if (count > 0 && pointsPtr) {
-                    const points = new Float32Array(window.Module.HEAPF32.buffer, pointsPtr, count * 2);
-                    // Calculate average
-                    let avgX = 0, avgY = 0;
-                    for (let i = 0; i < count; i++) {
-                        avgX += points[i * 2];
-                        avgY += points[i * 2 + 1];
+            const pointsPtr = window.Module._getTrackingPoints();
+            const count = window.Module._getTrackingPointsCount();
+            if (count > 0 && pointsPtr) {
+                const points = new Float32Array(window.Module.HEAPF32.buffer, pointsPtr, count * 3);
+                let avgX = 0, avgY = 0, stableCount = 0;
+                let stablePoints = [];
+                for (let i = 0; i < count; i++) {
+                    const isStable = points[i * 3 + 2];
+                    if (isStable) {
+                        stablePoints.push({x: points[i * 3], y: points[i * 3 + 1]});
+                        avgX += points[i * 3];
+                        avgY += points[i * 3 + 1];
+                        stableCount++;
                     }
-                    avgX /= count;
-                    avgY /= count;
-
-                    // Initialize offset on first tracking point
-                    if (initialTrackingOffset === null) {
-                        initialTrackingOffset = { x: avgX, y: avgY };
-                    }
-
-                    // Calculate relative movement from initial position
-                    const relativeX = avgX - initialTrackingOffset.x;
-                    const relativeY = avgY - initialTrackingOffset.y;
-
-                    // Convert tracking coordinates to pixels
-                    const mainCanvas = document.getElementById('xr-canvas');
-                    const scaleX = mainCanvas.width / mainCanvas.clientWidth;
-                    const scaleY = mainCanvas.height / mainCanvas.clientHeight;
-                    
-                    // Scale tracking coordinates (increase movement effect)
-                    const TRACKING_SCALE = 500; // Increase movement effect by 500x
-                    const targetOffsetX = relativeX * TRACKING_SCALE * scaleX;
-                    const targetOffsetY = -relativeY * TRACKING_SCALE * scaleY; // Invert Y coordinate
-                    
-                    // Smoothly interpolate current offset to target offset
-                    currentOffset.x += (targetOffsetX - currentOffset.x) * TRANSITION_SPEED;
-                    currentOffset.y += (targetOffsetY - currentOffset.y) * TRANSITION_SPEED;
-                    
-                    // Apply transformation to canvas
-                    canvas.style.position = 'fixed';
-                    canvas.style.left = '50%';
-                    canvas.style.top = '50%';
-                    canvas.style.transform = `translate(calc(-50% + ${currentOffset.x}px), calc(-50% + ${currentOffset.y}px))`;
                 }
-            } else {
-                // Smoothly reset offset to zero when not in initial state
-                currentOffset.x += (0 - currentOffset.x) * TRANSITION_SPEED;
-                currentOffset.y += (0 - currentOffset.y) * TRANSITION_SPEED;
-                
-                // Apply transformation to canvas
-                canvas.style.position = 'fixed';
-                canvas.style.left = '50%';
-                canvas.style.top = '50%';
-                canvas.style.transform = `translate(calc(-50% + ${currentOffset.x}px), calc(-50% + ${currentOffset.y}px))`;
+
+                if (stableCount > 0) {
+                    avgX /= stableCount;
+                    avgY /= stableCount;
+
+                    if (isFirstGreen) {
+                        greenX = 0;
+                        greenY = 0;
+                        offsets = stablePoints.map(pt => ({dx: pt.x - greenX, dy: pt.y - greenY}));
+                        isFirstGreen = false;
+                    } else {
+                        if (stablePoints.length === offsets.length) {
+                            let sumX = 0, sumY = 0;
+                            for (let i = 0; i < stablePoints.length; i++) {
+                                sumX += stablePoints[i].x - offsets[i].dx;
+                                sumY += stablePoints[i].y - offsets[i].dy;
+                            }
+                            greenX = sumX / stablePoints.length;
+                            greenY = sumY / stablePoints.length;
+                        } else {
+                            offsets = stablePoints.map(pt => ({dx: pt.x - greenX, dy: pt.y - greenY}));
+                        }
+                    }
+
+                    // Bind canvas to the green point
+                    const screenX = (greenX + 1) * canvas.width / 2;
+                    const screenY = (-greenY + 1) * canvas.height / 2;
+                    canvas.style.position = 'fixed';
+                    canvas.style.left = '0';
+                    canvas.style.top = '0';
+                    canvas.style.transform = `translate(${screenX - canvas.width / 2}px, ${screenY - canvas.height / 2}px)`;
+                }
             }
         } catch (e) {
             // ignore
@@ -1318,7 +1307,15 @@ function updateSceneFromTracking() {
     }
     requestAnimationFrame(updateSceneFromTracking);
 }
-updateSceneFromTracking();
+
+function waitForRendererAndTrack() {
+    if (window._threeRenderer && window._threeRenderer.domElement) {
+        updateSceneFromTracking();
+    } else {
+        setTimeout(waitForRendererAndTrack, 50);
+    }
+}
+waitForRendererAndTrack();
 
 // Add character model function
 function addCharacterModel(scene) {

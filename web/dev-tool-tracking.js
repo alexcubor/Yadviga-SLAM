@@ -17,8 +17,6 @@
 
 // Use saved context from renderFrame
 async function waitForGL() {
-    console.log('🟡 test-tracking.js: Waiting for GL context');
-    
     // Try different ways to get the canvas
     const getCanvas = () => {
         // Try to get canvas from Babylon
@@ -45,12 +43,9 @@ async function waitForGL() {
     while (!canvas) {
         canvas = getCanvas();
         if (!canvas) {
-            console.log('🟡 test-tracking.js: Waiting for canvas...');
             await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
-    
-    console.log('🟡 test-tracking.js: Canvas found');
     
     // Get GL context
     const gl = canvas.getContext('webgl2');
@@ -58,12 +53,10 @@ async function waitForGL() {
         throw new Error('WebGL2 not supported');
     }
     
-    console.log('🟡 test-tracking.js: GL context ready');
     return gl;
 }
 
 function compileShader(gl, type, source) {
-    console.log('🟡 test-tracking.js: Compiling shader');
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
@@ -74,7 +67,6 @@ function compileShader(gl, type, source) {
         gl.deleteShader(shader);
         return null;
     }
-    console.log('🟡 test-tracking.js: Shader compiled successfully');
     return shader;
 }
 
@@ -141,7 +133,6 @@ async function testTracking() {
     lkInput.onchange = () => {
         lkSlider.style.backgroundColor = lkInput.checked ? '#007AFF' : '#ccc';
         lkKnob.style.transform = lkInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
-        console.log('🔄 Lucas-Kanade toggle:', lkInput.checked);
         if (typeof Module._setLucasKanadeEnabled === 'function') {
             Module._setLucasKanadeEnabled(lkInput.checked);
         }
@@ -202,7 +193,6 @@ async function testTracking() {
     imuInput.onchange = () => {
         imuSlider.style.backgroundColor = imuInput.checked ? '#007AFF' : '#ccc';
         imuKnob.style.transform = imuInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
-        console.log('🔄 IMU toggle:', imuInput.checked);
         if (typeof Module._setIMUEnabled === 'function') {
             Module._setIMUEnabled(imuInput.checked);
         }
@@ -309,6 +299,11 @@ async function testTracking() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    // === Global variables ===
+    let greenX = 0, greenY = 0; // center
+    let offsets = []; // array of offsets for stable points
+    let isFirstGreen = true;
+
     // Create function for points rendering
     const renderPoints = function() {
         try {
@@ -323,7 +318,7 @@ async function testTracking() {
             const pointsReady = Module._arePointsReady();
             
             if (pointsReady && pointsPtr && pointsCount > 0) {
-                const points = new Float32Array(Module.HEAPF32.buffer, pointsPtr, pointsCount * 2);
+                const points = new Float32Array(Module.HEAPF32.buffer, pointsPtr, pointsCount * 3);
                 
                 // Clear canvas
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -331,29 +326,86 @@ async function testTracking() {
                 // Draw points
                 ctx.fillStyle = 'red';
                 for (let i = 0; i < pointsCount; i++) {
-                    const x = (points[i * 2] + 1) * canvas.width / 2;
-                    const y = (-points[i * 2 + 1] + 1) * canvas.height / 2;  // Flip Y coordinate
+                    const x = (points[i * 3] + 1) * canvas.width / 2;
+                    const y = (-points[i * 3 + 1] + 1) * canvas.height / 2;  // Flip Y coordinate
+                    const isStable = points[i * 3 + 2];
                     ctx.fillRect(x - 6, y - 6, 12, 12);  // Doubled size from 6x6 to 12x12
+
+                    // Label for coordinates and stability with black outline
+                    ctx.font = '12px monospace';
+                    let status = isStable ? 'Stable' : 'Unstable';
+                    let label = `#${i} (${points[i * 3].toFixed(2)}, ${points[i * 3 + 1].toFixed(2)}) S:${isStable} ${status}`;
+                    // Black outline
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(label, x + 10, y + 4);
+                    // White text on top
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(label, x + 10, y + 4);
+                    ctx.fillStyle = 'red'; // return color for next point
                 }
 
-                // Calculate and draw average point
-                let avgX = 0, avgY = 0;
+                // Calculate average of stable points
+                let avgX = 0, avgY = 0, stableCount = 0;
+                let stablePoints = [];
                 for (let i = 0; i < pointsCount; i++) {
-                    avgX += points[i * 2];
-                    avgY += points[i * 2 + 1];
+                    const isStable = points[i * 3 + 2];
+                    if (isStable) {
+                        stablePoints.push({x: points[i * 3], y: points[i * 3 + 1]});
+                        avgX += points[i * 3];
+                        avgY += points[i * 3 + 1];
+                        stableCount++;
+                    }
                 }
-                avgX /= pointsCount;
-                avgY /= pointsCount;
 
-                // Convert to screen coordinates
-                const screenX = (avgX + 1) * canvas.width / 2;
-                const screenY = (-avgY + 1) * canvas.height / 2;
+                if (stableCount > 0) {
+                    avgX /= stableCount;
+                    avgY /= stableCount;
 
-                // Draw average point in green
-                ctx.fillStyle = 'lime';
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);  // Circle with radius 8
-                ctx.fill();
+                    if (isFirstGreen) {
+                        greenX = 0;
+                        greenY = 0;
+                        // Save offsets for each stable point
+                        offsets = stablePoints.map(pt => ({dx: pt.x - greenX, dy: pt.y - greenY}));
+                        isFirstGreen = false;
+                    } else {
+                        // If the number of stable points has changed, recalculate offsets for matching points
+                        // (For simplicity: if the number matches, use the old offsets, otherwise recalculate)
+                        if (stablePoints.length === offsets.length) {
+                            // Normal case: save relative position
+                            let sumX = 0, sumY = 0;
+                            for (let i = 0; i < stablePoints.length; i++) {
+                                sumX += stablePoints[i].x - offsets[i].dx;
+                                sumY += stablePoints[i].y - offsets[i].dy;
+                            }
+                            greenX = sumX / stablePoints.length;
+                            greenY = sumY / stablePoints.length;
+                        } else {
+                            // If the number of stable points has changed — recalculate offsets relative to the current position
+                            offsets = stablePoints.map(pt => ({dx: pt.x - greenX, dy: pt.y - greenY}));
+                        }
+                    }
+
+                    // Convert to screen coordinates
+                    const screenX = (greenX + 1) * canvas.width / 2;
+                    const screenY = (-greenY + 1) * canvas.height / 2;
+
+                    // Draw average point in green
+                    ctx.fillStyle = 'lime';
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);  // Circle with radius 8
+                    ctx.fill();
+
+                    // Label under the green point
+                    ctx.font = '14px monospace';
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 3;
+                    const greenLabel = `G (${greenX.toFixed(2)}, ${greenY.toFixed(2)}) | Stable: ${stablePoints.length}`;
+                    ctx.strokeText(greenLabel, screenX + 12, screenY + 20);
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(greenLabel, screenX + 12, screenY + 20);
+                    ctx.fillStyle = 'red'; // return color for next point
+                }
             }
         } catch (e) {
             console.error('❌ Error rendering points:', e);

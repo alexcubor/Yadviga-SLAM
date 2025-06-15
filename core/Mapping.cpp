@@ -17,7 +17,7 @@ extern std::vector<uchar> pointStatus;
 extern uint8_t* pointDescriptors;
 extern cv::Mat essentialMatrix;
 extern cv::Mat cameraMatrix;
-extern std::atomic<bool> pointsReady;
+extern bool pointsReady;
 
 // Function to get number of map points
 extern "C" {
@@ -41,7 +41,7 @@ void mappingThread() {
     });
 
     while (true) {
-        if (pointsReady.load(std::memory_order_acquire)) {
+        if (pointsReady) {
             EM_ASM({
                 console.log("🗺️ Mapping: Points are ready");
             });
