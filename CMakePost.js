@@ -20,7 +20,8 @@ async function processFile() {
                 passes: 2
             },
             mangle: {
-                toplevel: true
+                toplevel: true,
+                reserved: ['renderFrames'] // Prevent renaming of renderFrames function
             },
             format: {
                 comments: false

@@ -2,12 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
+    <meta function="renderFrames" src="/core/RenderFrames.js"> <!-- For dev only! -->
     <title>SLAM Yadviga</title>
   </head>
     <body>
       <!-- SLAM ENGINE -->
-      <script src="yadviga-slam.js"></script>
       <script src="test-camera-out.js"></script>
+      <script src="yadviga-slam.js" video="residental_complex.mov"></script>
+      <!-- <script src="renderer.js" video="residental_complex.mov"></script> -->
       
       <!-- TESTS --> 
       <script src="dev-desktop.js"></script>
@@ -20,5 +22,4 @@
       <!-- <script src="test-mapping-babylon.js"></script> -->
       <!-- <script src="test-character-babylon.js"></script> -->
     </body>
-  </script>
 </html>

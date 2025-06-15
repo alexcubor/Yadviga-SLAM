@@ -62,7 +62,23 @@ extern "C" void setFrameHeight(int height) {
 extern "C" {
     void renderFrames() {
         EM_ASM_({
-            RENDER_FRAMES_JS
+            // Check for meta tag with external renderer
+            const metaTag = document.querySelector('meta[function="renderFrames"]');
+            if (metaTag) {
+                const scriptPath = metaTag.getAttribute('src');
+                console.log('🎞️ Using external function from:', scriptPath);
+                const script = document.createElement('script');
+                script.src = scriptPath;
+                script.onload = () => {
+                    if (typeof window[metaTag.getAttribute('function')] === 'function') {
+                        window[metaTag.getAttribute('function')]();
+                    }
+                };
+                document.head.appendChild(script);
+            } else {
+                RENDER_FRAMES_JS;
+                renderFrames();
+            }
         });
     }
 }

@@ -2,6 +2,7 @@
 .idea/
 build/
 web/yadviga-slam.*
+web/core
 
 # OpenCV build files
 third_party/opencv/*

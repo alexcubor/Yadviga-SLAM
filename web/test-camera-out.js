@@ -76,7 +76,6 @@
     }
 
     function setupInteractiveBlur() {
-        console.log('🎥 Setting up interactive blur');
         const canvas = YAGA.canvas;
         if (!canvas) {
             console.log('🎥 Canvas not available');
