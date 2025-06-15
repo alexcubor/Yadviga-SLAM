@@ -180,10 +180,12 @@ function renderFrames() {
             gl.uniform2f(videoResolutionLocation, YAGA.video.videoWidth, YAGA.video.videoHeight);
             
             // Check if we need to mirror the video
-            const videoTrack = YAGA.video.srcObject?.getVideoTracks()[0];
-            const settings = videoTrack?.getSettings();
-            // Mirror if it's front camera or if facingMode is not defined (desktop)
-            const isFrontCamera = settings?.facingMode === 'user' || !settings?.facingMode;
+            let isFrontCamera = false;
+            if (!YAGA.isSourceVideo) {
+                const videoTrack = YAGA.video.srcObject?.getVideoTracks()[0];
+                const settings = videoTrack?.getSettings();
+                isFrontCamera = settings?.facingMode === 'user' || !settings?.facingMode;
+            }
             gl.uniform1i(isFrontCameraLocation, isFrontCamera);
             
             // Update texture
@@ -234,9 +236,11 @@ function renderFrames() {
     }
 
     // Check if video source is provided
+    YAGA.isSourceVideo = false;
     const videoSource = document.querySelector('script[video]')?.getAttribute('video');
     
     if (videoSource) {
+        YAGA.isSourceVideo = true;
         // Use video file
         YAGA.video.src = videoSource;
         YAGA.video.loop = true;
