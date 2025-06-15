@@ -44,7 +44,7 @@ target_link_libraries(yadviga-slam ${OpenCV_LIBS})
 # Declare list of exported functions
 set(EXPORTED_FUNCS
     "_main"
-    "_renderFrame"
+    "_renderFrames"
     "_setFrameReady"
     "_getFrameReady"
     "_getFrameBuffer"
@@ -83,3 +83,11 @@ configure_file(
 
 # Add binary directory to include paths
 include_directories(${CMAKE_BINARY_DIR})
+
+# Add post-compile step
+add_custom_command(
+    TARGET yadviga-slam
+    POST_BUILD
+    COMMAND node ${CMAKE_SOURCE_DIR}/CMakePost.js
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)

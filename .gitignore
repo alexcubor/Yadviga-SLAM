@@ -10,3 +10,7 @@ third_party/opencv/*
 # Emscripten build files
 third_party/emsdk/emsdk
 
+# Node modules
+node_modules/
+package-lock.json
+package.json

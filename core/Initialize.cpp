@@ -1,7 +1,7 @@
 #include <emscripten.h>
 #include <iostream>
 
-extern "C" void renderFrame();
+extern "C" void renderFrames();
 extern "C" void startTracking();
 extern "C" void initIMU();
 // extern "C" void startMapping();
@@ -136,7 +136,7 @@ int main() {
     });
 
     // Initialize YAGA
-    renderFrame();
+    renderFrames();
     startTracking();
     initIMU();
     // startMapping();
