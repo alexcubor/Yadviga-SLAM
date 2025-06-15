@@ -278,6 +278,10 @@ function initScene() {
         rendererOptions.antialias = true;
         window._threeRenderer = new THREE.WebGLRenderer(rendererOptions);
         
+        // Enable shadows
+        window._threeRenderer.shadowMap.enabled = true;
+        window._threeRenderer.shadowMap.type = THREE.VSMShadowMap;
+        
         // Set Three.js canvas size to match main canvas
         window._threeRenderer.setSize(mainCanvas.width, mainCanvas.height);
         window._threeRenderer.setClearColor(0x000000, 0);
@@ -882,6 +886,43 @@ function initScene() {
         const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x3b3b3a, 2.5);
         hemisphereLight.position.set(0, 1, 0);
         window._threeScene.add(hemisphereLight);
+
+        // Add directional light for shadows (softer for cloudy day)
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(3, 10, 0); // Changed to be directly above
+        directionalLight.castShadow = true;
+        
+        // Configure shadow properties for cloudy day
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -10;
+        directionalLight.shadow.camera.right = 10;
+        directionalLight.shadow.camera.top = 10;
+        directionalLight.shadow.camera.bottom = -10;
+        
+        // Add shadow blur for cloudy day
+        directionalLight.shadow.radius = 15;
+        directionalLight.shadow.bias = -0.0001;
+        directionalLight.shadow.normalBias = 0.02;
+        // directionalLight.shadow.blurSamples = 25;
+        
+        window._threeScene.add(directionalLight);
+
+        // Add shadow plane with softer shadow
+        const shadowPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(10, 10),
+            new THREE.ShadowMaterial({ 
+                opacity: 0.2,
+                transparent: true,
+                depthWrite: false
+            })
+        );
+        shadowPlane.rotation.x = -Math.PI / 2;
+        shadowPlane.position.y = 0.01; // Slightly above ground to prevent z-fighting
+        shadowPlane.receiveShadow = true;
+        window._threeScene.add(shadowPlane);
         
         // === Add axis labels and unit label (meters) ===
         function makeTextSprite(message, parameters) {
@@ -1323,6 +1364,15 @@ function addCharacterModel(scene) {
     loader.load('sky_character.glb', function(gltf) {
         const model = gltf.scene;
         model.position.set(0, 0, 0);
+        
+        // Enable shadows for all meshes in the model
+        model.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
+        
         scene.add(model);
 
         // Find all light sources in the model
