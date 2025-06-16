@@ -300,7 +300,6 @@ function initScene() {
 
         // Add touch/click event listeners to Three.js canvas
         canvas.addEventListener('touchstart', onTouchStart, { passive: false });
-        canvas.addEventListener('click', onClick);
         
         // Get canvas size
         var canvasWidth = mainCanvas.width;
@@ -1241,7 +1240,6 @@ function initScene() {
         canvas.addEventListener('touchstart', onTouchStart, { passive: false });
         canvas.addEventListener('touchmove', onTouchMove, { passive: false });
         canvas.addEventListener('touchend', onTouchEnd, { passive: false });
-        canvas.addEventListener('click', onClick);
 
         // Add to render pipeline
         if (!window._renderPipeline) {
@@ -1539,46 +1537,3 @@ function onTouchEnd(event) {
     previousMousePosition = { x: 0, y: 0 };
     checkAndSnapCamera(); // Check for snap after touch interaction
 }
-
-// Handle click events
-function onClick(event) {
-    const rect = event.target.getBoundingClientRect();
-    window._mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    window._mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    checkIntersection();
-}
-
-// Check for intersections with meshes
-function checkIntersection() {
-    // Update the picking ray with the camera and mouse position
-    window._raycaster.setFromCamera(window._mouse, window._threeCamera);
-    
-    // Find intersections
-    const intersects = window._raycaster.intersectObjects(window._threeScene.children, true);
-    
-    // Filter only mesh intersections
-    const meshIntersects = intersects.filter(intersect => intersect.object.isMesh);
-    
-    if (meshIntersects.length > 0) {
-        const mesh = meshIntersects[0].object;
-        
-        // If mesh already has a highlight material
-        if (window._originalMaterials.has(mesh)) {
-            // Restore original material
-            mesh.material = window._originalMaterials.get(mesh);
-            window._originalMaterials.delete(mesh);
-        } else {
-            // Store original material
-            window._originalMaterials.set(mesh, mesh.material.clone());
-            
-            // Create highlight material
-            const highlightMaterial = mesh.material.clone();
-            highlightMaterial.color.setHex(0x00ffff); // Cyan color
-            highlightMaterial.transparent = true;
-            highlightMaterial.opacity = 0.5;
-            
-            // Apply highlight material
-            mesh.material = highlightMaterial;
-        }
-    }
-} 
