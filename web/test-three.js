@@ -92,6 +92,32 @@ function updateCameraPosition() {
     window.YAGA.camera.rotation.x = euler.x;
     window.YAGA.camera.rotation.y = euler.y;
     window.YAGA.camera.rotation.z = euler.z;
+
+    // === Shadow opacity depends on the distance ===
+    if (initialCameraState && shadowPlaneRef && shadowPlaneRef.material) {
+        // Distance between current and initial position
+        const pos = window._threeCamera.position;
+        const initPos = initialCameraState.position;
+        const dist = Math.sqrt(
+            Math.pow(pos.x - initPos.x, 2) +
+            Math.pow(pos.y - initPos.y, 2) +
+            Math.pow(pos.z - initPos.z, 2)
+        );
+        // We can add the angle consideration (through quaternion)
+        const tempCamera = new THREE.PerspectiveCamera();
+        tempCamera.position.copy(initialCameraState.position);
+        tempCamera.lookAt(initialCameraState.target);
+        const initQuat = tempCamera.quaternion.clone();
+        const quatDot = Math.abs(window._threeCamera.quaternion.dot(initQuat));
+        const angleDiff = Math.acos(Math.min(1, quatDot)) / Math.PI; // normalized angle difference
+
+        // Normalize the distance (0 — matches, 1 — far)
+        const norm = Math.min(1, dist / 1.5 + angleDiff); // 1.5 — maximum distance for complete disappearance
+
+        // Interpolate opacity
+        const minOpacity = 0.0, maxOpacity = 0.2;
+        shadowPlaneRef.material.opacity = maxOpacity * (1 - norm) + minOpacity * norm;
+    }
 }
 
 // Load initial camera state from localStorage or use defaults
@@ -167,7 +193,7 @@ function checkAndSnapCamera() {
     const quatDot = Math.abs(currentQuat.dot(initQuaternion));
     const quatClose = quatDot > 0.99; // This is roughly equivalent to about 8 degrees difference
 
-    // If all values are close to initial, start or continue snapping
+    // If camera is in initial state, reset snap
     if (posXClose && posYClose && posZClose && quatClose) {
         // Stop inertia when snapping begins
         if (!isSnapping) {
@@ -923,6 +949,8 @@ function initScene() {
         shadowPlane.position.y = 0.01; // Slightly above ground to prevent z-fighting
         shadowPlane.receiveShadow = true;
         window._threeScene.add(shadowPlane);
+        // === Save reference to shadow plane for fade ===
+        shadowPlaneRef = shadowPlane;
         
         // === Add axis labels and unit label (meters) ===
         function makeTextSprite(message, parameters) {
@@ -1241,16 +1269,11 @@ function initScene() {
         canvas.addEventListener('touchmove', onTouchMove, { passive: false });
         canvas.addEventListener('touchend', onTouchEnd, { passive: false });
 
-        // Add to render pipeline
-        if (!window._renderPipeline) {
-            window._renderPipeline = [];
-        }
         var renderStage = Object.create(null);
         renderStage.render = function(gl) {
             // Render Three.js scene
             window._threeRenderer.render(window._threeScene, window._threeCamera);
         };
-        window._renderPipeline.push(renderStage);
 
         // Start animation loop
         function animate() {
