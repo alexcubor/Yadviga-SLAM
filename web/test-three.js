@@ -887,6 +887,7 @@ function initScene() {
         hemisphereLight.position.set(0, 1, 0);
         window._threeScene.add(hemisphereLight);
 
+
         // Add directional light for shadows (softer for cloudy day)
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
         directionalLight.position.set(3, 10, 0); // Changed to be directly above
