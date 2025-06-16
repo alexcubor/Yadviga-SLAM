@@ -2,9 +2,10 @@
     let startX = 0;
     let startY = 0;
     let isDragging = false;
-    const MAX_BLUR = 1000; // Maximum blur in pixels
+    const MAX_BLUR = 200; // Maximum blur in pixels
     const MIN_BLUR = 0;  // Minimum blur in pixels
     const MAX_DISTANCE = 10; // Distance at which maximum blur is reached
+    const MAX_OFFSET = 200; // Offset at which maximum blur is reached
 
     // Save initial camera position on first drag
     let dragStartCameraX = 0;
@@ -54,8 +55,6 @@
 
         // Calculate total offset for blur
         const totalOffset = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
-        const MAX_BLUR = 200; // Maximum blur in pixels
-        const MAX_OFFSET = 200; // Offset at which maximum blur is reached
         
         // Calculate blur based on offset
         const blurAmount = Math.min((totalOffset / MAX_OFFSET) * MAX_BLUR, MAX_BLUR);
