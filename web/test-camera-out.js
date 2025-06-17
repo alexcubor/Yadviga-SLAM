@@ -13,8 +13,6 @@
     let dragStartCameraZ = 0;
     let isFirstDrag = true;
 
-    let ui = null; // Global variable for UI
-
     function calculateBlur(distance) {
         // Use quadratic dependency for smoother effect
         const normalizedDistance = Math.min(distance / MAX_DISTANCE, 1);
@@ -64,14 +62,6 @@
         canvas.style.filter = `blur(${blurAmount}px)`;
         canvas.style.webkitFilter = `blur(${blurAmount}px)`;
         canvas.style.backdropFilter = `blur(${blurAmount}px)`;
-
-        // Update UI
-        if (ui) {
-            const info = ui.querySelector('div:last-child');
-            if (info) {
-                info.textContent = `Camera: θ: ${(cameraTheta * 180 / Math.PI).toFixed(2)}°, φ: ${(cameraPhi * 180 / Math.PI).toFixed(2)}°\nOffset: X: ${offsetX.toFixed(2)}px, Y: ${offsetY.toFixed(2)}px\nBlur: ${blurAmount.toFixed(1)}px`;
-            }
-        }
     }
 
     function setupInteractiveBlur() {
@@ -79,39 +69,6 @@
         if (!canvas) {
             console.log('🎥 Canvas not available');
             return;
-        }
-
-        // Create UI for offset display
-        ui = document.createElement('div');
-        ui.style.width = '18rem';
-        ui.style.border = 'none';
-        ui.style.borderRadius = '0.5rem';
-        ui.style.fontFamily = 'monospace';
-        ui.style.fontSize = '1rem';
-        ui.style.color = 'white';
-
-        const title = document.createElement('div');
-        title.style.display = 'flex';
-        title.style.justifyContent = 'space-between';
-        title.style.alignItems = 'center';
-        title.style.marginBottom = '0.5rem';
-        
-        const cameraTitleText = document.createElement('span');
-        cameraTitleText.textContent = 'Canvas Offset';
-        title.appendChild(cameraTitleText);
-        ui.appendChild(title);
-
-        const info = document.createElement('div');
-        info.style.padding = '0.5rem';
-        info.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        info.style.borderRadius = '0.25rem';
-        ui.appendChild(info);
-
-        // Add to common container
-        if (window.testContainer) {
-            window.testContainer.addComponent('canvas-offset', {
-                element: ui
-            });
         }
 
         // Disable all animations and set initial position
@@ -154,10 +111,6 @@
             if (!isDragging) return;
             
             isDragging = false;
-            
-            // if (typeof Module !== 'undefined' && Module._stopCamera) {
-            //     Module._stopCamera();
-            // }
             
             // Update position for current camera position
             const currentX = e.clientX || e.touches[0].clientX;
