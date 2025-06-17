@@ -76,7 +76,7 @@ extern "C" {
                 };
                 document.head.appendChild(script);
             } else {
-                RENDER_FRAMES_JS;
+                Hey! This is where the magic happens - RenderFrames.js content will be injected here during build time!
                 renderFrames();
             }
         });

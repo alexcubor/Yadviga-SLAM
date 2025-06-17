@@ -34,7 +34,7 @@ async function processFile() {
         }
 
         // Replace RENDER_FRAMES_JS with the minified code
-        const updatedJs = jsFile.replace(/RENDER_FRAMES_JS/g, `${minified.code}`);
+        const updatedJs = jsFile.replace(/Hey! This is where the magic happens - RenderFrames.js content will be injected here during build time!/g, `${minified.code}`);
 
         // Write the updated file
         fs.writeFileSync('yadviga-slam.js', updatedJs);

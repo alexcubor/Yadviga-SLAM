@@ -300,11 +300,6 @@ function renderFrames() {
                         );
                     };
                 }
-                
-                // Show logo if not disabled
-                if (YAGA.tags['logo'] !== 'false') {
-                    Module._showLogo();
-                }
             })
             .catch(err => {
                 console.error('❌ Error accessing camera:', err);
@@ -313,6 +308,11 @@ function renderFrames() {
                     console.log('Removed camera ID from localStorage. Trying again...');
                 }
             });
+    }
+
+    // Show logo if not disabled
+    if (YAGA.tags['logo'] !== 'false') {
+        Module._showLogo();
     }
 
     // Start frame processing
