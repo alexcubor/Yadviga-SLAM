@@ -120,57 +120,6 @@ function updateCameraPosition() {
     }
 }
 
-// Load initial camera state from localStorage or use defaults
-function loadInitialCameraState() {
-    try {
-        const savedState = localStorage.getItem('initialCameraState');
-        if (savedState) {
-            const state = JSON.parse(savedState);
-            initialCameraState = {
-                position: new THREE.Vector3(state.position.x, state.position.y, state.position.z),
-                target: new THREE.Vector3(state.target.x, state.target.y, state.target.z),
-                distance: state.distance,
-                phi: state.phi,
-                theta: state.theta
-            };
-        }
-    } catch (e) {
-        console.warn('Error loading initial camera state:', e);
-    }
-}
-
-function saveInitialCameraState() {
-    if (!initialCameraState) {
-        initialCameraState = {
-            position: window._threeCamera.position.clone(),
-            target: new THREE.Vector3(cameraTarget.x, cameraTarget.y, cameraTarget.z),
-            distance: cameraDistance,
-            phi: cameraPhi,
-            theta: cameraTheta
-        };
-        // Save to localStorage
-        try {
-            localStorage.setItem('initialCameraState', JSON.stringify({
-                position: {
-                    x: initialCameraState.position.x,
-                    y: initialCameraState.position.y,
-                    z: initialCameraState.position.z
-                },
-                target: {
-                    x: initialCameraState.target.x,
-                    y: initialCameraState.target.y,
-                    z: initialCameraState.target.z
-                },
-                distance: initialCameraState.distance,
-                phi: initialCameraState.phi,
-                theta: initialCameraState.theta
-            }));
-        } catch (e) {
-            console.warn('Error saving initial camera state:', e);
-        }
-    }
-}
-
 function checkAndSnapCamera() {
     if (!initialCameraState || !shouldCheckSnap) return;
 
