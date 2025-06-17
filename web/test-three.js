@@ -337,178 +337,6 @@ function initScene() {
             console.warn('Error saving initial camera state:', e);
         }
 
-        // === UI for camera transformations ===
-        const ui = document.createElement('div');
-        ui.style.width = '18rem';
-        ui.style.border = 'none';
-        ui.style.borderRadius = '0.5rem';
-
-        const title = document.createElement('div');
-        title.style.display = 'flex';
-        title.style.justifyContent = 'space-between';
-        title.style.alignItems = 'center';
-        title.style.marginBottom = '0.5rem';
-        
-        const cameraTitleText = document.createElement('span');
-        cameraTitleText.textContent = 'Camera (YAGA.camera)';
-        title.appendChild(cameraTitleText);
-
-        const copyButton = document.createElement('button');
-        copyButton.textContent = 'Copy';
-        copyButton.style.padding = '0.25rem 0.5rem';
-        copyButton.style.borderRadius = '0.25rem';
-        copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        copyButton.style.border = 'none';
-        copyButton.style.cursor = 'pointer';
-        copyButton.style.fontSize = '1rem';
-        copyButton.onclick = (e) => {
-            e.stopPropagation();
-            const text = `Translate: ${window._threeCamera.position.x.toFixed(2)} ${window._threeCamera.position.y.toFixed(2)} ${window._threeCamera.position.z.toFixed(2)}\nRotate: ${(cameraPhi * 180 / Math.PI).toFixed(2)}° ${(cameraTheta * 180 / Math.PI).toFixed(2)}°\n\nInitial State:\n  Pos: ${initialCameraState.position.x.toFixed(2)} ${initialCameraState.position.y.toFixed(2)} ${initialCameraState.position.z.toFixed(2)}\n  Rot: ${(initialCameraState.phi * 180 / Math.PI).toFixed(2)}° ${(initialCameraState.theta * 180 / Math.PI).toFixed(2)}°`;
-            
-            navigator.clipboard.writeText(text).then(() => {
-                const originalText = copyButton.textContent;
-                copyButton.textContent = 'Copied!';
-                copyButton.style.backgroundColor = 'rgba(0,255,0,0.2)';
-                setTimeout(() => {
-                    copyButton.textContent = originalText;
-                    copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                }, 1000);
-            }).catch(err => {
-                console.error('Failed to copy:', err);
-                copyButton.textContent = 'Error!';
-                copyButton.style.backgroundColor = 'rgba(255,0,0,0.2)';
-                setTimeout(() => {
-                    copyButton.textContent = 'Copy';
-                    copyButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                }, 1000);
-            });
-        };
-        title.appendChild(copyButton);
-        ui.appendChild(title);
-
-        const translate = document.createElement('div');
-        translate.style.marginBottom = '0.5rem';
-        translate.style.display = 'flex';
-        translate.style.gap = '0.5rem';
-        translate.style.alignItems = 'center';
-
-        const translateLabel = document.createElement('span');
-        translateLabel.textContent = 'Translate:';
-        translate.appendChild(translateLabel);
-
-        const posX = document.createElement('div');
-        posX.style.flex = '1';
-        posX.style.textAlign = 'center';
-        posX.style.padding = '0.25rem';
-        posX.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        posX.style.borderRadius = '0.25rem';
-        translate.appendChild(posX);
-
-        const posY = document.createElement('div');
-        posY.style.flex = '1';
-        posY.style.textAlign = 'center';
-        posY.style.padding = '0.25rem';
-        posY.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        posY.style.borderRadius = '0.25rem';
-        translate.appendChild(posY);
-
-        const posZ = document.createElement('div');
-        posZ.style.flex = '1';
-        posZ.style.textAlign = 'center';
-        posZ.style.padding = '0.25rem';
-        posZ.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        posZ.style.borderRadius = '0.25rem';
-        translate.appendChild(posZ);
-
-        ui.appendChild(translate);
-
-        const rotate = document.createElement('div');
-        rotate.style.marginBottom = '0.5rem';
-        rotate.style.display = 'flex';
-        rotate.style.gap = '0.5rem';
-        rotate.style.alignItems = 'center';
-
-        const rotateLabel = document.createElement('span');
-        rotateLabel.textContent = 'Rotate:';
-        rotate.appendChild(rotateLabel);
-
-        const rotX = document.createElement('div');
-        rotX.style.flex = '1';
-        rotX.style.textAlign = 'center';
-        rotX.style.padding = '0.25rem';
-        rotX.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        rotX.style.borderRadius = '0.25rem';
-        rotate.appendChild(rotX);
-
-        const rotY = document.createElement('div');
-        rotY.style.flex = '1';
-        rotY.style.textAlign = 'center';
-        rotY.style.padding = '0.25rem';
-        rotY.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        rotY.style.borderRadius = '0.25rem';
-        rotate.appendChild(rotY);
-
-        const rotZ = document.createElement('div');
-        rotZ.style.flex = '1';
-        rotZ.style.textAlign = 'center';
-        rotZ.style.padding = '0.25rem';
-        rotZ.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        rotZ.style.borderRadius = '0.25rem';
-        rotate.appendChild(rotZ);
-
-        ui.appendChild(rotate);
-
-        // Add spherical coordinates display
-        const spherical = document.createElement('div');
-        spherical.style.marginBottom = '0.5rem';
-        spherical.style.display = 'flex';
-        spherical.style.gap = '0.5rem';
-        spherical.style.alignItems = 'center';
-
-        const sphericalLabel = document.createElement('span');
-        sphericalLabel.textContent = 'Spherical:';
-        spherical.appendChild(sphericalLabel);
-
-        const distance = document.createElement('div');
-        distance.style.flex = '1';
-        distance.style.textAlign = 'center';
-        distance.style.padding = '0.25rem';
-        distance.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        distance.style.borderRadius = '0.25rem';
-        spherical.appendChild(distance);
-
-        const theta = document.createElement('div');
-        theta.style.flex = '1';
-        theta.style.textAlign = 'center';
-        theta.style.padding = '0.25rem';
-        theta.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        theta.style.borderRadius = '0.25rem';
-        spherical.appendChild(theta);
-
-        const phi = document.createElement('div');
-        phi.style.flex = '1';
-        phi.style.textAlign = 'center';
-        phi.style.padding = '0.25rem';
-        phi.style.backgroundColor = 'rgba(255,255,255,0.1)';
-        phi.style.borderRadius = '0.25rem';
-        spherical.appendChild(phi);
-
-        ui.appendChild(spherical);
-
-        // Add initial camera state display
-        const initialState = document.createElement('div');
-        initialState.style.marginBottom = '0.5rem';
-        initialState.style.opacity = '0.7';
-        initialState.textContent = 'Initial State: Loading...';
-        ui.appendChild(initialState);
-
-        // Prevent panel dragging when selecting text
-        ui.addEventListener('mousedown', function(e) {
-            if (e.target === initialState || initialState.contains(e.target)) {
-                e.stopPropagation();  // Prevent panel drag when selecting text
-            }
-        });
-
         // === UI for lights ===
         window.lightsUI = document.createElement('div');
         window.lightsUI.style.width = '18rem';
@@ -665,6 +493,28 @@ function initScene() {
             return toggle;
         };
 
+        // Add function to update lights info
+        function updateLightsInfo() {
+            const lights = [];
+            window._threeScene.traverse((node) => {
+                if (node.isLight) {
+                    lights.push(node);
+                }
+            });
+
+            let lightsText = '';
+            lights.forEach((light, index) => {
+                lightsText += `${light.type}\n`;
+            });
+            window.lightsInfo.textContent = lightsText;
+        }
+
+        function animateLightsInfo() {
+            updateLightsInfo();
+            requestAnimationFrame(animateLightsInfo);
+        }
+        animateLightsInfo();
+
         // === UI for grid ===
         window.gridUI = document.createElement('div');
         window.gridUI.style.width = '18rem';
@@ -748,9 +598,6 @@ function initScene() {
 
         // Добавляем компоненты в test container
         if (window.testContainer) {
-            window.testContainer.addComponent('camera', {
-                element: ui
-            });
             window.testContainer.addComponent('lights', {
                 element: window.lightsUI
             });
@@ -759,97 +606,6 @@ function initScene() {
             });
         }
 
-        function updateUI() {
-            const cam = window._threeCamera;
-            if (!cam) return;
-            
-            // Update position values
-            posX.textContent = cam.position.x.toFixed(2);
-            posY.textContent = cam.position.y.toFixed(2);
-            posZ.textContent = cam.position.z.toFixed(2);
-            
-            // Get Euler angles from camera quaternion
-            const euler = new THREE.Euler().setFromQuaternion(cam.quaternion);
-            const eulerX = euler.x * 180 / Math.PI;
-            const eulerY = euler.y * 180 / Math.PI;
-            const eulerZ = euler.z * 180 / Math.PI;
-            
-            // Update rotation values
-            rotX.textContent = `${eulerX.toFixed(2)}°`;
-            rotY.textContent = `${eulerY.toFixed(2)}°`;
-            rotZ.textContent = `${eulerZ.toFixed(2)}°`;
-
-            // Update spherical coordinates
-            distance.textContent = `d: ${cameraDistance.toFixed(2)}`;
-            theta.textContent = `θ: ${(cameraTheta * 180 / Math.PI).toFixed(2)}°`;
-            phi.textContent = `φ: ${(cameraPhi * 180 / Math.PI).toFixed(2)}°`;
-
-            // Update initial state display and highlight values
-            if (initialCameraState) {
-                const initPos = initialCameraState.position;
-                
-                // Create a temporary camera to get Euler angles
-                const tempCamera = new THREE.PerspectiveCamera();
-                tempCamera.position.copy(initPos);
-                tempCamera.lookAt(cameraTarget.x, cameraTarget.y, cameraTarget.z);
-                
-                const initEuler = new THREE.Euler().setFromQuaternion(tempCamera.quaternion);
-                const initEulerX = initEuler.x * 180 / Math.PI;
-                const initEulerY = initEuler.y * 180 / Math.PI;
-                const initEulerZ = initEuler.z * 180 / Math.PI;
-
-                // Highlight position values
-                const posDiff = Math.abs(cam.position.x - initPos.x);
-                posX.style.backgroundColor = posDiff < SNAP_THRESHOLD ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
-                
-                const posYDiff = Math.abs(cam.position.y - initPos.y);
-                posY.style.backgroundColor = posYDiff < SNAP_THRESHOLD ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
-                
-                const posZDiff = Math.abs(cam.position.z - initPos.z);
-                posZ.style.backgroundColor = posZDiff < SNAP_THRESHOLD ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
-
-                // Highlight rotation values
-                const rotXDiff = Math.abs(eulerX - initEulerX);
-                rotX.style.backgroundColor = rotXDiff < SNAP_ANGLE_THRESHOLD * 180 / Math.PI ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
-                
-                const rotYDiff = Math.abs(eulerY - initEulerY);
-                rotY.style.backgroundColor = rotYDiff < SNAP_ANGLE_THRESHOLD * 180 / Math.PI ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
-                
-                const rotZDiff = Math.abs(eulerZ - initEulerZ);
-                rotZ.style.backgroundColor = rotZDiff < SNAP_ANGLE_THRESHOLD * 180 / Math.PI ? 'rgba(0,255,0,0.2)' : 'rgba(255,255,255,0.1)';
-                
-                initialState.textContent = `Initial State:\n  Pos: ${initPos.x.toFixed(2)} ${initPos.y.toFixed(2)} ${initPos.z.toFixed(2)}\n  Rot: ${initEulerX.toFixed(2)}° ${initEulerY.toFixed(2)}° ${initEulerZ.toFixed(2)}°`;
-            }
-
-            // Update lights info
-            const lights = [];
-            window._threeScene.traverse((node) => {
-                if (node.isLight) {
-                    lights.push(node);
-                }
-            });
-
-            let lightsText = '';
-            lights.forEach((light, index) => {
-                const pos = light.position;
-                const intensity = light.intensity;
-                const color = light.color ? `#${light.color.getHexString()}` : 'white';
-                lightsText += `${light.name || `Light ${index + 1}`}:\n`;
-                lightsText += `  Type: ${light.type}\n`;
-                lightsText += `  Position: ${pos.x.toFixed(2)} ${pos.y.toFixed(2)} ${pos.z.toFixed(2)}\n`;
-                lightsText += `  Intensity: ${intensity.toFixed(2)}\n`;
-                lightsText += `  Color: ${color}\n`;
-                if (index < lights.length - 1) lightsText += '\n';
-            });
-            window.lightsInfo.textContent = lightsText;
-        }
-
-        function animateUI() {
-            updateUI();
-            requestAnimationFrame(animateUI);
-        }
-        animateUI();
-        
         // Add grid helper
         var gridSize = 2;
         var gridDivisions = 20;
@@ -868,7 +624,6 @@ function initScene() {
         const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x3b3b3a, 2.5);
         hemisphereLight.position.set(0, 1, 0);
         window._threeScene.add(hemisphereLight);
-
 
         // Add directional light for shadows (softer for cloudy day)
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -889,7 +644,6 @@ function initScene() {
         directionalLight.shadow.radius = 15;
         directionalLight.shadow.bias = -0.0001;
         directionalLight.shadow.normalBias = 0.02;
-        // directionalLight.shadow.blurSamples = 25;
         
         window._threeScene.add(directionalLight);
 
