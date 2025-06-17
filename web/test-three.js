@@ -36,6 +36,14 @@ let initialCameraState = null;
 const SNAP_THRESHOLD = 0.5; // Increased from 0.2 to 0.5 for wider snap range
 const SNAP_ANGLE_THRESHOLD = 0.5; // Increased from 0.2 to 0.5 for wider angle snap range
 
+// Global variables for camera control
+let isDragging = false;
+let isPanning = false;
+let previousMousePosition = { x: 0, y: 0 };
+let panStart = { x: 0, y: 0 };
+let panTargetStart = { x: 0, y: 0, z: 0 };
+let dragStartTime = 0; // Add timestamp for drag start
+
 // Easing function for smooth snapping
 function easeInOutCubic(t) {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -967,15 +975,6 @@ function initScene() {
             window._threeScene.add(labelZ);
         }
         
-        // Add mouse navigation
-        let isDragging = false;
-        let isPanning = false;
-        var previousMousePosition = Object.create(null);
-        previousMousePosition.x = 0;
-        previousMousePosition.y = 0;
-        let panStart = { x: 0, y: 0 };
-        let panTargetStart = { x: 0, y: 0, z: 0 };
-        
         // Camera orbit parameters
         var minCameraDistance = 0.5;
         var maxCameraDistance = 10;
@@ -1304,13 +1303,28 @@ function updateSceneFromTracking() {
                         }
                     }
 
-                    // Bind canvas to the green point
-                    const screenX = (greenX + 1) * canvas.width / 2;
-                    const screenY = (-greenY + 1) * canvas.height / 2;
-                    canvas.style.position = 'fixed';
-                    canvas.style.left = '0';
-                    canvas.style.top = '0';
-                    canvas.style.transform = `translate(${screenX - canvas.width / 2}px, ${screenY - canvas.height / 2}px)`;
+                    // Calculate window center
+                    const windowCenterX = window.innerWidth / 2;
+                    const windowCenterY = window.innerHeight / 2;
+
+                    // Bind canvas to the green point or center if dragging
+                    const screenX = isDragging ? windowCenterX : (greenX + 1) * canvas.width / 2;
+                    const screenY = isDragging ? windowCenterY : (-greenY + 1) * canvas.height / 2;
+                    
+                    // Smooth transition to target position
+                    const currentTransform = canvas.style.transform;
+                    const currentX = currentTransform ? parseFloat(currentTransform.match(/translate\(([-\d.]+)px/)?.[1] || 0) : 0;
+                    const currentY = currentTransform ? parseFloat(currentTransform.match(/translate\([-\d.]+px,\s*([-\d.]+)px/)?.[1] || 0) : 0;
+                    
+                    const targetX = screenX - canvas.width / 2;
+                    const targetY = screenY - canvas.height / 2;
+                    
+                    // Smooth interpolation factor (adjust for faster/slower transition)
+                    const smoothFactor = 0.1;
+                    const newX = currentX + (targetX - currentX) * smoothFactor;
+                    const newY = currentY + (targetY - currentY) * smoothFactor;
+                    
+                    canvas.style.transform = `translate(${newX}px, ${newY}px)`;
                 }
             }
         } catch (e) {
