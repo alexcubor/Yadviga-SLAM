@@ -25,7 +25,7 @@ class TestContainer {
 
         // Create inner container for content
         this.contentContainer = document.createElement('div');
-        this.contentContainer.style.height = '100%';
+        this.contentContainer.style.height = 'fit-content';
         this.contentContainer.style.overflowY = 'auto';
         this.contentContainer.style.top = '0.5rem';
         this.contentContainer.style.padding = '0px';

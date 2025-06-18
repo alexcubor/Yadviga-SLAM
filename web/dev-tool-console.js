@@ -126,7 +126,7 @@ class ConsoleUI {
         // Create console container
         const consoleContainer = document.createElement('div');
         consoleContainer.style.minWidth = '20rem';
-        consoleContainer.style.height = window.isDesktop ? 'auto' : this.dimensions.height;
+        consoleContainer.style.height = window.isDesktop ? 'auto' : 'fit-content';
         consoleContainer.style.willChange = 'width, height';
         consoleContainer.style.transform = 'translateZ(0)';
         consoleContainer.style.display = 'flex';
@@ -298,7 +298,7 @@ class ConsoleUI {
 
         // Create console content
         const consoleContent = document.createElement('div');
-        consoleContent.style.height = window.isDesktop ? 'auto' : '250px';
+        consoleContent.style.height = window.isDesktop ? 'auto' : 'fit-content';
         consoleContent.style.padding = '0.5rem';
         consoleContent.style.touchAction = 'pan-y';
         
