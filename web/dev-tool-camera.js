@@ -86,23 +86,6 @@ class CameraManager {
     }
 
     createUI() {
-        // Create UI container if it doesn't exist
-        let uiContainer = document.getElementById('yaga-ui-container');
-        if (!uiContainer) {
-            uiContainer = document.createElement('div');
-            uiContainer.id = 'yaga-ui-container';
-            uiContainer.style.position = 'fixed';
-            uiContainer.style.top = '2vh';
-            uiContainer.style.left = '2vw';
-            uiContainer.style.zIndex = '1000';
-            uiContainer.style.display = 'flex';
-            uiContainer.style.flexDirection = 'column';
-            uiContainer.style.gap = '1rem';
-            uiContainer.style.fontSize = '1rem';
-            uiContainer.style.fontFamily = 'monospace';
-            document.body.appendChild(uiContainer);
-        }
-        
         const cameraUI = document.createElement('div');
         cameraUI.style.minWidth = '30rem';
         cameraUI.style.maxWidth = '40rem';
@@ -233,7 +216,11 @@ class CameraManager {
         // Add elements to UI
         cameraUI.appendChild(cameraSelect);
         cameraUI.appendChild(dimensionsDiv);
-        uiContainer.appendChild(cameraUI);
+        
+        // Add to test container instead of creating separate UI container
+        window.testContainer.addComponent('camera-manager', {
+            element: cameraUI
+        });
         
         this.cameraSelect = cameraSelect;
         this.dimensionsDiv = dimensionsDiv;

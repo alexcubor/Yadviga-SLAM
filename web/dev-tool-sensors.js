@@ -88,23 +88,6 @@ class SensorManager {
     }
 
     createUI() {
-        // Get or create UI container
-        let uiContainer = document.getElementById('yaga-ui-container');
-        if (!uiContainer) {
-            uiContainer = document.createElement('div');
-            uiContainer.id = 'yaga-ui-container';
-            uiContainer.style.position = 'fixed';
-            uiContainer.style.top = '2vh';
-            uiContainer.style.left = '2vw';
-            uiContainer.style.zIndex = '1000';
-            uiContainer.style.display = 'flex';
-            uiContainer.style.flexDirection = 'column';
-            uiContainer.style.gap = '1rem';
-            uiContainer.style.fontSize = '1rem';
-            uiContainer.style.fontFamily = 'monospace';
-            document.body.appendChild(uiContainer);
-        }
-
         const sensorUI = document.createElement('div');
         sensorUI.style.maxWidth = '40rem';
 
@@ -161,7 +144,11 @@ class SensorManager {
         sensorData.appendChild(rotationBlock);
 
         sensorUI.appendChild(sensorData);
-        uiContainer.appendChild(sensorUI);
+        
+        // Add to test container instead of creating separate UI container
+        window.testContainer.addComponent('sensor-manager', {
+            element: sensorUI
+        });
 
         this.sensorData = sensorData;
         this.orientationBlock = orientationBlock;
