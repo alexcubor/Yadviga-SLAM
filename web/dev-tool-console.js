@@ -298,7 +298,7 @@ class ConsoleUI {
 
         // Create console content
         const consoleContent = document.createElement('div');
-        consoleContent.style.height = window.isDesktop ? 'auto' : 'fit-content';
+        consoleContent.style.height = window.isDesktop ? 'fit-content' : '250px';
         consoleContent.style.padding = '0.5rem';
         consoleContent.style.touchAction = 'pan-y';
         
