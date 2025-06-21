@@ -31,6 +31,18 @@ function loadGLTFLoader(callback) {
     document.head.appendChild(script);
 }
 
+// === RGBELoader for loading HDR environment maps ===
+function loadRGBELoader(callback) {
+    if (window.THREE && THREE.RGBELoader) {
+        callback();
+        return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js';
+    script.onload = callback;
+    document.head.appendChild(script);
+}
+
 // === Camera snap functionality ===
 let initialCameraState = null;
 const SNAP_THRESHOLD = 0.5; // Increased from 0.2 to 0.5 for wider snap range
@@ -658,6 +670,74 @@ function initScene() {
         
         window._threeScene.add(directionalLight);
 
+        // === Setup Environment Map ===
+        function createEnvironmentMapFromYAGACanvas() {
+            if (!window.YAGA || !window.YAGA.canvas) {
+                return null;
+            }
+            
+            const yagaCanvas = window.YAGA.canvas;
+            if (!yagaCanvas || yagaCanvas.width === 0 || yagaCanvas.height === 0) {
+                return null;
+            }
+            
+            const envCanvas = document.createElement('canvas');
+            const envSize = 512;
+            envCanvas.width = envSize;
+            envCanvas.height = envSize;
+            const envContext = envCanvas.getContext('2d');
+            
+            envContext.save();
+            envContext.beginPath();
+            envContext.arc(envSize/2, envSize/2, envSize/2, 0, Math.PI * 2);
+            envContext.clip();
+            
+            const scale = Math.max(envSize / yagaCanvas.width, envSize / yagaCanvas.height);
+            const scaledWidth = yagaCanvas.width * scale;
+            const scaledHeight = yagaCanvas.height * scale;
+            const offsetX = (envSize - scaledWidth) / 2;
+            const offsetY = (envSize - scaledHeight) / 2;
+            
+            envContext.drawImage(yagaCanvas, offsetX, offsetY, scaledWidth, scaledHeight);
+            envContext.restore();
+            
+            const texture = new THREE.CanvasTexture(envCanvas);
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            texture.needsUpdate = true;
+            
+            return texture;
+        }
+
+        function setupEnvironmentMap() {
+            const yagaEnvMap = createEnvironmentMapFromYAGACanvas();
+            if (yagaEnvMap) {
+                window._threeScene.environment = yagaEnvMap;
+                return;
+            }
+        }
+
+        setupEnvironmentMap();
+
+        window.updateEnvironmentMapFromYAGA = function() {
+            const yagaEnvMap = createEnvironmentMapFromYAGACanvas();
+            if (yagaEnvMap && window._threeScene) {
+                window._threeScene.environment = yagaEnvMap;
+                return true;
+            }
+            return false;
+        };
+
+        function waitForYAGACanvasAndUpdate() {
+            if (window.YAGA && window.YAGA.canvas && window.YAGA.canvas.width > 0 && window.YAGA.canvas.height > 0) {
+                if (window.updateEnvironmentMapFromYAGA()) {
+                    return;
+                }
+            }
+            setTimeout(waitForYAGACanvasAndUpdate, 100);
+        }
+
+        setTimeout(waitForYAGACanvasAndUpdate, 500);
+
         // Add shadow plane with softer shadow
         const shadowPlane = new THREE.Mesh(
             new THREE.PlaneGeometry(10, 10),
@@ -1128,7 +1208,7 @@ waitForRendererAndTrack();
 // Add character model function
 function addCharacterModel(scene) {
     const loader = new THREE.GLTFLoader();
-    loader.load('models/phone.glb', function(gltf) {
+    loader.load('models/sky_character.glb', function(gltf) {
         const model = gltf.scene;
         model.position.set(0, 0, 0);
         
