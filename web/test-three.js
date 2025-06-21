@@ -1100,7 +1100,7 @@ waitForRendererAndTrack();
 // Add character model function
 function addCharacterModel(scene) {
     const loader = new THREE.GLTFLoader();
-    loader.load('sky_character.glb', function(gltf) {
+    loader.load('models/sky_character.glb', function(gltf) {
         const model = gltf.scene;
         model.position.set(0, 0, 0);
         
