@@ -101,6 +101,12 @@ function updateCameraPosition() {
     window.YAGA.camera.rotation.y = euler.y;
     window.YAGA.camera.rotation.z = euler.z;
 
+    // Update YAGA.isViewer state based on camera position
+    if (window.YAGA && typeof window.YAGA.isViewer !== 'undefined') {
+        // Force a check of viewer state by calling the check function
+        window.YAGA.checkViewerState();
+    }
+
     // === Shadow opacity depends on the distance ===
     if (initialCameraState && shadowPlaneRef && shadowPlaneRef.material) {
         // Distance between current and initial position
@@ -209,6 +215,11 @@ function checkAndSnapCamera() {
         if (snapProgress >= 1) {
             isSnapping = false;
             shouldCheckSnap = false;
+            
+            // Check viewer state after snap completion
+            if (window.YAGA && typeof window.YAGA.checkViewerState === 'function') {
+                const isViewer = window.YAGA.checkViewerState();
+            }
         }
     } else {
         isSnapping = false;
@@ -804,6 +815,11 @@ function initScene() {
                     shouldCheckSnap = true;
                 }
             }
+            
+            // Check viewer state after mouse interaction
+            if (window.YAGA && typeof window.YAGA.checkViewerState === 'function') {
+                const isViewer = window.YAGA.checkViewerState();
+            }
         });
         
         canvas.addEventListener('mouseleave', function() {
@@ -938,6 +954,11 @@ function initScene() {
                 lastTouchDist = null;
                 lastTouchCenter = null;
                 checkAndSnapCamera(); // Check for snap after touch interaction
+                
+                // Check viewer state after touch interaction
+                if (window.YAGA && typeof window.YAGA.checkViewerState === 'function') {
+                    const isViewer = window.YAGA.checkViewerState();
+                }
             }
         }, { passive: false });
 
@@ -1061,6 +1082,13 @@ function updateSceneFromTracking() {
                     const windowCenterX = window.innerWidth / 2;
                     const windowCenterY = window.innerHeight / 2;
 
+                    // Check if we're in viewer mode - if so, don't move canvas
+                    if (window.YAGA && window.YAGA.isViewer) {
+                        // In viewer mode, don't move canvas - let user control camera freely
+                        requestAnimationFrame(updateSceneFromTracking);
+                        return;
+                    }
+
                     // Bind canvas to the green point or center if dragging
                     const screenX = isDragging ? windowCenterX : (greenX + 1) * canvas.width / 2;
                     const screenY = isDragging ? windowCenterY : (-greenY + 1) * canvas.height / 2;
@@ -1100,7 +1128,7 @@ waitForRendererAndTrack();
 // Add character model function
 function addCharacterModel(scene) {
     const loader = new THREE.GLTFLoader();
-    loader.load('models/sky_character.glb', function(gltf) {
+    loader.load('models/phone.glb', function(gltf) {
         const model = gltf.scene;
         model.position.set(0, 0, 0);
         
@@ -1276,4 +1304,9 @@ function onTouchEnd(event) {
     isPanning = false;
     previousMousePosition = { x: 0, y: 0 };
     checkAndSnapCamera(); // Check for snap after touch interaction
+    
+    // Check viewer state after touch interaction
+    if (window.YAGA && typeof window.YAGA.checkViewerState === 'function') {
+        const isViewer = window.YAGA.checkViewerState();
+    }
 }

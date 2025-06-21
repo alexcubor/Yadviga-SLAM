@@ -27,6 +27,41 @@ int main() {
                 target: { x: 0, y: 0.5, z: 0 }
             };
 
+            // Initial camera state for comparison
+            const initialCameraState = {
+                position: { x: 0, y: 1, z: 2 },
+                rotation: { x: 0, y: 0, z: 0 },
+                target: { x: 0, y: 0.5, z: 0 }
+            };
+
+            // Viewer state tracking
+            let isViewer = false;
+            let VIEWER_THRESHOLD = 0.5; // Distance threshold to consider camera moved
+
+            // Helper function to check if camera is in viewer mode
+            function checkViewerState() {
+                const pos = cameraState.position;
+                const initPos = initialCameraState.position;
+                
+                // Calculate distance from initial position
+                const distance = Math.sqrt(
+                    Math.pow(pos.x - initPos.x, 2) +
+                    Math.pow(pos.y - initPos.y, 2) +
+                    Math.pow(pos.z - initPos.z, 2)
+                );
+                
+                // Check if camera has moved significantly
+                const wasViewer = isViewer;
+                isViewer = distance > VIEWER_THRESHOLD;
+                
+                // Log state change
+                if (wasViewer !== isViewer) {
+                    console.log('🎥 Camera viewer mode:', isViewer ? 'ON' : 'OFF', 'Distance:', distance.toFixed(2), 'Threshold:', VIEWER_THRESHOLD);
+                }
+                
+                return isViewer;
+            }
+
             // Helper function to calculate rotation from position to target
             function calculateRotationFromTarget() {
                 const dx = cameraState.target.x - cameraState.position.x;
@@ -74,6 +109,8 @@ int main() {
                         };
                         // Recalculate target based on new position and rotation
                         calculateTargetFromRotation();
+                        // Check if camera is now in viewer mode
+                        checkViewerState();
                         console.log('🎥 Camera position updated:', cameraState.position);
                     }
                 },
@@ -115,7 +152,21 @@ int main() {
                     isInitialized = true;
                 },
                 tags: {}, // Add tags object to store script attributes
-                camera: camera
+                camera: camera,
+                get isViewer() {
+                    return isViewer;
+                },
+                checkViewerState() {
+                    return checkViewerState();
+                },
+                set viewerThreshold(value) {
+                    VIEWER_THRESHOLD = Number(value) || 0.5;
+                    // Recheck state with new threshold
+                    checkViewerState();
+                },
+                get viewerThreshold() {
+                    return VIEWER_THRESHOLD;
+                }
             };
         })();
 
