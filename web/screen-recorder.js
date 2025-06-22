@@ -15,20 +15,6 @@ class ScreenRecorder {
     async init() {
         this.createMainUI();
         
-        // Debug platform detection
-        console.log('🔍 Platform detection:');
-        console.log('User Agent:', navigator.userAgent);
-        console.log('isIOS:', this.isIOS);
-        console.log('isSafari:', this.isSafari);
-        console.log('isMac:', this.isMac);
-        console.log('useMP4:', this.useMP4);
-        
-        // Check supported formats
-        console.log('📹 Supported formats:');
-        console.log('video/mp4:', MediaRecorder.isTypeSupported('video/mp4'));
-        console.log('video/webm;codecs=vp9:', MediaRecorder.isTypeSupported('video/webm;codecs=vp9'));
-        console.log('video/webm;codecs=vp8:', MediaRecorder.isTypeSupported('video/webm;codecs=vp8'));
-        
         // Check if recording is supported
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             this.recordButton.disabled = true;
@@ -107,8 +93,6 @@ class ScreenRecorder {
 
     async startRecording() {
         try {
-            console.log('🎬 Starting combined canvas recording...');
-            
             // Update button appearance for recording
             this.recordButton.style.backgroundColor = 'rgba(220, 53, 69, 0.9)';
             this.outerRing.style.opacity = '0'; // Hide outer ring during recording
@@ -128,7 +112,6 @@ class ScreenRecorder {
 
             await this.setupMediaRecorder();
         } catch (err) {
-            console.log('Recording failed:', err);
             // Reset button on error
             this.recordButton.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
             this.outerRing.style.opacity = '1';
@@ -145,7 +128,6 @@ class ScreenRecorder {
         
         // For Mac, try MP4 first if supported, otherwise fallback to WebM
         if (this.useMP4 && MediaRecorder.isTypeSupported('video/mp4')) {
-            console.log('✅ Using MP4 format for Mac/Safari/iOS');
             options = {
                 mimeType: 'video/mp4',
                 videoBitsPerSecond: quality.bitrate
@@ -153,13 +135,11 @@ class ScreenRecorder {
         } else {
             // Use WebM with VP9 for Chrome/Firefox/Edge (better compression)
             if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                console.log('✅ Using WebM VP9 format');
                 options = {
                     mimeType: 'video/webm;codecs=vp9',
                     videoBitsPerSecond: quality.bitrate
                 };
             } else {
-                console.log('✅ Using WebM VP8 format (VP9 fallback)');
                 options = {
                     mimeType: 'video/webm;codecs=vp8',
                     videoBitsPerSecond: quality.bitrate
@@ -167,7 +147,6 @@ class ScreenRecorder {
             }
         }
 
-        console.log('🎬 MediaRecorder options:', options);
         this.mediaRecorder = new MediaRecorder(this.stream, options);
         
         this.mediaRecorder.ondataavailable = (event) => {
@@ -243,7 +222,6 @@ class ScreenRecorder {
         try {
             const canvases = this.getAllCanvases();
             if (canvases.length === 0) {
-                console.log('No canvases found');
                 return null;
             }
 
@@ -256,7 +234,6 @@ class ScreenRecorder {
             // Add audio to stream
             return await this.addAudioToStream(stream);
         } catch (err) {
-            console.log('Error capturing canvases:', err);
             return null;
         }
     }
@@ -276,8 +253,6 @@ class ScreenRecorder {
         
         compositeCanvas.width = actualWidth;
         compositeCanvas.height = actualHeight;
-        
-        console.log(`📐 Canvas size: ${actualWidth}x${actualHeight}`);
         
         // Update composite canvas continuously
         this.compositeUpdateInterval = setInterval(() => {
@@ -339,7 +314,7 @@ class ScreenRecorder {
             const tracks = [...videoStream.getVideoTracks(), ...audioStream.getAudioTracks()];
             return new MediaStream(tracks);
         } catch (err) {
-            console.log('Could not get audio for stream');
+            // Audio not available
         }
         
         return videoStream;
@@ -371,15 +346,12 @@ class ScreenRecorder {
 
     async saveRecording() {
         if (this.recordedChunks.length === 0) {
-            console.log('No recording data to save');
             return;
         }
 
         // Use the actual MIME type from MediaRecorder
         const mimeType = this.mediaRecorder.mimeType;
         const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        
-        console.log('💾 Saving recording with MIME type:', mimeType, 'extension:', extension);
         
         const blob = new Blob(this.recordedChunks, { type: mimeType });
         this.recordedChunks = []; // Clear chunks
@@ -391,17 +363,15 @@ class ScreenRecorder {
                 const file = new File([blob], fileName, { type: mimeType });
                 
                 if (navigator.canShare({ files: [file] })) {
-                    console.log('📱 Using Share API for iOS');
                     await navigator.share({
                         files: [file],
                         title: 'Saving AR Video',
                         text: 'Recorded with SLAM Yaga'
                     });
-                    console.log('✅ Recording shared successfully via Share API');
                     return;
                 }
             } catch (err) {
-                console.log('Share API failed, falling back to download:', err);
+                // Share API failed, fallback to download
             }
         }
 
@@ -414,12 +384,10 @@ class ScreenRecorder {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-
-        console.log(`Recording saved successfully as ${extension.toUpperCase()}`);
     }
 }
 
 // Initialize immediately
-console.log('🎬 Screen Recorder initializing...');
+console.log('🎬 Enable screen-recorder.js');
 const screenRecorder = new ScreenRecorder();
 screenRecorder.init(); 
