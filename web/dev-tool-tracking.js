@@ -213,7 +213,7 @@ async function testTracking() {
     pointsToggleContainer.style.marginTop = '0.5rem';
 
     const pointsLabel = document.createElement('span');
-    pointsLabel.textContent = 'Visible';
+    pointsLabel.textContent = 'Visible points';
     
     const pointsSwitch = document.createElement('label');
     pointsSwitch.style.position = 'relative';
@@ -269,6 +269,71 @@ async function testTracking() {
     pointsToggleContainer.appendChild(pointsLabel);
     pointsToggleContainer.appendChild(pointsSwitch);
     togglesBlock.appendChild(pointsToggleContainer);
+
+    // Points Values toggle
+    const valuesToggleContainer = document.createElement('div');
+    valuesToggleContainer.style.display = 'flex';
+    valuesToggleContainer.style.alignItems = 'center';
+    valuesToggleContainer.style.justifyContent = 'space-between';
+    valuesToggleContainer.style.marginTop = '0.5rem';
+
+    const valuesLabel = document.createElement('span');
+    valuesLabel.textContent = 'Visible Values';
+    
+    const valuesSwitch = document.createElement('label');
+    valuesSwitch.style.position = 'relative';
+    valuesSwitch.style.display = 'inline-block';
+    valuesSwitch.style.width = '3.5rem';
+    valuesSwitch.style.height = '1.75rem';
+
+    const valuesInput = document.createElement('input');
+    valuesInput.type = 'checkbox';
+    valuesInput.style.opacity = '0';
+    valuesInput.style.width = '0';
+    valuesInput.style.height = '0';
+    // Load state from localStorage or default to true
+    valuesInput.checked = localStorage.getItem('showPointsValues') !== 'false';
+
+    // Initialize points values visibility state
+    window.showPointsValues = valuesInput.checked;
+
+    const valuesSlider = document.createElement('span');
+    valuesSlider.style.position = 'absolute';
+    valuesSlider.style.cursor = 'pointer';
+    valuesSlider.style.top = '0';
+    valuesSlider.style.left = '0';
+    valuesSlider.style.right = '0';
+    valuesSlider.style.bottom = '0';
+    valuesSlider.style.backgroundColor = valuesInput.checked ? '#007AFF' : '#ccc';
+    valuesSlider.style.transition = '.4s';
+    valuesSlider.style.borderRadius = '1.75rem';
+
+    const valuesKnob = document.createElement('span');
+    valuesKnob.style.position = 'absolute';
+    valuesKnob.style.content = '""';
+    valuesKnob.style.height = '1.5rem';
+    valuesKnob.style.width = '1.5rem';
+    valuesKnob.style.left = '0.125rem';
+    valuesKnob.style.bottom = '0.125rem';
+    valuesKnob.style.backgroundColor = 'white';
+    valuesKnob.style.transition = '.4s';
+    valuesKnob.style.borderRadius = '50%';
+    valuesKnob.style.transform = valuesInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
+
+    valuesInput.onchange = () => {
+        valuesSlider.style.backgroundColor = valuesInput.checked ? '#007AFF' : '#ccc';
+        valuesKnob.style.transform = valuesInput.checked ? 'translateX(1.75rem)' : 'translateX(0)';
+        window.showPointsValues = valuesInput.checked;
+        // Save state to localStorage
+        localStorage.setItem('showPointsValues', valuesInput.checked);
+    };
+
+    valuesSwitch.appendChild(valuesInput);
+    valuesSwitch.appendChild(valuesSlider);
+    valuesSwitch.appendChild(valuesKnob);
+    valuesToggleContainer.appendChild(valuesLabel);
+    valuesToggleContainer.appendChild(valuesSwitch);
+    togglesBlock.appendChild(valuesToggleContainer);
 
     trackingControls.appendChild(togglesBlock);
 
@@ -331,18 +396,21 @@ async function testTracking() {
                     const isStable = points[i * 3 + 2];
                     ctx.fillRect(x - 6, y - 6, 12, 12);  // Doubled size from 6x6 to 12x12
 
-                    // Label for coordinates and stability with black outline
-                    ctx.font = '12px monospace';
-                    let status = isStable ? 'Stable' : 'Unstable';
-                    let label = `#${i} (${points[i * 3].toFixed(2)}, ${points[i * 3 + 1].toFixed(2)}) S:${isStable} ${status}`;
-                    // Black outline
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 3;
-                    ctx.strokeText(label, x + 10, y + 4);
-                    // White text on top
-                    ctx.fillStyle = 'white';
-                    ctx.fillText(label, x + 10, y + 4);
-                    ctx.fillStyle = 'red'; // return color for next point
+                    // Show values only if enabled
+                    if (window.showPointsValues) {
+                        // Label for coordinates and stability with black outline
+                        ctx.font = '12px monospace';
+                        let status = isStable ? 'Stable' : 'Unstable';
+                        let label = `#${i} (${points[i * 3].toFixed(2)}, ${points[i * 3 + 1].toFixed(2)}) S:${isStable} ${status}`;
+                        // Black outline
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 3;
+                        ctx.strokeText(label, x + 10, y + 4);
+                        // White text on top
+                        ctx.fillStyle = 'white';
+                        ctx.fillText(label, x + 10, y + 4);
+                        ctx.fillStyle = 'red'; // return color for next point
+                    }
                 }
 
                 // Calculate average of stable points
@@ -396,15 +464,18 @@ async function testTracking() {
                     ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);  // Circle with radius 8
                     ctx.fill();
 
-                    // Label under the green point
-                    ctx.font = '14px monospace';
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 3;
-                    const greenLabel = `G (${greenX.toFixed(2)}, ${greenY.toFixed(2)}) | Stable: ${stablePoints.length}`;
-                    ctx.strokeText(greenLabel, screenX + 12, screenY + 20);
-                    ctx.fillStyle = 'white';
-                    ctx.fillText(greenLabel, screenX + 12, screenY + 20);
-                    ctx.fillStyle = 'red'; // return color for next point
+                    // Show values only if enabled
+                    if (window.showPointsValues) {
+                        // Label under the green point
+                        ctx.font = '14px monospace';
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 3;
+                        const greenLabel = `G (${greenX.toFixed(2)}, ${greenY.toFixed(2)}) | Stable: ${stablePoints.length}`;
+                        ctx.strokeText(greenLabel, screenX + 12, screenY + 20);
+                        ctx.fillStyle = 'white';
+                        ctx.fillText(greenLabel, screenX + 12, screenY + 20);
+                        ctx.fillStyle = 'red'; // return color for next point
+                    }
                 }
             }
         } catch (e) {
