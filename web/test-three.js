@@ -294,6 +294,7 @@ function initScene() {
         
         // Style the canvas to match main canvas
         var canvas = window._threeRenderer.domElement;
+        canvas.id = 'three-canvas'; // Add ID for screen recorder
         canvas.style.position = 'fixed';
         canvas.style.top = '0';
         canvas.style.left = '0';
