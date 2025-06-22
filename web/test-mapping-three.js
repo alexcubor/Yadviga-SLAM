@@ -12,17 +12,6 @@ function loadGLTFLoader(callback) {
     document.head.appendChild(script);
 }
 
-// Global variables for switching between models
-let currentModelIndex = 0; // Index in the models array
-let models = []; // Array of all available models
-let currentActiveModel = null;
-
-// Hover effect variables
-let hoveredModel = null;
-let originalMaterials = new Map(); // Store original materials for each model
-let hoverMaterials = new Map(); // Store hover materials for each model
-let tooltipElement = null; // Tooltip element for hover hints
-
 // Simple list of model files
 const modelFiles = [
     'camera.glb',
@@ -31,6 +20,18 @@ const modelFiles = [
     'hairdryer.glb',
     'headset.glb'
 ];
+
+// Global variables for switching between models
+let currentModelIndex = 0; // Index in the models array
+let models = []; // Array of all available models (will be populated lazily)
+let currentActiveModel = null;
+let loadedModels = new Map(); // Track which models are loaded
+
+// Hover effect variables
+let hoveredModel = null;
+let originalMaterials = new Map(); // Store original materials for each model
+let hoverMaterials = new Map(); // Store hover materials for each model
+let tooltipElement = null; // Tooltip element for hover hints
 
 // Dynamic model configuration generator
 function generateModelConfig(index) {
@@ -142,6 +143,20 @@ function createModel(config) {
     group.position.set(config.position.x, config.position.y, config.position.z);
     group.rotation.set(config.rotation.x, config.rotation.y, config.rotation.z);
     
+    // Add to scene immediately
+    if (window._threeScene) {
+        window._threeScene.add(group);
+        
+        // Ensure all meshes in the model are raycastable
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.userData.modelIndex = modelFiles.indexOf(config.glbPath.replace('models/', ''));
+            }
+        });
+    } else {
+        console.warn('[test-mapping] Scene not available when creating model');
+    }
+    
     // Try to load GLB model
     loadGLTFLoader(function() {
         const loader = new THREE.GLTFLoader();
@@ -197,29 +212,20 @@ function addCameraFrustumWithIMU() {
         return;
     }
     
-    // Create all models using the unified system
-    models = modelFiles.map((_, index) => createModel(generateModelConfig(index)));
+    // Initialize models array with placeholders
+    models = new Array(modelFiles.length);
     
-    // Add all models to scene and ensure they're raycastable
-    models.forEach((model, index) => {
-        window._threeScene.add(model);
+    // Load initial model (Camera)
+    loadModel(0).then(() => {
+        // Set initial visibility
+        updateModelVisibility();
         
-        // Ensure all meshes in the model are raycastable
-        model.traverse((child) => {
-            if (child.isMesh) {
-                child.userData.modelIndex = index;
-            }
-        });
+        // Add click detection after initial model is loaded
+        setupClickDetection();
+        
+        // Add hover detection after initial model is loaded
+        setupHoverDetection();
     });
-    
-    // Set initial visibility
-    updateModelVisibility();
-    
-    // Add click detection after models are added to scene
-    setupClickDetection();
-    
-    // Add hover detection after models are added to scene
-    setupHoverDetection();
     
     // Store original updateIMU function
     const originalUpdateIMU = window.Module._updateIMU;
@@ -369,7 +375,7 @@ function setupHoverDetection() {
     // Mouse move event for hover detection
     canvas.addEventListener('mousemove', function(event) {
         // Only check hover on the currently visible model
-        if (!currentActiveModel || !currentActiveModel.visible) {
+        if (!currentActiveModel || !currentActiveModel.visible || !currentActiveModel.children || currentActiveModel.children.length === 0) {
             if (hoveredModel) {
                 removeHoverEffect(hoveredModel);
             }
@@ -385,24 +391,32 @@ function setupHoverDetection() {
         // Update the picking ray with the camera and mouse position
         raycaster.setFromCamera(mouse, window._threeCamera);
         
-        // Calculate objects intersecting the picking ray (only check current active model)
-        const intersects = raycaster.intersectObject(currentActiveModel, true);
-        
-        if (intersects.length > 0) {
-            const hoveredObject = intersects[0].object;
+        try {
+            // Calculate objects intersecting the picking ray (only check current active model)
+            const intersects = raycaster.intersectObject(currentActiveModel, true);
             
-            // Check if the hovered object is part of the current active model
-            let parentModel = hoveredObject;
-            while (parentModel && parentModel !== currentActiveModel) {
-                parentModel = parentModel.parent;
+            if (intersects.length > 0) {
+                const hoveredObject = intersects[0].object;
+                
+                // Check if the hovered object is part of the current active model
+                let parentModel = hoveredObject;
+                while (parentModel && parentModel !== currentActiveModel) {
+                    parentModel = parentModel.parent;
+                }
+                
+                if (parentModel === currentActiveModel && currentActiveModel !== hoveredModel) {
+                    applyHoverEffect(currentActiveModel);
+                    showTooltip(event, 'Press X');
+                }
+            } else {
+                // No object hovered, remove hover effect
+                if (hoveredModel) {
+                    removeHoverEffect(hoveredModel);
+                }
+                hideTooltip();
             }
-            
-            if (parentModel === currentActiveModel && currentActiveModel !== hoveredModel) {
-                applyHoverEffect(currentActiveModel);
-                showTooltip(event, 'Press X');
-            }
-        } else {
-            // No object hovered, remove hover effect
+        } catch (error) {
+            // Silently handle raycaster errors
             if (hoveredModel) {
                 removeHoverEffect(hoveredModel);
             }
@@ -444,8 +458,15 @@ function setupClickDetection() {
         // Update the picking ray with the camera and mouse position
         raycaster.setFromCamera(mouse, window._threeCamera);
         
+        // Filter out undefined models and only check loaded models
+        const loadedModelsArray = models.filter(model => model && model.visible);
+        
+        if (loadedModelsArray.length === 0) {
+            return;
+        }
+        
         // Calculate objects intersecting the picking ray
-        const intersects = raycaster.intersectObjects(models, true);
+        const intersects = raycaster.intersectObjects(loadedModelsArray, true);
         
         if (intersects.length > 0) {
             const clickedObject = intersects[0].object;
@@ -462,7 +483,7 @@ function setupClickDetection() {
                 
                 if (clickedIndex !== -1 && clickedIndex !== currentModelIndex) {
                     currentModelIndex = clickedIndex;
-                    updateModelVisibility();
+                    updateModelVisibility().catch(console.error);
                     
                     const fileName = modelFiles[currentModelIndex];
                     const modelName = fileName ? fileName.replace('.glb', '').replace(/^\w/, c => c.toUpperCase()) : 'Unknown';
@@ -478,18 +499,25 @@ function setupClickDetection() {
     }, true);
 }
 
-function updateModelVisibility() {
+async function updateModelVisibility() {
     if (models.length > 0) {
-        // Hide all models
+        // Hide all loaded models
         models.forEach((model, index) => {
-            model.visible = false;
+            if (model) {
+                model.visible = false;
+            }
         });
         
-        // Show only the current model
+        // Load current model if not loaded
         if (currentModelIndex >= 0 && currentModelIndex < models.length) {
-            models[currentModelIndex].visible = true;
-            currentActiveModel = models[currentModelIndex];
-            currentActiveModel.rotation.set(0, Math.PI, 0);
+            await ensureCurrentModelLoaded();
+            
+            // Show only the current model
+            if (models[currentModelIndex]) {
+                models[currentModelIndex].visible = true;
+                currentActiveModel = models[currentModelIndex];
+                currentActiveModel.rotation.set(0, Math.PI, 0);
+            }
         }
         
         // Hide tooltip when switching models
@@ -573,7 +601,7 @@ document.addEventListener('keydown', function(event) {
             event.preventDefault();
             if (models.length > 0) {
                 currentModelIndex = (currentModelIndex + 1) % models.length;
-                updateModelVisibility();
+                updateModelVisibility().catch(console.error);
             }
         }
     }
@@ -622,5 +650,32 @@ function showTooltip(event, text) {
 function hideTooltip() {
     if (tooltipElement) {
         tooltipElement.style.opacity = '0';
+    }
+}
+
+// Lazy model loader
+async function loadModel(index) {
+    if (loadedModels.has(index)) {
+        return loadedModels.get(index);
+    }
+    
+    const config = generateModelConfig(index);
+    const model = createModel(config);
+    
+    // Store the model
+    loadedModels.set(index, model);
+    
+    // Add to models array if not already there
+    if (!models[index]) {
+        models[index] = model;
+    }
+    
+    return model;
+}
+
+// Load current model if not loaded
+async function ensureCurrentModelLoaded() {
+    if (!loadedModels.has(currentModelIndex)) {
+        await loadModel(currentModelIndex);
     }
 }
