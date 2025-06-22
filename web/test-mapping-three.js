@@ -543,62 +543,6 @@ function syncCameraParameters() {
     }
 }
 
-// Create keyboard shortcuts UI
-function createKeyboardShortcutsUI() {
-    const shortcutsUI = document.createElement('div');
-    shortcutsUI.style.width = '18rem';
-    shortcutsUI.style.border = 'none';
-    shortcutsUI.style.borderRadius = '0.5rem';
-    shortcutsUI.style.fontFamily = 'monospace';
-    shortcutsUI.style.fontSize = '1rem';
-    shortcutsUI.style.color = 'white';
-    
-    const title = document.createElement('div');
-    title.style.display = 'flex';
-    title.style.alignItems = 'center';
-    title.style.justifyContent = 'space-between';
-    title.style.marginBottom = '0.5rem';
-    
-    const titleText = document.createElement('span');
-    titleText.textContent = 'Mapping';
-    
-    title.appendChild(titleText);
-    shortcutsUI.appendChild(title);
-    
-    const shortcuts = [
-        { key: 'X', description: 'Switch between camera models' },
-        { key: 'Click', description: 'Click on 3D models to switch' }
-    ];
-    
-    shortcuts.forEach(shortcut => {
-        const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.alignItems = 'center';
-        row.style.justifyContent = 'space-between';
-        row.style.marginTop = '0.5rem';
-        
-        const keySpan = document.createElement('span');
-        keySpan.textContent = shortcut.key;
-        keySpan.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-        keySpan.style.padding = '2px 8px';
-        keySpan.style.borderRadius = '4px';
-        keySpan.style.fontWeight = 'bold';
-        keySpan.style.minWidth = '40px';
-        keySpan.style.textAlign = 'center';
-        
-        const descSpan = document.createElement('span');
-        descSpan.textContent = shortcut.description;
-        descSpan.style.marginLeft = '15px';
-        descSpan.style.color = 'rgba(255, 255, 255, 0.9)';
-        
-        row.appendChild(keySpan);
-        row.appendChild(descSpan);
-        shortcutsUI.appendChild(row);
-    });
-    
-    return shortcutsUI;
-}
-
 // Wait for scene to appear with timeout
 let sceneCheckAttempts = 0;
 const maxAttempts = 100; // 5 seconds at 50ms intervals
@@ -634,16 +578,6 @@ document.addEventListener('keydown', function(event) {
         }
     }
 });
-
-// Create keyboard shortcuts UI instead of console instructions
-setTimeout(() => {
-    const shortcutsElement = createKeyboardShortcutsUI();
-    if (window.testContainer) {
-        window.testContainer.addComponent('keyboard-shortcuts', {
-            element: shortcutsElement
-        });
-    }
-}, 1000); // Show after 1 second to ensure page is loaded
 
 // Create tooltip element
 function createTooltip() {
