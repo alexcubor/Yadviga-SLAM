@@ -66,13 +66,13 @@ function renderFrames() {
             float scaleX = 1.0;
             float scaleY = 1.0;
             
-            if (videoAspect > screenAspect) {
-                // Video is wider than screen - scale to fit height
-                scaleY = 1.0;
-                scaleX = screenAspect / videoAspect;
-            } else {
-                // Video is taller than screen - scale to fit width
+            if (videoAspect < screenAspect) {
+                // Video is more vertical than screen - scale to fit width
                 scaleX = 1.0;
+                scaleY = videoAspect / screenAspect;
+            } else {
+                // Video is more horizontal than screen - scale to fit height
+                scaleX = screenAspect / videoAspect;
                 scaleY = 1.0;
             }
             
