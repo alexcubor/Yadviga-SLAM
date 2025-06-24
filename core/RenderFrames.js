@@ -251,6 +251,9 @@ function renderFrames() {
         };
         
         YAGA.video.onloadedmetadata = () => {
+            const interval = 1000.0 / YAGA.video.frameRate;
+            Module._setTrackingInterval(interval);
+            
             // Try to start playback immediately
             YAGA.video.play().then(() => {
                 YAGA.cameraActive = true;
@@ -283,6 +286,10 @@ function renderFrames() {
                     settings.height / 2  // cy in center
                 );
                 
+                // Sync tracking interval with camera FPS
+                const interval = 1000.0 / settings.frameRate;
+                Module._setTrackingInterval(interval);
+                
                 YAGA.video.srcObject = stream;
                 YAGA.video.play();
                 YAGA.cameraActive = true;
@@ -298,6 +305,10 @@ function renderFrames() {
                             settings.width / 2,
                             settings.height / 2
                         );
+                        
+                        // Sync tracking interval with new camera FPS
+                        const interval = 1000.0 / settings.frameRate;
+                        Module._setTrackingInterval(interval);
                     };
                 }
             })

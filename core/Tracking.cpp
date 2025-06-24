@@ -27,6 +27,8 @@ extern uint8_t* frameBuffer;
 extern int frameWidth;
 extern int frameHeight;
 extern cv::Mat cameraMatrix;
+extern double trackingInterval;
+extern std::mutex fpsMutex;
 
 // Functions for accessing tracking points
 extern "C" float* getTrackingPoints() {
@@ -176,8 +178,15 @@ void trackingLoop() {
             }
         }
         
-        // Use emscripten_sleep instead of thread sleep
-        emscripten_sleep(8);
+        // Get current tracking interval based on camera FPS
+        double currentInterval;
+        {
+            std::lock_guard<std::mutex> lock(fpsMutex);
+            currentInterval = trackingInterval;
+        }
+        
+        // Use emscripten_sleep with dynamic interval
+        emscripten_sleep(currentInterval);
     }
 }
 

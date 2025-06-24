@@ -57,6 +57,8 @@ set(EXPORTED_FUNCS
     "_getTrackingPoints"
     "_getTrackingPointsCount"
     "_arePointsReady"
+    "_setTrackingInterval"
+    "_getTrackingInterval"
     "_initIMU"
     "_updateIMU"
 )

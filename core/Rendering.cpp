@@ -14,6 +14,10 @@ EMSCRIPTEN_KEEPALIVE int frameWidth = 0;  // Frame width
 EMSCRIPTEN_KEEPALIVE int frameHeight = 0;  // Frame height
 EMSCRIPTEN_KEEPALIVE cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_32F);
 
+// Camera FPS synchronization
+EMSCRIPTEN_KEEPALIVE double trackingInterval = 33.33;  // Default interval in ms (30 FPS)
+EMSCRIPTEN_KEEPALIVE std::mutex fpsMutex;  // Mutex for FPS settings
+
 // Declare external variables for tracking pointsё
 extern int trackingPointsCount;
 
@@ -57,6 +61,17 @@ extern "C" void setFrameWidth(int width) {
 
 extern "C" void setFrameHeight(int height) {
     frameHeight = height;
+}
+
+// FPS management functions
+extern "C" void setTrackingInterval(double interval) {
+    std::lock_guard<std::mutex> lock(fpsMutex);
+    trackingInterval = interval;
+}
+
+extern "C" double getTrackingInterval() {
+    std::lock_guard<std::mutex> lock(fpsMutex);
+    return trackingInterval;
 }
 
 extern "C" {

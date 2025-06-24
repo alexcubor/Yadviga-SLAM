@@ -325,6 +325,10 @@ class CameraManager {
             const track = stream.getVideoTracks()[0];
             const settings = track.getSettings();
 
+            // Update tracking interval based on camera FPS
+            const interval = 1000.0 / settings.frameRate;
+            Module._setTrackingInterval(interval);
+
             // Notify about camera change
             if (this.onCameraChange) {
                 this.onCameraChange(settings);
