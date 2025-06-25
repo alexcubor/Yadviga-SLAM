@@ -134,7 +134,7 @@ void trackingLoop() {
                 cv::calcOpticalFlowPyrLK(
                     prevGray, gray, prevTrackingPoints, trackingPoints,
                     pointStatus, err,
-                    cv::Size(21, 21), 3,
+                    cv::Size(15, 15), 1,
                     cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01)
                 );
                     
