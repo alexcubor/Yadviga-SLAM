@@ -4,6 +4,84 @@
 
 Yadviga-SLAM is a Simultaneous Localization and Mapping (SLAM) system designed specifically for web browser deployment. The project leverages modern C++ compiled to WebAssembly, enabling real-time SLAM capabilities directly in the browser without requiring any additional plugins or installations.
 
+## Pipeline
+
+```mermaid
+graph TD
+    %% Input Node
+    A["📷 Input Frames"]
+    
+    %% Feature Detection
+    B["✅ goodFeaturesToTrack<br/>Найти угловые точки<br/>Feature Detection"]
+    
+    %% Optical Flow
+    C["✅ calcOpticalFlowPyrLK<br/>Отследить точки<br/>Optical Flow"]
+    
+    %% Descriptors
+    D["✅ ORB::create + compute<br/>Вычислить дескрипторы<br/>Descriptors"]
+    
+    %% Feature Matching
+    E["BFMatcher<br/>Сопоставить дескрипторы<br/>Feature Matching"]
+    
+    %% Motion Estimation
+    F["✅ findEssentialMat<br/>Essential Matrix<br/>Motion Estimation"]
+    
+    %% Pose Recovery
+    G["✅ recoverPose<br/>R, t матрицы<br/>Pose Recovery"]
+    
+    %% 3D Reconstruction
+    H["triangulatePoints<br/>3D координаты<br/>3D Reconstruction"]
+    
+    %% Pose Estimation
+    I["solvePnP<br/>Оценить позу<br/>Pose Estimation"]
+    
+    %% RANSAC Filtering
+    J["solvePnPRansac<br/>Фильтрация выбросов<br/>RANSAC Filtering"]
+    
+    %% Bundle Adjustment
+    K["Bundle Adjustment<br/>Оптимизация позы и точек<br/>Global Optimization"]
+    
+    %% Loop Closure Detection
+    L["Loop Closure Detection<br/>Обнаружение замыкания<br/>Loop Detection"]
+    
+    %% Keyframe Selection
+    M["Keyframe Selection<br/>Выбор ключевых кадров<br/>Keyframe Management"]
+    
+    %% Local Mapping
+    N["Local Mapping<br/>Управление локальной картой<br/>Local Map"]
+    
+    %% Global Optimization
+    O["Global Optimization<br/>Глобальная оптимизация"]
+    
+    %% Output
+    P["🎥 Camera Pose<br/>Output"]
+    Q["⛳️ 3D Environment Map"]
+    
+    %% Linear pipeline flow
+    A --- B
+    B --- C
+    C --- D
+    D --- E
+    E --- F
+    F --- G
+    G --- H
+    H --- I
+    I --- J
+    J --- K
+    K --- L
+    L --- M
+    M --- N
+    N --- O
+    O --- P
+    O --- Q
+    
+    %% Unified styling for all nodes
+    classDef default fill:#253941, stroke-width:0, rx:15,ry:15
+    
+    %% Styling for arrows
+    linkStyle default stroke:#737373,stroke-width:2px
+```
+
 ## Development Environment
 
 Recommended using Visual Studio Code IDE because the project includes pre-configured development environment:
