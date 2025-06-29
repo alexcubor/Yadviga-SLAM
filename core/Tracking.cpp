@@ -7,6 +7,7 @@
 #include <mutex>
 
 // Global variables for tracking
+extern volatile bool slamActive;
 EMSCRIPTEN_KEEPALIVE std::vector<cv::Point2f> trackingPoints;  // Buffer for tracking points
 EMSCRIPTEN_KEEPALIVE std::vector<cv::Point2f> prevTrackingPoints;  // Buffer for previous points
 EMSCRIPTEN_KEEPALIVE int trackingPointsCount = 0;  // Number of tracking points
@@ -65,6 +66,12 @@ void trackingLoop() {
     cv::Ptr<cv::ORB> orb = cv::ORB::create(1000, 1.2f, 8, 31, 0, 2, cv::ORB::HARRIS_SCORE, 31, 20);
     
     while (true) {
+        // Проверка активности SLAM
+        if (!slamActive) {
+            emscripten_sleep(100);
+            continue;
+        }
+        
         bool isReady;
         {
             std::lock_guard<std::mutex> lock(frameMutex);
@@ -126,6 +133,9 @@ void trackingLoop() {
                     pointsReady = true;
                 }
             } else { // Tracking other frames after initialization
+                if (!slamActive) {
+                    break;
+                }
                 EM_ASM({
                     console.log("✨ Tracking points");
                 });
@@ -166,10 +176,10 @@ void trackingLoop() {
                     cameraMatrix,    // camera matrix (intrinsics)
                     cv::RANSAC,      // method
                     0.999,           // probability
-                    1.0,             // threshold
+                    0.5,             // threshold
                     inlierMask      // inliers mask
                 );
-                essentialMatrix = E;  // Save in global variable
+                        essentialMatrix = E;  // Save in global variable
             }
                 
             {

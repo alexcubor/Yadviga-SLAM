@@ -1,6 +1,12 @@
 #include <emscripten.h>
 #include <iostream>
 
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE volatile bool slamActive = true;
+    EMSCRIPTEN_KEEPALIVE void stopSLAM() { slamActive = false; }
+    EMSCRIPTEN_KEEPALIVE void startSLAM() { slamActive = true; }
+}
+
 extern "C" void renderFrames();
 extern "C" void startTracking();
 extern "C" void initIMU();
@@ -15,11 +21,12 @@ int main() {
         // Main SLAM module
         window.YAGA = (function() {
             // Private attributes
+            let isActive = true;
             let isInitialized = false;
             let gl = null;
             let canvas = null;
             let frameCount = 0;
-            
+
             // Private camera state
             const cameraState = {
                 position: { x: 0, y: 0, z: 0 },
@@ -166,6 +173,26 @@ int main() {
                 },
                 get viewerThreshold() {
                     return VIEWER_THRESHOLD;
+                },
+                // SLAM control
+                start() {
+                    if (!isActive) {
+                        isActive = true;
+                        console.log('🟢 SLAM started');
+                        Module._startSLAM();
+                        YAGA.video.play();
+                    }
+                },
+                stop() {
+                    if (isActive) {
+                        isActive = false;
+                        console.log('🔴 SLAM stopped');
+                        Module._stopSLAM();
+                        YAGA.video.pause();
+                    }
+                },
+                get isActive() {
+                    return isActive;
                 }
             };
         })();
@@ -187,8 +214,10 @@ int main() {
     });
 
     // Initialize YAGA
-    renderFrames();
-    startTracking();
-    initIMU();
+    if (slamActive) {
+        renderFrames();
+        startTracking();
+    }
+    // initIMU();
     // startMapping();
 }

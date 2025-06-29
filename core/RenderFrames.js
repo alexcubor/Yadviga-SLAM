@@ -158,7 +158,7 @@ function renderFrames() {
 
     // Function to process frame
     function processFrame() {
-        if (!YAGA.cameraActive || !YAGA.video) {
+        if (!YAGA.cameraActive || !YAGA.video || YAGA.isActive === false) {
             requestAnimationFrame(processFrame);
             return;
         }
