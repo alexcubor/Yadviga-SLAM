@@ -376,6 +376,76 @@ class TestContainer {
 // Create global test container instance
 window.testContainer = new TestContainer(); 
 
+// === SLAM Start/Stop Panel ===
+(function() {
+    const slamPanel = document.createElement('div');
+    slamPanel.style.display = 'flex';
+    slamPanel.style.alignItems = 'center';
+    slamPanel.style.justifyContent = 'flex-start';
+    slamPanel.style.gap = '1rem';
+    slamPanel.style.background = 'transparent';
+    slamPanel.style.marginBottom = '0.5rem';
+
+    const slamButton = document.createElement('button');
+    slamButton.style.width = '2.5rem';
+    slamButton.style.height = '2.5rem';
+    slamButton.style.background = '#1a1a1a';
+    slamButton.style.color = '#fff';
+    slamButton.style.border = '2px solid #333';
+    slamButton.style.borderRadius = '50%';
+    slamButton.style.fontSize = '1.2rem';
+    slamButton.style.cursor = 'pointer';
+    slamButton.style.display = 'flex';
+    slamButton.style.alignItems = 'center';
+    slamButton.style.justifyContent = 'center';
+    slamButton.style.fontWeight = 'bold';
+    slamButton.style.transition = 'all 0.2s ease';
+    slamButton.title = 'Start/Stop SLAM';
+
+    function updateSlamButton() {
+        if (window.YAGA && window.YAGA.isActive) {
+            slamButton.innerHTML = '⏻';
+            slamButton.title = 'Stop SLAM';
+            slamButton.style.background = '#27ae60';
+            slamButton.style.borderColor = '#2ecc71';
+        } else {
+            slamButton.innerHTML = '⏻';
+            slamButton.title = 'Start SLAM';
+            slamButton.style.background = '#1a1a1a';
+            slamButton.style.borderColor = '#333';
+        }
+    }
+
+    slamButton.onmouseenter = () => {
+        slamButton.style.transform = 'scale(1.1)';
+    };
+
+    slamButton.onmouseleave = () => {
+        slamButton.style.transform = 'scale(1)';
+    };
+
+    slamButton.onclick = () => {
+        if (window.YAGA) {
+            if (window.YAGA.isActive) {
+                window.YAGA.stop();
+            } else {
+                window.YAGA.start();
+            }
+            updateSlamButton();
+        }
+    };
+
+    setInterval(updateSlamButton, 1000);
+    updateSlamButton();
+
+    slamPanel.appendChild(slamButton);
+
+    // Добавить панель первой среди всех
+    if (window.testContainer && window.testContainer.contentContainer) {
+        window.testContainer.contentContainer.insertBefore(slamPanel, window.testContainer.contentContainer.firstChild);
+    }
+})();
+
 (function() {
     const isDesktop = /Win|Mac|Linux|X11|CrOS/.test(navigator.platform);
     document.documentElement.style.setProperty('font-size', isDesktop ? '0.6rem' : '1rem', 'important');
