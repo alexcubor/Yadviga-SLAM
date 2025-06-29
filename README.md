@@ -43,7 +43,7 @@ graph TD
     K["❓ g2o / ceres / Eigen<br/>Remove drift and errors from all poses and 3D points"]
     
     %% Output
-    P["🎥 Camera Pose<br/>Output"]
+    P["🎥 Camera Pose"]
     Q["⛳️ 3D Environment Map"]
     
     %% Linear pipeline flow
