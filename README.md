@@ -7,6 +7,7 @@ Yadviga-SLAM is a Simultaneous Localization and Mapping (SLAM) system designed s
 ## Pipeline
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '12px', 'fontFamily': 'arial' }}}%%
 graph TD
     %% Input Node
     A["📷 Input Frames"]
@@ -76,7 +77,7 @@ graph TD
     O --- Q
     
     %% Unified styling for all nodes
-    classDef default fill:#253941, stroke-width:0, rx:15,ry:15
+    classDef default fill:#253941, stroke-width:0, rx:15,ry:15,font-size:10px,color:#b2bfc2
     
     %% Styling for arrows
     linkStyle default stroke:#737373,stroke-width:2px
