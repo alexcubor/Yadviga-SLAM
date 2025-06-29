@@ -13,46 +13,34 @@ graph TD
     A["📷 Input Frames"]
     
     %% Feature Detection
-    B["✅ goodFeaturesToTrack<br/>Найти угловые точки<br/>Feature Detection"]
+    B["✅ goodFeaturesToTrack<br/>Find and Initilize good points for Tracking"]
     
     %% Optical Flow
-    C["✅ calcOpticalFlowPyrLK<br/>Отследить точки<br/>Optical Flow"]
+    C["✅ calcOpticalFlowPyrLK<br/>2D Tracking"]
     
     %% Descriptors
-    D["✅ ORB::create + compute<br/>Вычислить дескрипторы<br/>Descriptors"]
+    D["✅ ORB::create + compute<br/>Prepare Detector and Create Descriptors"]
     
     %% Feature Matching
-    E["BFMatcher<br/>Сопоставить дескрипторы<br/>Feature Matching"]
+    E["🛠️ BFMatcher<br/>Match Descriptors with newly found points"]
     
     %% Motion Estimation
-    F["✅ findEssentialMat<br/>Essential Matrix<br/>Motion Estimation"]
+    F["✅ findEssentialMat<br/>Compute camera movement between frames"]
     
     %% Pose Recovery
-    G["✅ recoverPose<br/>R, t матрицы<br/>Pose Recovery"]
+    G["✅ recoverPose<br/>Calculate camera translation and rotation"]
     
     %% 3D Reconstruction
-    H["triangulatePoints<br/>3D координаты<br/>3D Reconstruction"]
+    H["🛠️ triangulatePoints<br/>3D Reconstruction points"]
     
     %% Pose Estimation
-    I["solvePnP<br/>Оценить позу<br/>Pose Estimation"]
+    I["🛠️ solvePnP<br/>Refine camera position using 3D map"]
     
     %% RANSAC Filtering
-    J["solvePnPRansac<br/>Фильтрация выбросов<br/>RANSAC Filtering"]
+    J["🛠️ solvePnPRansac<br/>Remove noise while refining camera position"]
     
     %% Bundle Adjustment
-    K["Bundle Adjustment<br/>Оптимизация позы и точек<br/>Global Optimization"]
-    
-    %% Loop Closure Detection
-    L["Loop Closure Detection<br/>Обнаружение замыкания<br/>Loop Detection"]
-    
-    %% Keyframe Selection
-    M["Keyframe Selection<br/>Выбор ключевых кадров<br/>Keyframe Management"]
-    
-    %% Local Mapping
-    N["Local Mapping<br/>Управление локальной картой<br/>Local Map"]
-    
-    %% Global Optimization
-    O["Global Optimization<br/>Глобальная оптимизация"]
+    K["❓ g2o / ceres / Eigen<br/>Remove drift and errors from all poses and 3D points"]
     
     %% Output
     P["🎥 Camera Pose<br/>Output"]
@@ -69,12 +57,8 @@ graph TD
     H --- I
     I --- J
     J --- K
-    K --- L
-    L --- M
-    M --- N
-    N --- O
-    O --- P
-    O --- Q
+    K --- P
+    K --- Q
     
     %% Unified styling for all nodes
     classDef default fill:#253941, stroke-width:0, rx:10,ry:10,font-size:10px,color:#b2bfc2
