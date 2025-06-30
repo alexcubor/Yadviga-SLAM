@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SLAM Yaga Timeline Editor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #1a1a1a;
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .control-btn {
+            background: #444;
+            color: #ccc;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.8em;
+            font-weight: 300;
+            border: none;
+            border-bottom: 1px solid #333;
+            height: 2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.2rem;
+            width: 100%;
+        }
+        .control-btn:hover {
+            background: #666;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .video-container {
+            flex: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+            height: 100%;
+        }
+        .parameters-panel {
+            background: #181818;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1.5rem;
+            padding: 0.3rem;
+            height: 100%;
+            box-sizing: border-box;
+            border-right: 1px solid #222;
+            z-index: 2;
+            flex-shrink: 1;
+            flex-grow: 1;
+            overflow-y: auto;
+            max-height: 100%;
+            position: relative;
+        }
+
+        .play-btn {
+            background: linear-gradient(135deg, #222 60%, #444 100%);
+            color: #fff;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px #000a;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+            margin: 0;
+        }
+        .play-btn:hover {
+            background: linear-gradient(135deg, #333 60%, #666 100%);
+            box-shadow: 0 4px 16px #000c;
+        }
+        .video-area {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            background: #000;
+            transition: width 0.2s;
+            flex-shrink: 0;
+        }
+        #mainVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+            display: block;
+        }
+        .timeline-container {
+            height: 200px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .timeline-header {
+            display: none !important;
+        }
+        .timeline-tracks {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        .timeline-row {
+            height: 50%;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .timeline-row:last-child {
+            border-bottom: none;
+        }
+        .timeline-label {
+            width: 120px;
+            background: #2a2a2a;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #ccc;
+            border-right: 1px solid #333;
+            flex-shrink: 0;
+        }
+        .timeline-track {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background: #0a0a0a;
+            cursor: pointer;
+        }
+        .sensor-track {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .video-track {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .video-thumbnail {
+            height: 80%;
+            flex: 1;
+            min-width: 0;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            margin: 0 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+        .sensor-data-block {
+            height: 80%;
+            flex: 1;
+            min-width: 0;
+            background: #2a2a2a;
+            border: 1px solid #666;
+            border-radius: 4px;
+            margin: 0 1px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            padding: 2px;
+        }
+        .sensor-data-block:hover {
+            border-color: #888;
+            background: #3a3a3a;
+        }
+        .sensor-data-block.active {
+            border-color: #4CAF50;
+            background: #2d5a2d;
+        }
+        .sensor-value {
+            font-size: 7px;
+            line-height: 1.2;
+            text-align: center;
+        }
+        .video-thumbnail:hover {
+            border-color: #888;
+            background: #444;
+        }
+        .video-thumbnail.active {
+            border-color: #4CAF50;
+            background: #2d5a2d;
+        }
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #ff0000;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .playhead::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -4px;
+            width: 10px;
+            height: 10px;
+            background: #ff4444;
+            border-radius: 50%;
+            border: 2px solid #fff;
+        }
+        .time-ruler {
+            height: 20px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #333;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 120px 0 0;
+            font-size: 10px;
+            color: #ccc;
+        }
+        .time-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #fff;
+            opacity: 0.6;
+            z-index: 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-size: 10px;
+            color: #ccc;
+            padding-bottom: 2px;
+            pointer-events: none;
+        }
+        .frame-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #888;
+            opacity: 0.4;
+            z-index: 1;
+        }
+        .frame-number {
+            position: absolute;
+            bottom: 2px;
+            font-size: 8px;
+            color: #999;
+        }
+        .timeline-track.dragging {
+            cursor: grabbing;
+        }
+        .timeline-track.dragging .playhead {
+            background: #ff6666;
+        }
+        .timeline-track.dragging .playhead::after {
+            background: #ff6666;
+            transform: scale(1.2);
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #4CAF50;
+        }
+        .global-playhead {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 0;
+            height: 100%;
+            z-index: 20;
+        }
+        .global-playhead .playhead-bar {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: #ff4444;
+            border-radius: 2px;
+            margin-left: -2px;
+            pointer-events: none;
+        }
+        .frame-number-display {
+            position: absolute;
+            left: 50%;
+            top: -30px;
+            transform: translateX(-50%);
+            background: #ff4444;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: monospace;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 21;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            border: 1px solid #fff;
+        }
+        .sensor-info {
+            background: #222;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.95em;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .sensor-info div {
+            margin-bottom: 0.5em;
+        }
+        .sensor-info span {
+            color: #4CAF50;
+        }
+        .sensor-raw-block {
+            margin-bottom: 1rem;
+        }
+        .sensor-raw-block b {
+            color: #4CAF50;
+        }
+        #fallbackUpload {
+            background: #181818;
+            border-radius: 8px;
+            max-width: 420px;
+            margin: 3em auto;
+            box-shadow: 0 2px 16px #000a;
+        }
+        .param-label-group {
+            display: flex;
+            align-items: center;
+            height: 1.7em;
+            font-size: 0.92em;
+            color: #b0b0b0;
+            font-family: monospace;
+            text-align: right;
+            gap: 0.5em;
+            border-bottom: 1px solid #00000000;
+        }
+        .param-label-group:last-child {
+            border-bottom: none;
+        }
+        .param-group {
+            font-size: 0.92em;
+            color: #b0b0b0;
+            font-weight: 500;
+            margin-right: 0.3em;
+            font-family: monospace;
+        }
+        .param-label {
+            color: #b0b0b0;
+            font-size: 0.92em;
+            font-family: monospace;
+        }
+        .param-col {
+            display: flex;
+            flex-direction: column;
+            min-width: 70px;
+            margin: 0 0.2em;
+        }
+        .param-cell {
+            background: #444;
+            color: #fff;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.92em;
+            border-bottom: 1px solid #333;
+            height: 1.7em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .param-cell:hover {
+            background: #666;
+        }
+        .param-cell:first-child {
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            border-top: none;
+        }
+        .param-cell:last-child {
+            border-bottom-left-radius: 6px;
+            border-bottom-right-radius: 6px;
+            border-bottom: none;
+        }
+        .sensor-panel {
+            width: 100%;
+            background: #232323;
+            border-radius: 5px;
+            margin-bottom: 1.2em;
+            box-shadow: 0 1px 4px #000a;
+        }
+        .sensor-panel-header {
+            display: flex;
+            align-items: center;
+            font-size: 0.8em;
+            font-family: inherit;
+            color: #e0e0e0;
+            padding: 0.3em 0.7em 0.3em 0.7em;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            user-select: none;
+            letter-spacing: 0.01em;
+        }
+        .sensor-panel-title {
+            margin-left: 0.5em;
+            font-weight: 500;
+            font-size: 1.08em;
+        }
+        #sensorPanelBody {
+            padding: 0.7em;
+        }
+        .param-cell.graph-active {
+            font-weight: bold;
+            color: #fff;
+        }
+        .param-cell.graph-alpha.graph-active { background: #ff5555; color: #fff; }
+        .param-cell.graph-beta.graph-active { background: #ffd600; color: #222; }
+        .param-cell.graph-gamma.graph-active { background: #00bcd4; color: #fff; }
+        .timeline-frame-label {
+            position: absolute;
+            top: 0;
+            color: #fff;
+            font-size: 11px;
+            font-family: monospace;
+            background: rgb(15, 15, 15);
+            border: 0.01em solid #505050;
+            padding: 4px 6px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .timeline-frame-label-left {
+            left: 0;
+            top: 0;
+        }
+        .timeline-frame-label-right {
+            right: 0;
+            top: 0;
+        }
+        .resize-handle {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 6px;
+            background: transparent;
+            cursor: ns-resize;
+            z-index: 10;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+            transition: background 0.2s;
+        }
+        .resize-handle::after {
+            content: '';
+            display: block;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 2.5px;
+            height: 1px;
+            background: #ffffff1a;
+            border-radius: 1px;
+            pointer-events: none;
+        }
+        .track-toggle {
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s ease;
+        }
+        .track-toggle:hover {
+            transform: scale(1.1);
+        }
+        .track-toggle.disabled {
+            background: transparent !important;
+            border: none;
+            opacity: 0.7;
+            z-index: 20;
+        }
+        
+        .track-toggle[data-line="alpha"].disabled {
+            box-shadow: inset 0 0 0 2px #ff5555;
+        }
+        
+        .track-toggle[data-line="beta"].disabled {
+            box-shadow: inset 0 0 0 2px #00c853;
+        }
+        
+        .track-toggle[data-line="gamma"].disabled {
+            box-shadow: inset 0 0 0 2px #2979ff;
+        }
+        
+        .track-toggle[data-track="video"].disabled {
+            box-shadow: inset 0 0 0 2px #4CAF50;
+        }
+        
+        .track-toggle[data-track="fake"].disabled {
+            box-shadow: inset 0 0 0 2px #FF9800;
+        }
+        .track-content.disabled {
+            opacity: 0.3;
+        }
+        /* Bottom controls panel */
+        .bottom-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .buttons-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            width: 100%;
+        }
+        .main-controls-bar {
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin: 0;
+            gap: 0;
+        }
+        .fps-display-main {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            color: #666;
+            background: none !important;
+            font-size: 0.65rem;
+            font-weight: 400;
+            padding: 0 !important;
+            border-radius: 0;
+            box-shadow: none;
+            border: none !important;
+            display: flex;
+            align-items: flex-end;
+            height: 48px;
+            line-height: 1;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div>Loading Timeline Editor...</div>
+    </div>
+    
+    <div class="video-container" id="videoContainer" style="display: none;">
+        <div class="parameters-panel">
+            <div class="sensor-panel">
+                <div class="sensor-panel-header" onclick="toggleSensorPanel()">
+                    <span id="sensorPanelChevron" style="display:inline-block;transition:transform 0.2s;vertical-align:middle;width:15px;height:15px;">
+                        <svg width="15" height="15" viewBox="0 0 22 22" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+                            <polyline points="6,9 11,14 16,9" fill="none" stroke="#b0b0b0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="sensor-panel-title">Sensors</span>
+                </div>
+                <div id="sensorPanelBody">
+                    <div style="display: flex; flex-direction: column; gap: 0.8em; margin-bottom: 1.2em; align-items: flex-end;">
+                        <!-- Orientation -->
+                        <div style="display:flex; flex-direction:row; align-items:flex-start;">
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;margin-right:0.7em;">
+                                <div class="param-label-group"><span class="param-group">Orientation</span> <span class="param-label">Alpha</span></div>
+                                <div class="param-label-group"><span class="param-label">Beta</span></div>
+                                <div class="param-label-group"><span class="param-label">Gamma</span></div>
+                            </div>
+                            <div class="param-col" id="orientation">
+                                <div class="param-cell" id="param-orient-alpha">—</div>
+                                <div class="param-cell" id="param-orient-beta">—</div>
+                                <div class="param-cell" id="param-orient-gamma">—</div>
+                            </div>
+                        </div>
+                        <!-- Acceleration -->
+                        <div style="display:flex; flex-direction:row; align-items:flex-start;">
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;margin-right:0.7em;">
+                                <div class="param-label-group"><span class="param-group">Acceleration</span> <span class="param-label">X</span></div>
+                                <div class="param-label-group"><span class="param-label">Y</span></div>
+                                <div class="param-label-group"><span class="param-label">Z</span></div>
+                            </div>
+                            <div class="param-col" id="acceleration">
+                                <div class="param-cell" id="param-accel-x">—</div>
+                                <div class="param-cell" id="param-accel-y">—</div>
+                                <div class="param-cell" id="param-accel-z">—</div>
+                            </div>
+                        </div>
+                        <!-- Rotation -->
+                        <div style="display:flex; flex-direction:row; align-items:flex-start;">
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;margin-right:0.7em;">
+                                <div class="param-label-group"><span class="param-group">Rotation</span> <span class="param-label">Alpha</span></div>
+                                <div class="param-label-group"><span class="param-label">Beta</span></div>
+                                <div class="param-label-group"><span class="param-label">Gamma</span></div>
+                            </div>
+                            <div class="param-col" id="rotation">
+                                <div class="param-cell" id="param-rot-alpha">—</div>
+                                <div class="param-cell" id="param-rot-beta">—</div>
+                                <div class="param-cell" id="param-rot-gamma">—</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bottom-controls">
+                <div class="buttons-container">
+                    <button id="copyConsoleLogsBtn" class="control-btn" style="margin: 10px 0 0 0; width: 100%;">Copy Console Logs</button>
+                    <button class="control-btn" onclick="downloadVideo()">Download</button>
+                </div>
+                <div class="main-controls-bar">
+                    <button class="play-btn" onclick="togglePlay()" id="mainPlayBtn" aria-label="Play/Pause">
+                        <svg id="playPauseIcon" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="14" cy="14" r="13" fill="#222" stroke="#444" stroke-width="2"/>
+                            <polygon points="11,8 21,14 11,20" fill="#fff"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="fps-display-main" id="fpsDisplayMain">60 FPS</div>
+        </div>
+        <div class="video-area" id="videoArea">
+            <video id="mainVideo">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+    <div id="fallbackUpload" style="display:none;padding:2em;text-align:center;">
+        <h2>Upload video and JSON with raw sensor data</h2>
+        <input type="file" id="fallbackVideo" accept="video/*"><br><br>
+        <input type="file" id="fallbackJson" accept="application/json"><br><br>
+        <button onclick="handleFallbackUpload()">Upload</button>
+        <div id="fallbackError" style="color:#f55;margin-top:1em;"></div>
+    </div>
+    
+    <div class="timeline-container" id="timelineContainer" style="display: none; position: relative;">
+        <div class="time-ruler" id="timeRuler" style="position: relative;">
+            <span>00:00</span>
+            <div class="timeline-frame-label timeline-frame-label-left">0</div>
+            <div class="timeline-frame-label timeline-frame-label-right">0</div>
+        </div>
+        <div class="timeline-tracks">
+            <div class="global-playhead" id="globalPlayhead">
+                <div class="playhead-bar"></div>
+            </div>
+            <div class="track-container">
+                <div class="track-content" style="position:relative; height: 20px;">
+                    <canvas class="track-graph-canvas" id="videoTrackGraph"></canvas>
+                    <div class="resize-handle"></div>
+                    <div class="timeline-track" id="timelineTrack"></div>
+                </div>
+            </div>
+            <div class="track-container">
+                <div class="track-content" style="position:relative; height: 20px;">
+                    <div class="track-toggle" data-track="sensor" data-line="alpha" style="left: 8px; background: #ff5555;"></div>
+                    <div class="track-toggle" data-track="sensor" data-line="beta" style="left: 20px; background: #00c853;"></div>
+                    <div class="track-toggle" data-track="sensor" data-line="gamma" style="left: 32px; background: #2979ff;"></div>
+                    <canvas class="track-graph-canvas" id="sensorTrackGraph"></canvas>
+                    <div class="resize-handle"></div>
+                    <div class="timeline-track" id="sensorTimelineTrack"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data handling ---
+        let videoBlob = null;
+        let sensorData = null;
+        let dataReady = false;
+
+        function tryInitTimelineEditor() {
+            if (videoBlob && sensorData !== null) {
+                try {
+                    localStorage.setItem('slam_yaga_video', videoBlob);
+                    localStorage.setItem('slam_yaga_sensors', typeof sensorData === 'string' ? sensorData : JSON.stringify(sensorData));
+                } catch (e) { /* ignore quota errors */ }
+                initTimelineEditor();
+            }
+        }
+
+        // Handle incoming data from recorder
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'init-data') {
+                videoBlob = e.data.payload.videoUrl;
+                sensorData = e.data.payload.sensors;
+                dataReady = true;
+                tryInitTimelineEditor();
+            }
+        });
+
+        // Notify parent window we're ready
+        if (window.opener) {
+            window.opener.postMessage('ready-for-data', '*');
+        }
+
+        // Load from localStorage on reload
+        window.addEventListener('DOMContentLoaded', function() {
+            if (!dataReady) {
+                const storedVideo = localStorage.getItem('slam_yaga_video');
+                const storedSensors = localStorage.getItem('slam_yaga_sensors');
+                if (storedVideo && storedSensors) {
+                    videoBlob = storedVideo;
+                    sensorData = storedSensors;
+                    dataReady = true;
+                    tryInitTimelineEditor();
+                }
+            }
+            setupLogging();
+        });
+        // Show fallback message if no data
+        setTimeout(() => {
+            if (!dataReady) {
+                const loading = document.getElementById('loading');
+                if (loading) loading.innerHTML = '<div>No data to display. Open recorder tool first.</div>';
+            }
+        }, 1000);
+
+        // --- Utility functions ---
+        function setupLogging() {
+            window._customLogs = [];
+            const origLog = console.log;
+            console.log = function(...args) {
+                window._customLogs.push(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' '));
+                origLog.apply(console, args);
+            };
+            
+            const copyBtn = document.getElementById('copyConsoleLogsBtn');
+            if (copyBtn) {
+                copyBtn.onclick = function() {
+                    const logs = window._customLogs.join('\n');
+                    navigator.clipboard.writeText(logs).then(() => {
+                        const oldText = copyBtn.textContent;
+                        copyBtn.textContent = 'Copied';
+                        setTimeout(() => { copyBtn.textContent = oldText; }, 1000);
+                    });
+                };
+            }
+        }
+        
+        // --- Core variables ---
+        const video = document.getElementById('mainVideo');
+        const timelineTrack = document.getElementById('timelineTrack');
+        const timeRuler = document.getElementById('timeRuler');
+        const sensorTimelineTrack = document.getElementById('sensorTimelineTrack');
+        const loading = document.getElementById('loading');
+        const videoContainer = document.getElementById('videoContainer');
+        const timelineContainer = document.getElementById('timelineContainer');
+        
+        let isPlaying = false;
+        let thumbnailWidth = 120;
+        let totalThumbnails = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartTime = 0;
+        let fps = 60;
+        let frameDuration = 1 / fps;
+        let sensorDataHistory = [];
+        
+        // Make totalThumbnails globally accessible for graph synchronization
+        window.totalThumbnails = totalThumbnails;
+        
+        // Calculate dynamic thumbnail width based on screen width
+        function calculateThumbnailWidth() {
+            const screenWidth = window.innerWidth;
+            const labelWidth = 120; // Width of timeline labels
+            const availableWidth = screenWidth - labelWidth - 40; // 40px for padding/margins
+            
+            if (totalThumbnails > 0) {
+                thumbnailWidth = Math.max(20, availableWidth / totalThumbnails); // Minimum 20px width
+            } else if (video.duration && fps) {
+                const totalFrames = Math.ceil(video.duration * fps);
+                thumbnailWidth = Math.max(20, availableWidth / totalFrames);
+            } else {
+                thumbnailWidth = Math.max(20, availableWidth / 60); // Default to 60 frames
+            }
+            
+            return thumbnailWidth;
+        }
+        
+        // --- Initialization ---
+        async function initTimelineEditor() {
+            try {
+                if (!videoBlob) {
+                    throw new Error('No video data provided');
+                }
+                
+                // Load video from blob URL
+                video.src = videoBlob;
+                
+                // Load sensor data
+                sensorDataHistory = [];
+                if (sensorData) {
+                    try {
+                        sensorDataHistory = typeof sensorData === 'string' ? JSON.parse(sensorData) : sensorData;
+                        console.log('📊 Loaded sensor data:', sensorDataHistory.length, 'data points');
+                    } catch (e) {
+                        console.warn('Failed to parse sensor data:', e);
+                        sensorDataHistory = [];
+                    }
+                }
+                window.sensorDataHistory = sensorDataHistory;
+                
+                // Show the editor
+                loading.style.display = 'none';
+                videoContainer.style.display = 'flex';
+                timelineContainer.style.display = 'flex';
+                
+                // Initialize timeline
+                detectVideoFPS();
+                generateThumbnails();
+            } catch (error) {
+                console.error('Failed to initialize timeline editor:', error);
+                loading.innerHTML = '<div>Error loading video data</div>';
+            }
+        }
+        
+        // Generate video thumbnails
+        function generateThumbnails() {
+            const timeRuler = document.getElementById('timeRuler');
+            if (!timeRuler) {
+                console.warn('timeRuler not found!');
+                return;
+            }
+            // Only proceed if video.duration and fps are available
+            if (!video.duration || !fps) return;
+            
+            let totalFrames = Math.round(video.duration * fps);
+            totalThumbnails = Math.ceil(video.duration * fps);
+            
+            // Find maximum frame number from sensor data
+            if (sensorDataHistory && sensorDataHistory.length > 0) {
+                const maxFrameFromData = Math.max(...sensorDataHistory
+                    .filter(d => d.type === 'deviceorientation' && typeof d.frame === 'number')
+                    .map(d => d.frame), 0);
+                totalFrames = Math.max(totalFrames, maxFrameFromData + 1);
+                totalThumbnails = Math.max(totalThumbnails, maxFrameFromData + 1);
+            }
+            
+            // Update global variable for graph synchronization
+            window.totalThumbnails = totalThumbnails;
+            
+            if (totalThumbnails === 0) return;
+            
+            // Generate time ruler with frame divisions
+            generateTimeRuler(video.duration);
+            // Update playhead after generating timeline
+            updatePlayhead();
+            setTimeout(drawTrackGraph, 0);
+            updateTimelineFrameLabels(totalFrames);
+        }
+        
+        function generateTimeRuler(duration) {
+            timeRuler.innerHTML = '';
+            const timelineWidth = timeRuler.offsetWidth || timeRuler.clientWidth || timeRuler.parentElement.offsetWidth;
+            // Frame markers (every N frames)
+            const frameMarkerInterval = Math.max(1, Math.floor(totalThumbnails / (timelineWidth / 10)));
+            for (let i = 0; i < totalThumbnails; i += frameMarkerInterval) {
+                const marker = document.createElement('div');
+                marker.className = 'frame-marker';
+                const percent = (i / (totalThumbnails - 1)) * 100;
+                marker.style.left = percent + '%';
+                timeRuler.appendChild(marker);
+            }
+            // Second markers
+            for (let i = 0; i <= Math.ceil(duration); i++) {
+                const marker = document.createElement('div');
+                marker.className = 'time-marker';
+                const percent = (i / duration) * 100;
+                marker.style.left = percent + '%';
+                marker.textContent = `${i}:${(i*0).toString().padStart(2, '0')}`;
+                timeRuler.appendChild(marker);
+            }
+        }
+        
+        function seekToPosition(clientX) {
+            const thumbnailWidth = calculateThumbnailWidth();
+            const rect = timelineTrack.getBoundingClientRect();
+            const relativeX = clientX - rect.left;
+            const trackWidth = totalThumbnails * thumbnailWidth;
+            
+            if (trackWidth > 0) {
+                const progress = Math.max(0, Math.min(1, relativeX / trackWidth));
+                const newTime = progress * video.duration;
+                
+                // Snap to nearest frame
+                const snappedTime = snapToFrame(newTime);
+                video.currentTime = snappedTime;
+                updatePlayhead();
+            }
+        }
+        
+        // Snap time to nearest frame
+        function snapToFrame(time) {
+            const frameTime = Math.round(time * fps) / fps;
+            return Math.max(0, Math.min(video.duration, frameTime));
+        }
+        
+        // --- Playhead management ---
+        const globalPlayhead = document.getElementById('globalPlayhead');
+        const timelineTracks = document.querySelector('.timeline-tracks');
+        let playheadDragging = false;
+
+        // Create playhead structure if not exists
+        if (!globalPlayhead.querySelector('.playhead-bar')) {
+            const playheadBar = document.createElement('div');
+            playheadBar.className = 'playhead-bar';
+            globalPlayhead.appendChild(playheadBar);
+        }
+
+        function playheadDragStart(e) {
+            playheadDragging = true;
+            document.body.style.userSelect = 'none';
+            if (!video.paused) video.pause();
+            movePlayheadToEvent(e);
+        }
+
+        function playheadDragMove(e) {
+            if (!playheadDragging) return;
+            movePlayheadToEvent(e);
+        }
+
+        function playheadDragEnd() {
+            if (playheadDragging) {
+                playheadDragging = false;
+                document.body.style.userSelect = '';
+                const currentFrame = Math.round(video.currentTime * fps);
+                video.currentTime = currentFrame / fps;
+                updatePlayhead();
+            }
+        }
+
+        function movePlayheadToEvent(e) {
+            const tracksRect = timelineTracks.getBoundingClientRect();
+            let clientX;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                e.preventDefault();
+            } else {
+                clientX = e.clientX;
+            }
+            const x = Math.max(0, Math.min(tracksRect.width, clientX - tracksRect.left));
+            const percent = x / tracksRect.width;
+            const newTime = percent * video.duration;
+            const snappedTime = snapToFrame(newTime);
+            video.currentTime = snappedTime;
+            updatePlayhead();
+        }
+
+        // Event listeners for playhead dragging
+        timelineTracks.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            playheadDragStart(e);
+        });
+        
+        const timeRulerEl = document.getElementById('timeRuler');
+        if (timeRulerEl) {
+            timeRulerEl.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                playheadDragStart(e);
+            });
+            timeRulerEl.addEventListener('touchstart', playheadDragStart);
+        }
+        
+        window.addEventListener('mousemove', playheadDragMove);
+        window.addEventListener('mouseup', playheadDragEnd);
+        timelineTracks.addEventListener('touchstart', playheadDragStart);
+        window.addEventListener('touchmove', playheadDragMove, {passive:false});
+        window.addEventListener('touchend', playheadDragEnd);
+
+        function updatePlayhead() {
+            if (!video.duration) return;
+            
+            const progress = video.currentTime / video.duration;
+            const percent = Math.max(0, Math.min(1, progress)) * 100;
+            globalPlayhead.style.left = percent + '%';
+            
+            // Update time display
+            const currentFrame = Math.round(video.currentTime * fps);
+            const snappedTime = currentFrame / fps;
+            const minutes = Math.floor(snappedTime / 60);
+            const seconds = Math.floor(snappedTime % 60);
+            const frame = currentFrame % fps;
+            const timeDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}.${frame.toString().padStart(2, '0')}`;
+            const timeDisplayElement = timeRuler.querySelector('span');
+            if (timeDisplayElement) {
+                timeDisplayElement.textContent = timeDisplay;
+            }
+            
+            // Frame number display
+            let altFrameDisplay = document.querySelector('.alt-frame-display');
+            if (!altFrameDisplay) {
+                altFrameDisplay = document.createElement('div');
+                altFrameDisplay.className = 'alt-frame-display';
+                altFrameDisplay.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    background: #ff4444;
+                    color: #fff;
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    font-family: monospace;
+                    z-index: 10000;
+                    pointer-events: none;
+                    transform: translateX(-50%);
+                `;
+                timelineContainer.appendChild(altFrameDisplay);
+            }
+            altFrameDisplay.textContent = `${currentFrame}`;
+            altFrameDisplay.style.left = percent + '%';
+            altFrameDisplay.style.fontSize = '11px';
+            
+            // Update sensor data
+            updateSensorInfo(snappedTime);
+        }
+        
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+                isPlaying = true;
+            } else {
+                video.pause();
+                isPlaying = false;
+            }
+        }
+        
+        function downloadVideo() {
+            const a = document.createElement('a');
+            a.href = video.src;
+            a.download = 'SLAM_Yaga_Recording.mp4';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        
+        // Update FPS display
+        function updateFPSDisplay() {
+            const fpsDisplayMain = document.getElementById('fpsDisplayMain');
+            if (fpsDisplayMain) fpsDisplayMain.textContent = `${fps} FPS`;
+        }
+        
+        // Detect actual FPS from video or sensor data
+        function detectVideoFPS() {
+            // Try to get FPS from sensor data first
+            if (sensorDataHistory && sensorDataHistory.length > 0) {
+                // Calculate FPS from sensor data timestamps
+                const firstTimestamp = sensorDataHistory[0].timestamp;
+                const lastTimestamp = sensorDataHistory[sensorDataHistory.length - 1].timestamp;
+                const timeSpan = (lastTimestamp - firstTimestamp) / 1000; // Convert to seconds
+                const dataPoints = sensorDataHistory.length;
+                
+                if (timeSpan > 0 && dataPoints > 1) {
+                    const calculatedFPS = Math.round(dataPoints / timeSpan);
+                    if (calculatedFPS > 0 && calculatedFPS <= 120) { // Reasonable FPS range
+                        fps = calculatedFPS;
+                        console.log('Detected FPS from sensor data:', fps);
+                    }
+                }
+            }
+            
+            // If no FPS detected from sensor data, use default
+            if (!fps || fps <= 0) {
+                fps = 60;
+                console.log('Using default FPS:', fps);
+            }
+            
+            frameDuration = 1 / fps;
+            window.fps = fps; // Make fps globally accessible
+            updateFPSDisplay();
+        }
+        
+        // Drag and drop functionality
+        function startDragging(e) {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartTime = video.currentTime;
+            
+            timelineTrack.classList.add('dragging');
+            sensorTimelineTrack.classList.add('dragging');
+            document.body.style.userSelect = 'none';
+            
+            // Pause video during dragging
+            if (!video.paused) {
+                video.pause();
+            }
+            
+            seekToPosition(e.clientX);
+        }
+        
+        function stopDragging() {
+            if (isDragging) {
+                isDragging = false;
+                timelineTrack.classList.remove('dragging');
+                sensorTimelineTrack.classList.remove('dragging');
+                document.body.style.userSelect = '';
+                
+                // Snap to exact frame position
+                const currentFrame = Math.round(video.currentTime * fps);
+                video.currentTime = currentFrame / fps;
+                updatePlayhead();
+                
+                // Resume video if it was playing before
+                if (isPlaying) {
+                    video.play();
+                }
+            }
+        }
+        
+        function handleDrag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                seekToPosition(e.clientX);
+            }
+        }
+        
+        // Event listeners
+        video.addEventListener('loadedmetadata', () => {
+            detectVideoFPS();
+            // Only call generateThumbnails if duration is available
+            if (video.duration && fps) {
+                generateThumbnails();
+            }
+        });
+        video.addEventListener('timeupdate', updatePlayhead);
+        video.addEventListener('play', () => isPlaying = true);
+        video.addEventListener('pause', () => isPlaying = false);
+        
+        // Timeline drag events
+        timelineTrack.addEventListener('mousedown', startDragging);
+        sensorTimelineTrack.addEventListener('mousedown', startDragging);
+        document.addEventListener('mousemove', handleDrag);
+        document.addEventListener('mouseup', stopDragging);
+        
+        // Touch events for mobile
+        timelineTrack.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startDragging(e.touches[0]);
+        });
+        sensorTimelineTrack.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startDragging(e.touches[0]);
+        });
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            handleDrag(e.touches[0]);
+        });
+        document.addEventListener('touchend', stopDragging);
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (video.duration && totalThumbnails) {
+                generateThumbnails();
+                updatePlayhead();
+            }
+        });
+        
+        // Initialize when page loads
+        window.addEventListener('load', initTimelineEditor);
+
+        // --- Video area sizing ---
+        function updateVideoAreaSize() {
+            const video = document.getElementById('mainVideo');
+            const videoArea = document.getElementById('videoArea');
+            const videoContainer = document.getElementById('videoContainer');
+            if (!video || !videoArea || !videoContainer) return;
+            
+            const containerHeight = videoContainer.clientHeight;
+            let aspect = 16/9;
+            if (video.videoWidth && video.videoHeight) {
+                aspect = video.videoWidth / video.videoHeight;
+            }
+            const areaWidth = Math.round(containerHeight * aspect);
+            videoArea.style.width = areaWidth + 'px';
+        }
+        
+        // Update on video load and window resize
+        document.getElementById('mainVideo').addEventListener('loadedmetadata', updateVideoAreaSize);
+        window.addEventListener('resize', updateVideoAreaSize);
+        
+        // Update after showing the container
+        const observer = new MutationObserver(updateVideoAreaSize);
+        observer.observe(document.getElementById('videoContainer'), {attributes: true, attributeFilter: ['style']});
+
+        // --- Sensor info update ---
+        function updateSensorInfo(currentTime) {
+            const frame = Math.round(currentTime * fps);
+            const data = window.sensorDataHistory;
+            const closest = data.find(d => d.frame === frame);
+            
+            const elements = {
+                orient: ['param-orient-alpha', 'param-orient-beta', 'param-orient-gamma'],
+                accel: ['param-accel-x', 'param-accel-y', 'param-accel-z'],
+                rot: ['param-rot-alpha', 'param-rot-beta', 'param-rot-gamma']
+            };
+            
+            if (!closest) {
+                Object.values(elements).flat().forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '—';
+                });
+                return;
+            }
+            
+            // Orientation
+            const orientValues = closest.type === 'deviceorientation' ? 
+                [closest.alpha, closest.beta, closest.gamma] :
+                closest.orientation ? 
+                [closest.orientation.alpha, closest.orientation.beta, closest.orientation.gamma] : 
+                [null, null, null];
+            
+            elements.orient.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = orientValues[i] ? `${orientValues[i].toFixed(1)}°` : '—';
+            });
+            
+            // Acceleration
+            const accelValues = closest.acceleration ? 
+                [closest.acceleration.x, closest.acceleration.y, closest.acceleration.z] : 
+                [null, null, null];
+            
+            elements.accel.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = accelValues[i] ? accelValues[i].toFixed(2) : '—';
+            });
+            
+            // Rotation
+            const rotValues = closest.rotationRate ? 
+                [closest.rotationRate.alpha, closest.rotationRate.beta, closest.rotationRate.gamma] : 
+                [null, null, null];
+            
+            elements.rot.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = rotValues[i] ? rotValues[i].toFixed(2) : '—';
+            });
+        }
+
+        // --- Fallback upload ---
+        function showFallbackUpload() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('fallbackUpload').style.display = 'block';
+            document.getElementById('videoContainer').style.display = 'none';
+            document.getElementById('timelineContainer').style.display = 'none';
+        }
+        
+        async function handleFallbackUpload() {
+            const videoInput = document.getElementById('fallbackVideo');
+            const jsonInput = document.getElementById('fallbackJson');
+            const errorDiv = document.getElementById('fallbackError');
+            errorDiv.textContent = '';
+            
+            if (!videoInput.files[0] || !jsonInput.files[0]) {
+                errorDiv.textContent = 'Select both files!';
+                return;
+            }
+            
+            const videoFile = videoInput.files[0];
+            const jsonFile = jsonInput.files[0];
+            const videoUrl = URL.createObjectURL(videoFile);
+            
+            try {
+                const text = await jsonFile.text();
+                const sensors = JSON.parse(text);
+                
+                videoBlob = videoUrl;
+                sensorData = sensors;
+                dataReady = true;
+                document.getElementById('fallbackUpload').style.display = 'none';
+                tryInitTimelineEditor();
+            } catch (e) {
+                errorDiv.textContent = 'JSON reading error: ' + e;
+            }
+        }
+
+        // Show fallback upload if no data
+        setTimeout(() => {
+            if (!dataReady) {
+                showFallbackUpload();
+            }
+        }, 1000);
+
+        // --- UI helpers ---
+        function toggleSensorPanel() {
+            const body = document.getElementById('sensorPanelBody');
+            const chevron = document.getElementById('sensorPanelChevron');
+            const header = chevron.parentElement;
+            
+            if (body.style.display === 'none') {
+                body.style.display = '';
+                chevron.style.transform = 'rotate(0deg)';
+                header.style.borderBottom = '1px solid #333';
+            } else {
+                body.style.display = 'none';
+                chevron.style.transform = 'rotate(-90deg)';
+                header.style.borderBottom = 'none';
+            }
+        }
+
+        function normalize180(v) {
+            return ((v + 180) % 360 + 360) % 360 - 180;
+        }
+
+        window.enabledOrientationGraphs = { alpha: true, beta: true, gamma: true };
+
+        function setOrientationGraphHandlers() {
+            const cells = [
+                {id: 'param-orient-alpha', key: 'alpha', className: 'graph-alpha'},
+                {id: 'param-orient-beta', key: 'beta', className: 'graph-beta'},
+                {id: 'param-orient-gamma', key: 'gamma', className: 'graph-gamma'}
+            ];
+            
+            cells.forEach(({id, className}) => {
+                const cell = document.getElementById(id);
+                if (cell) {
+                    cell.classList.add(className);
+                    cell.style.cursor = '';
+                    cell.onclick = null;
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', setOrientationGraphHandlers);
+
+        function drawTrackGraph() {
+            // Sensor Motion Data
+            const sensorCanvas = document.getElementById('sensorTrackGraph');
+            if (sensorCanvas) {
+                const timelineTracks = document.querySelector('.timeline-tracks');
+                const tracksRect = timelineTracks.getBoundingClientRect();
+                const sensorTrackContent = sensorCanvas.closest('.track-content');
+                const sensorHeight = sensorTrackContent ? sensorTrackContent.offsetHeight : 20;
+                
+                sensorCanvas.width = Math.round(tracksRect.width);
+                sensorCanvas.height = sensorHeight;
+                sensorCanvas.style.width = tracksRect.width + 'px';
+                sensorCanvas.style.height = sensorHeight + 'px';
+                
+                const ctx = sensorCanvas.getContext('2d');
+                ctx.clearRect(0, 0, sensorCanvas.width, sensorCanvas.height);
+
+                const data = window.sensorDataHistory;
+                let duration = window.video?.duration;
+                let fps = window.fps || 60;
+                let totalFrames = Math.round((duration || 1) * fps);
+                
+                // Find maximum frame number from real data
+                const maxFrameFromData = Math.max(...data
+                    .filter(d => d.type === 'deviceorientation' && typeof d.frame === 'number')
+                    .map(d => d.frame), 0);
+                
+                // Use maximum frame from data or video, whichever is larger
+                totalFrames = Math.max(totalFrames, maxFrameFromData + 1);
+                
+                // Use the same totalFrames as in timeline for proper alignment
+                if (window.totalThumbnails && window.totalThumbnails > totalFrames) {
+                    totalFrames = window.totalThumbnails;
+                }
+                
+                // Ensure minimum totalFrames for proper scaling
+                if (totalFrames < 1) totalFrames = 1;
+                
+                const minY = -180, maxY = 180;
+                const colorMap = { alpha: '#ff5555', beta: '#00c853', gamma: '#2979ff' };
+                
+                ['alpha', 'beta', 'gamma'].forEach(key => {
+                    if (!window.lineVisibility || !window.lineVisibility[key]) return;
+                    
+                    ctx.save();
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = colorMap[key];
+                    ctx.fillStyle = colorMap[key];
+                    
+                    const points = data.filter(d => 
+                        d.type === 'deviceorientation' && 
+                        typeof d.frame === 'number' && 
+                        typeof d[key] === 'number' && 
+                        !isNaN(d[key])
+                    );
+                    
+                    if (points.length === 0) { ctx.restore(); return; }
+                    
+                    // Draw lines
+                    let prev = null;
+                    for (const pt of points) {
+                        const pixelPerFrame = sensorCanvas.width / (totalFrames - 1);
+                        const x = pt.frame * pixelPerFrame;
+                        const y = sensorCanvas.height - ((normalize180(pt[key]) - minY) / (maxY - minY)) * sensorCanvas.height;
+                        
+                        if (prev === null) {
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                        }
+                        prev = {x, y};
+                    }
+                    
+                    // Draw points
+                    for (const pt of points) {
+                        const pixelPerFrame = sensorCanvas.width / (totalFrames - 1);
+                        const x = pt.frame * pixelPerFrame;
+                        const y = sensorCanvas.height - ((normalize180(pt[key]) - minY) / (maxY - minY)) * sensorCanvas.height;
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                    
+                    ctx.restore();
+                });
+
+                // Track title
+                ctx.save();
+                ctx.font = 'bold 13px monospace';
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText('Sensor Motion Data', 8, 8);
+                ctx.restore();
+            }
+            
+            // Video Track
+            const videoCanvas = document.getElementById('videoTrackGraph');
+            if (videoCanvas) {
+                const timelineTracks = document.querySelector('.timeline-tracks');
+                const tracksRect = timelineTracks.getBoundingClientRect();
+                const videoTrackContent = videoCanvas.closest('.track-content');
+                const videoHeight = videoTrackContent ? videoTrackContent.offsetHeight : 20;
+                
+                videoCanvas.width = Math.round(tracksRect.width);
+                videoCanvas.height = videoHeight;
+                videoCanvas.style.width = tracksRect.width + 'px';
+                videoCanvas.style.height = videoHeight + 'px';
+                
+                const ctx = videoCanvas.getContext('2d');
+                ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
+                
+                // Track title and Binary data
+                ctx.save();
+                ctx.font = 'bold 13px monospace';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = '#fff';
+                ctx.fillText('Video Track', 8, 8);
+                
+                const videoTrackWidth = ctx.measureText('Video Track').width;
+                ctx.font = '11px monospace';
+                ctx.fillStyle = '#ff4444';
+                ctx.fillText('Binary data', 8 + videoTrackWidth + 12, 9);
+                ctx.restore();
+            }
+        }
+        // Also call drawTrackGraph after video metadata loads
+        video.addEventListener('loadedmetadata', () => setTimeout(drawTrackGraph, 0));
+
+        function updateTimelineFrameLabels(totalFrames) {
+            let leftLabel = document.querySelector('.timeline-frame-label-left');
+            let rightLabel = document.querySelector('.timeline-frame-label-right');
+            if (!leftLabel) {
+                leftLabel = document.createElement('div');
+                leftLabel.className = 'timeline-frame-label timeline-frame-label-left';
+                document.querySelector('.time-ruler').appendChild(leftLabel);
+            }
+            if (!rightLabel) {
+                rightLabel = document.createElement('div');
+                rightLabel.className = 'timeline-frame-label timeline-frame-label-right';
+                document.querySelector('.time-ruler').appendChild(rightLabel);
+            }
+            leftLabel.textContent = '0';
+            rightLabel.textContent = (totalFrames - 1).toString();
+        }
+
+
+
+        // --- Track management ---
+        (function() {
+            // Track visibility state
+            window.trackVisibility = { video: true, sensor: true, fake: true };
+            window.lineVisibility = { alpha: true, beta: true, gamma: true };
+            
+            function saveTrackVisibility() {
+                localStorage.setItem('slam_yaga_track_visibility', JSON.stringify(window.trackVisibility));
+                localStorage.setItem('slam_yaga_line_visibility', JSON.stringify(window.lineVisibility));
+            }
+            
+            function loadTrackVisibility() {
+                try {
+                    const saved = localStorage.getItem('slam_yaga_track_visibility');
+                    if (saved) window.trackVisibility = {...window.trackVisibility, ...JSON.parse(saved)};
+                    
+                    const savedLines = localStorage.getItem('slam_yaga_line_visibility');
+                    if (savedLines) window.lineVisibility = {...window.lineVisibility, ...JSON.parse(savedLines)};
+                } catch (e) {
+                    console.warn('Failed to load track visibility:', e);
+                }
+            }
+            
+            function setupTrackToggles() {
+                document.querySelectorAll('.track-toggle').forEach(toggle => {
+                    const trackType = toggle.getAttribute('data-track');
+                    const lineType = toggle.getAttribute('data-line');
+                    const trackContent = toggle.closest('.track-content');
+                    
+                    // Set initial state
+                    if (!window.trackVisibility[trackType]) {
+                        toggle.classList.add('disabled');
+                        trackContent.classList.add('disabled');
+                    }
+                    if (lineType && lineType !== 'all' && !window.lineVisibility[lineType]) {
+                        toggle.classList.add('disabled');
+                    }
+                    
+                    let isDragging = false;
+                    let startY = 0;
+                    
+                    toggle.addEventListener('mousedown', e => {
+                        startY = e.clientY;
+                        isDragging = false;
+                        e.stopPropagation();
+                    });
+                    
+                    toggle.addEventListener('mousemove', e => {
+                        if (Math.abs(e.clientY - startY) > 5) isDragging = true;
+                        e.stopPropagation();
+                    });
+                    
+                    toggle.addEventListener('mouseup', e => {
+                        if (!isDragging) {
+                            if (trackType === 'sensor' && lineType) {
+                                const isEnabled = !toggle.classList.contains('disabled');
+                                if (isEnabled) {
+                                    toggle.classList.add('disabled');
+                                    window.lineVisibility[lineType] = false;
+                                } else {
+                                    toggle.classList.remove('disabled');
+                                    window.lineVisibility[lineType] = true;
+                                }
+                            } else {
+                                const isEnabled = !toggle.classList.contains('disabled');
+                                if (isEnabled) {
+                                    toggle.classList.add('disabled');
+                                    trackContent.classList.add('disabled');
+                                    window.trackVisibility[trackType] = false;
+                                } else {
+                                    toggle.classList.remove('disabled');
+                                    trackContent.classList.remove('disabled');
+                                    window.trackVisibility[trackType] = true;
+                                }
+                            }
+                            saveTrackVisibility();
+                            if (typeof drawTrackGraph === 'function') setTimeout(drawTrackGraph, 0);
+                        }
+                        isDragging = false;
+                        e.stopPropagation();
+                    });
+                });
+            }
+            
+            function saveTrackHeights() {
+                const heights = {};
+                document.querySelectorAll('.track-content').forEach((trackContent, index) => {
+                    heights[`track_${index}`] = trackContent.offsetHeight;
+                });
+                localStorage.setItem('slam_yaga_track_heights', JSON.stringify(heights));
+            }
+            
+            function loadTrackHeights() {
+                try {
+                    const saved = localStorage.getItem('slam_yaga_track_heights');
+                    if (saved) {
+                        const heights = JSON.parse(saved);
+                        document.querySelectorAll('.track-content').forEach((trackContent, index) => {
+                            const savedHeight = heights[`track_${index}`];
+                            if (savedHeight && savedHeight >= 12 && savedHeight <= 80) {
+                                trackContent.style.height = savedHeight + 'px';
+                                const canvas = trackContent.querySelector('.track-graph-canvas');
+                                if (canvas) {
+                                    canvas.style.height = savedHeight + 'px';
+                                    canvas.height = savedHeight;
+                                }
+                            }
+                        });
+                        if (typeof drawTrackGraph === 'function') setTimeout(drawTrackGraph, 0);
+                    }
+                } catch (e) {
+                    console.warn('Failed to load track heights:', e);
+                }
+            }
+            
+            function setupResizeHandles() {
+                document.querySelectorAll('.track-content').forEach(trackContent => {
+                    const handle = trackContent.querySelector('.resize-handle');
+                    const canvas = trackContent.querySelector('.track-graph-canvas');
+                    if (!handle || !canvas) return;
+                    
+                    let startY = 0, startHeight = 0, isResizing = false;
+                    
+                    function onMouseDown(e) {
+                        isResizing = true;
+                        startY = e.touches ? e.touches[0].clientY : e.clientY;
+                        startHeight = trackContent.offsetHeight;
+                        document.body.style.userSelect = 'none';
+                        e.preventDefault();
+                    }
+                    
+                    function onMouseMove(e) {
+                        if (!isResizing) return;
+                        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                        const newHeight = Math.max(12, Math.min(80, startHeight + (clientY - startY)));
+                        trackContent.style.height = newHeight + 'px';
+                        canvas.style.height = newHeight + 'px';
+                        canvas.height = newHeight;
+                        if (typeof drawTrackGraph === 'function') drawTrackGraph();
+                    }
+                    
+                    function onMouseUp() {
+                        if (!isResizing) return;
+                        isResizing = false;
+                        document.body.style.userSelect = '';
+                        saveTrackHeights();
+                    }
+                    
+                    handle.addEventListener('mousedown', onMouseDown);
+                    handle.addEventListener('touchstart', onMouseDown, {passive:false});
+                    window.addEventListener('mousemove', onMouseMove);
+                    window.addEventListener('touchmove', onMouseMove, {passive:false});
+                    window.addEventListener('mouseup', onMouseUp);
+                    window.addEventListener('touchend', onMouseUp);
+                });
+            }
+            
+            // Initialize on page load
+            document.addEventListener('DOMContentLoaded', () => {
+                loadTrackVisibility();
+                loadTrackHeights();
+                setupTrackToggles();
+                setupResizeHandles();
+            });
+            
+            // Export functions for dynamic use
+            window.setupResizeHandles = setupResizeHandles;
+            window.saveTrackHeights = saveTrackHeights;
+            window.loadTrackHeights = loadTrackHeights;
+            window.setupTrackToggles = setupTrackToggles;
+        })();
+
+        // --- Play/Pause icon management ---
+        const mainPlayBtn = document.getElementById('mainPlayBtn');
+        const playPauseIcon = document.getElementById('playPauseIcon');
+        
+        function setPlayPauseIcon(isPlaying) {
+            if (!playPauseIcon) return;
+            if (isPlaying) {
+                playPauseIcon.innerHTML = `
+                    <circle cx="14" cy="14" r="13" fill="#222" stroke="#444" stroke-width="2"/>
+                    <rect x="9" y="8" width="3.8" height="12" rx="1.2" fill="#fff"/>
+                    <rect x="15.2" y="8" width="3.8" height="12" rx="1.2" fill="#fff"/>
+                `;
+            } else {
+                playPauseIcon.innerHTML = `
+                    <circle cx="14" cy="14" r="13" fill="#222" stroke="#444" stroke-width="2"/>
+                    <polygon points="11,8 21,14 11,20" fill="#fff"/>
+                `;
+            }
+        }
+        
+        // Synchronize icon when video state changes
+        video.addEventListener('play', () => setPlayPauseIcon(true));
+        video.addEventListener('pause', () => setPlayPauseIcon(false));
+        setPlayPauseIcon(false);
+    </script>
+</body>
+</html> 
