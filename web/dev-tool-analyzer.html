@@ -1,0 +1,2683 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Yadviga Analyzer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #1a1a1a;
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .control-btn {
+            background: #444;
+            color: #ccc;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.8em;
+            font-weight: 300;
+            border: none;
+            border-bottom: 1px solid #333;
+            height: 2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.2rem;
+            width: 100%;
+        }
+        .control-btn:hover {
+            background: #666;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .video-container {
+            flex: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+            height: 100%;
+        }
+        .parameters-panel {
+            background: #181818;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 0.3rem;
+            height: 100%;
+            box-sizing: border-box;
+            border-right: 1px solid #222;
+            z-index: 2;
+            flex-shrink: 0;
+            flex-grow: 0;
+            overflow-y: auto;
+            max-height: 100%;
+            position: relative;
+            width: 45ch;
+        }
+        .parameters-scroll {
+            flex: 1 1 auto;
+            width: 100%;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .bottom-controls {
+            flex-shrink: 0;
+            background: #1f1f1f;
+            border-radius: 5px;
+            padding: 0.7em 0;
+            margin-top: 0.3em;
+            box-shadow: 0 1px 4px #000a;
+        }
+
+        .play-btn {
+            background: linear-gradient(135deg, #222 60%, #444 100%);
+            outline-width: 1px;
+            outline-color: #444;
+            outline-style: solid;
+            color: #fff;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px #000a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+            margin: 0;
+        }
+        .play-btn:hover {
+            background: linear-gradient(135deg, #333 60%, #666 100%);
+            box-shadow: 0 4px 16px #000c;
+        }
+        .video-area {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            background: #000;
+            transition: width 0.2s;
+            flex-shrink: 1;
+            flex-grow: 1;
+        }
+        #mainVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+            display: block;
+        }
+        .timeline-container {
+            height: 200px;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .timeline-header {
+            display: none !important;
+        }
+        .timeline-tracks {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: #666 #1a1a1a;
+        }
+        
+        .timeline-tracks::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .timeline-tracks::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        .timeline-tracks::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 4px;
+        }
+        
+        .timeline-tracks::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+        .timeline-row {
+            height: 50%;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .timeline-row:last-child {
+            border-bottom: none;
+        }
+        .timeline-label {
+            width: 120px;
+            background: #2a2a2a;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #ccc;
+            border-right: 1px solid #333;
+            flex-shrink: 0;
+        }
+        .timeline-track {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+            background: transparent;
+            cursor: pointer;
+            display: block;
+            pointer-events: auto;
+        }
+        .sensor-track {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .video-track {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .video-thumbnail {
+            height: 80%;
+            flex: 1;
+            min-width: 0;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            margin: 0 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+        .sensor-data-block {
+            height: 80%;
+            flex: 1;
+            min-width: 0;
+            background: #2a2a2a;
+            border: 1px solid #666;
+            border-radius: 4px;
+            margin: 0 1px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            padding: 2px;
+        }
+        .sensor-data-block:hover {
+            border-color: #888;
+            background: #3a3a3a;
+        }
+        .sensor-data-block.active {
+            border-color: #4CAF50;
+            background: #2d5a2d;
+        }
+        .sensor-value {
+            font-size: 7px;
+            line-height: 1.2;
+            text-align: center;
+        }
+        .video-thumbnail:hover {
+            border-color: #888;
+            background: #444;
+        }
+        .video-thumbnail.active {
+            border-color: #4CAF50;
+            background: #2d5a2d;
+        }
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #ff0000;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .playhead::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -4px;
+            width: 10px;
+            height: 10px;
+            background: #ff4444;
+            border-radius: 50%;
+            border: 2px solid #fff;
+        }
+        .time-ruler {
+            height: 20px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #333;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 120px 0 0;
+            font-size: 10px;
+            color: #ccc;
+        }
+        .time-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #fff;
+            opacity: 0.6;
+            z-index: 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-size: 10px;
+            color: #ccc;
+            padding-bottom: 2px;
+            pointer-events: none;
+        }
+        .frame-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #888;
+            opacity: 0.4;
+            z-index: 1;
+        }
+        .frame-number {
+            position: absolute;
+            bottom: 2px;
+            font-size: 8px;
+            color: #999;
+        }
+        .timeline-track.dragging {
+            cursor: grabbing;
+        }
+        .timeline-track.dragging .playhead {
+            background: #ff6666;
+        }
+        .timeline-track.dragging .playhead::after {
+            background: #ff6666;
+            transform: scale(1.2);
+        }
+        
+        .timeline-tracks.dragging {
+            cursor: grabbing;
+        }
+        
+        .timeline-tracks.dragging .global-playhead .playhead-bar {
+            background: #ff6666;
+            box-shadow: 0 0 6px rgba(255, 102, 102, 0.7);
+            transform: scale(1.1);
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #4CAF50;
+        }
+        .global-playhead {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 0;
+            height: 100%;
+            z-index: 20;
+            pointer-events: none;
+            transition: none;
+            will-change: left;
+        }
+        .global-playhead .playhead-bar {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: #ff4444;
+            border-radius: 2px;
+            margin-left: -2px;
+            pointer-events: none;
+            box-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
+        }
+        .frame-number-display {
+            position: absolute;
+            left: 50%;
+            top: -30px;
+            transform: translateX(-50%);
+            background: #ff4444;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: monospace;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 21;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            border: 1px solid #fff;
+        }
+        .sensor-info {
+            background: #222;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.95em;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .sensor-info div {
+            margin-bottom: 0.5em;
+        }
+        .sensor-info span {
+            color: #4CAF50;
+        }
+        .sensor-raw-block {
+            margin-bottom: 1rem;
+        }
+        .sensor-raw-block b {
+            color: #4CAF50;
+        }
+        #fallbackUpload {
+            background: #181818;
+            border-radius: 8px;
+            max-width: 420px;
+            margin: 3em auto;
+            box-shadow: 0 2px 16px #000a;
+        }
+        .param-label-group, .param-cell {
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 0 8px;
+            height: 1.7em;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .param-label-group {
+            justify-content: flex-end;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 0.92em;
+        }
+        .param-cell {
+            justify-content: flex-start;
+            text-align: left;
+            background: #444;
+            color: #fff;
+            font-family: monospace;
+            font-size: 0.92em;
+            border: 1px solid #333;
+            padding: 0 12px;
+            height: 1.7em;
+            transition: background 0.15s;
+        }
+        .param-cell:hover {
+            background: #666;
+        }
+        /* First row value cell: both top corners rounded */
+        .data-panel-body-grid > .param-cell:nth-child(2) {
+            border-top-right-radius: 8px;
+            border-top-left-radius: 8px;
+        }
+        /* Last row value cell: bottom right corner rounded */
+        .data-panel-body-grid > .param-cell:last-of-type {
+            border-bottom-right-radius: 8px;
+        }
+        /* Remove extra rounding from label/group cells */
+        .data-panel-body-grid > .param-label-group:first-child,
+        .data-panel-body-grid > .param-label-group:last-of-type {
+            border-radius: 0 !important;
+            background: none !important;
+            border: none !important;
+        }
+        .data-panel {
+            width: 100%;
+            box-sizing: border-box;
+            background: #232323;
+            border-radius: 5px;
+            margin-bottom: 0.3em;
+            box-shadow: 0 1px 4px #000a;
+            position: relative;
+            overflow: hidden;
+        }
+        .data-panel-header {
+            display: flex;
+            align-items: center;
+            font-size: 0.8em;
+            font-family: inherit;
+            color: #e0e0e0;
+            padding: 0.7em;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            user-select: none;
+            letter-spacing: 0.01em;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .data-panel-title {
+            margin-left: 0.5em;
+            font-weight: 500;
+            font-size: 1.08em;
+        }
+        #dataPanelBody {
+            padding: 0.7em;
+        }
+        .param-cell.graph-active {
+            font-weight: bold;
+            color: #fff;
+        }
+        .param-cell.graph-alpha.graph-active { background: #ff5555; color: #fff; }
+        .param-cell.graph-beta.graph-active { background: #ffd600; color: #222; }
+        .param-cell.graph-gamma.graph-active { background: #00bcd4; color: #fff; }
+        .timeline-frame-label {
+            position: absolute;
+            top: 0;
+            color: #fff;
+            font-size: 11px;
+            font-family: monospace;
+            background: rgb(15, 15, 15);
+            border: 0.01em solid #505050;
+            padding: 4px 6px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .timeline-frame-label-left {
+            left: 0;
+            top: 0;
+        }
+        .timeline-frame-label-right {
+            right: 0;
+            top: 0;
+        }
+        .resize-handle {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 4px;
+            background: transparent;
+            cursor: ns-resize;
+            z-index: 9999;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+            transition: background 0.2s;
+            pointer-events: auto;
+        }
+        
+        .resize-handle:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .resize-handle::after {
+            content: '';
+            display: block;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 2.5px;
+            height: 1px;
+            background: #ffffff1a;
+            border-radius: 1px;
+            pointer-events: none;
+        }
+        
+        .panel-resize-handle {
+            position: absolute;
+            right: -3px;
+            top: 0;
+            width: 6px;
+            height: 100%;
+            background: transparent;
+            cursor: ew-resize;
+            z-index: 20;
+            transition: background 0.2s;
+        }
+        .panel-resize-handle:hover {
+            background: #ffffff1a;
+        }
+        .panel-resize-handle::after {
+            content: '';
+            display: block;
+            position: absolute;
+            left: 2.5px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #ffffff1a;
+            pointer-events: none;
+        }
+        .track-toggle {
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s ease;
+            display: none; /* Hide track-toggle elements */
+        }
+        .track-toggle:hover {
+            transform: scale(1.1);
+        }
+        .track-toggle.disabled {
+            background: transparent !important;
+            border: none;
+            opacity: 0.7;
+            z-index: 20;
+        }
+        
+        .track-toggle[data-line="alpha"].disabled {
+            box-shadow: inset 0 0 0 2px #ff5555;
+        }
+        
+        .track-toggle[data-line="beta"].disabled {
+            box-shadow: inset 0 0 0 2px #00c853;
+        }
+        
+        .track-toggle[data-line="gamma"].disabled {
+            box-shadow: inset 0 0 0 2px #2979ff;
+        }
+        
+        .track-toggle[data-track="video"].disabled {
+            box-shadow: inset 0 0 0 2px #4CAF50;
+        }
+        
+        .track-toggle[data-track="fake"].disabled {
+            box-shadow: inset 0 0 0 2px #FF9800;
+        }
+        
+        /* Remove duplicate track-header definition */
+        
+        .track-header .track-title {
+            margin-right: 10px;
+        }
+        
+        .track-header .track-subtitle {
+            font-size: 11px;
+            color: #ff4444;
+        }
+        .track-header .track-toggle {
+            position: static !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            pointer-events: auto;
+        }
+        /* Bottom controls panel */
+        .bottom-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .buttons-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            width: 100%;
+        }
+        .main-controls-bar {
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin: 0;
+            gap: 0;
+        }
+        .fps-display-main {
+            position: absolute;
+            bottom: 0.8rem;
+            right: 0.8rem;
+            color: #666;
+            background: none !important;
+            font-size: 0.65rem;
+            font-weight: 400;
+            padding: 0 !important;
+            border-radius: 0;
+            box-shadow: none;
+            border: none !important;
+            display: flex;
+            align-items: flex-end;
+            height: 48px;
+            line-height: 1;
+            z-index: 10;
+            margin-top: auto;
+            align-self: stretch;
+        }
+        [id$='PanelBody'] {
+            padding: 0.7em;
+        }
+        .dynamicSLAMPanelsWrapper {
+            border-radius: 6px;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        #dynamicSLAMPanels {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            background: transparent;
+        }
+        .data-panel-body-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+            box-sizing: border-box;
+            gap: 0;
+        }
+
+        .faded-value {
+            opacity: 0.8;
+        }
+        .track-content {
+            display: block;
+            position: relative;
+            height: 80px;
+            pointer-events: auto;
+            padding-bottom: 6px; /* Space for resize handle */
+        }
+        .track-header {
+            width: 100%;
+            height: 20px;
+            z-index: 2;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0;
+            flex-wrap: nowrap;
+            padding: 0 8px;
+            box-sizing: border-box;
+        }
+        .track-graph-canvas {
+            display: block;
+            width: 100% !important;
+            height: calc(100% - 20px) !important; /* Subtract header height */
+            margin: 0;
+            padding: 0;
+            position: static;
+            background: transparent;
+            pointer-events: auto;
+            box-sizing: border-box;
+        }
+        
+        .track-labels {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 2px;
+            flex-wrap: nowrap;
+            margin-left: 8px;
+            pointer-events: none;
+        }
+        
+        .track-label {
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-family: monospace;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            white-space: nowrap;
+            position: relative;
+            user-select: none;
+        }
+        
+        .track-label:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: #fff;
+            transform: scale(1.05);
+        }
+        
+        .track-label.disabled {
+            opacity: 0.3;
+            background: rgba(0, 0, 0, 0.5);
+            text-decoration: line-through;
+        }
+        
+        .track-label:active {
+            transform: scale(0.95);
+        }
+        .timeline-resize-handle {
+            position: absolute;
+            top: 0;
+        }
+        .timeline-resize-handle:hover {
+            background: rgba(255,255,255,0.15);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div>Loading Timeline Analyzer...</div>
+    </div>
+    
+    <div class="video-container" id="videoContainer" style="display: none;">
+        <div class="parameters-panel" id="parametersPanel">
+            <div class="parameters-scroll">
+                <div class="dynamicSLAMPanelsWrapper">
+                    <div id="dynamicSLAMPanels"></div>
+                </div>
+            </div>
+            <div class="bottom-controls">
+                <div class="main-controls-bar">
+                    <button class="play-btn" onclick="togglePlay()" id="mainPlayBtn" aria-label="Play/Pause">
+                        <svg id="playPauseIcon" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <polygon points="11,8 21,14 11,20" fill="#fff"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="fps-display-main" id="fpsDisplayMain">60 FPS</div>
+                <div class="panel-resize-handle" id="parametersPanelResize"></div>
+            </div>
+        </div>
+        <div class="video-area" id="videoArea">
+            <video id="mainVideo">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+    <div id="fallbackUpload" style="display:none;padding:2em;text-align:center;">
+        <h2>Upload video and JSON with raw sensor data</h2>
+        <input type="file" id="fallbackVideo" accept="video/*"><br><br>
+        <input type="file" id="fallbackJson" accept="application/json"><br><br>
+        <button onclick="handleFallbackUpload()">Upload</button>
+        <div id="fallbackError" style="color:#f55;margin-top:1em;"></div>
+    </div>
+    
+    <div class="timeline-container" id="timelineContainer" style="display: none; position: relative;">
+        <div class="timeline-resize-handle" id="timelineResizeHandle"></div>
+        <div class="global-playhead" id="globalPlayhead">
+            <div class="playhead-bar"></div>
+        </div>
+        <div class="time-ruler" id="timeRuler" style="position: relative;">
+            <span>00:00</span>
+            <div class="timeline-frame-label timeline-frame-label-left">0</div>
+            <div class="timeline-frame-label timeline-frame-label-right">0</div>
+        </div>
+        <div class="timeline-tracks"></div>
+    </div>
+
+    <script>
+
+        
+        // --- Global State Management ---
+        const AppState = {
+            videoBlob: null,
+            sensorData: null,
+            slamData: null,
+            dataReady: false,
+            availableTracks: {},
+            isPlaying: false,
+            thumbnailWidth: 120,
+            totalThumbnails: 0,
+            fps: 60,
+            frameDuration: 1/60,
+            sensorDataHistory: [],
+            slamDataHistory: [],
+            playheadDragging: false,
+            lineVisibility: { alpha: true, beta: true, gamma: true }
+        };
+
+        // --- Global DOM Element References ---
+        const video = document.getElementById('mainVideo');
+        const timelineTrack = document.getElementById('timelineTrack');
+        const timeRuler = document.getElementById('timeRuler');
+        const sensorTimelineTrack = document.getElementById('sensorTimelineTrack');
+        const loading = document.getElementById('loading');
+        const videoContainer = document.getElementById('videoContainer');
+        const timelineContainer = document.getElementById('timelineContainer');
+
+        // Make totalThumbnails globally accessible for graph synchronization
+        window.totalThumbnails = AppState.totalThumbnails;
+        
+        // --- Utility Functions ---
+        const Utils = {
+            normalize180: (v) => ((v + 180) % 360 + 360) % 360 - 180,
+            
+            collectNumericFields: (obj, prefix = '') => {
+                const fields = new Set();
+                const collect = (obj, prefix) => {
+                    Object.entries(obj).forEach(([k, v]) => {
+                        if (k === 'frame') return;
+                        if (typeof v === 'number' && !isNaN(v)) {
+                            fields.add(prefix + k);
+                        } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+                            collect(v, prefix + k + '_');
+                        }
+                    });
+                };
+                collect(obj, prefix);
+                return Array.from(fields);
+            },
+            
+            collectFieldsFromLevel1: (obj) => {
+                const fields = [];
+                Object.keys(obj).forEach(field => {
+                    if (field === 'frame') return;
+                    const value = obj[field];
+                    
+                    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+                        fields.push({ 
+                            label: field, 
+                            field: field, 
+                            subkey: null,
+                            fullPath: field
+                        });
+                    } else if (typeof value === 'object' && !Array.isArray(value)) {
+                        Object.keys(value).forEach(subField => {
+                            const subValue = value[subField];
+                            if (typeof subValue !== 'object' || subValue === null || Array.isArray(subValue)) {
+                                const isFirstColumn = !fields.some(f => f.field === field);
+                                fields.push({ 
+                                    label: isFirstColumn ? `${field} ${subField}` : subField, 
+                                    field: field, 
+                                    subkey: subField,
+                                    fullPath: `${field}_${subField}`
+                                });
+                            }
+                        });
+                    }
+                });
+                return fields;
+            },
+            
+            extractNumericFields: (data) => {
+                const fields = new Map();
+                const colors = ['#ff5555', '#00c853', '#2979ff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57'];
+                
+                const processNestedObject = (obj, prefix = '') => {
+                    Object.entries(obj).forEach(([key, value]) => {
+                        if (key === 'frame') return;
+                        
+                        if (typeof value === 'number' && !isNaN(value)) {
+                            const fullKey = prefix + key;
+                            if (!fields.has(fullKey)) {
+                                fields.set(fullKey, {
+                                    key: fullKey,
+                                    color: colors[fields.size % colors.length],
+                                    values: []
+                                });
+                            }
+                            fields.get(fullKey).values.push({
+                                frame: obj.frame,
+                                value: value
+                            });
+                        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                            processNestedObject(value, prefix + key + '_');
+                        }
+                    });
+                };
+                
+                data.forEach(item => processNestedObject(item));
+                return Array.from(fields.values());
+            }
+        };
+
+        // --- Data Management Module ---
+        const DataManager = {
+            discoverAvailableTracks: () => {
+                const tracks = {};
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('yaga_track_')) {
+                        const trackName = key.replace('yaga_track_', '');
+                        try {
+                            const data = localStorage.getItem(key);
+                            if (data) {
+                                tracks[trackName] = {
+                                    key: key,
+                                    data: data,
+                                    size: data.length
+                                };
+                            }
+                        } catch (e) {
+                            // Failed to read track data
+                        }
+                    }
+                }
+                return tracks;
+            },
+
+            loadTrackData: (trackName) => {
+                const key = `yaga_track_${trackName}`;
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        return JSON.parse(data);
+                    } catch (e) {
+                        return null;
+                    }
+                }
+                return null;
+            },
+
+            saveToLocalStorage: () => {
+                try {
+                    localStorage.setItem('yaga_track_video', AppState.videoBlob);
+                    localStorage.setItem('yaga_track_sensors', 
+                        typeof AppState.sensorData === 'string' ? 
+                        AppState.sensorData : JSON.stringify(AppState.sensorData));
+                } catch (e) { /* ignore quota errors */ }
+            }
+        };
+
+        // --- Video & Timeline Management Module ---
+        const VideoManager = {
+            tryInitTimelineAnalyzer: () => {
+                if (AppState.videoBlob && AppState.sensorData !== null) {
+                    DataManager.saveToLocalStorage();
+                    VideoManager.initTimelineAnalyzer();
+                    PanelManager.generateDynamicSLAMPanels(AppState.availableTracks);
+                    if (typeof TrackManager.createTimelineTracks === 'function') {
+                        TrackManager.createTimelineTracks();
+                    }
+                }
+            },
+
+            calculateThumbnailWidth: () => {
+                const screenWidth = window.innerWidth;
+                const labelWidth = 120;
+                const availableWidth = screenWidth - labelWidth - 40;
+                
+                if (AppState.totalThumbnails > 0) {
+                    AppState.thumbnailWidth = Math.max(20, availableWidth / AppState.totalThumbnails);
+                } else if (video.duration && AppState.fps) {
+                    const totalFrames = Math.ceil(video.duration * AppState.fps);
+                    AppState.thumbnailWidth = Math.max(20, availableWidth / totalFrames);
+                } else {
+                    AppState.thumbnailWidth = Math.max(20, availableWidth / 60);
+                }
+                
+                return AppState.thumbnailWidth;
+            },
+
+            detectVideoFPS: () => {
+                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
+                    const maxFrame = Math.max(...AppState.sensorDataHistory
+                        .filter(d => typeof d.frame === 'number')
+                        .map(d => d.frame), 0);
+                    const dataPoints = AppState.sensorDataHistory.length;
+                    
+                    if (maxFrame > 0 && dataPoints > 1) {
+                        const estimatedFPS = Math.round(maxFrame / (dataPoints / maxFrame));
+                        if (estimatedFPS > 0 && estimatedFPS <= 120) {
+                            AppState.fps = estimatedFPS;
+                        }
+                    }
+                }
+                
+                if (!AppState.fps || AppState.fps <= 0) {
+                    AppState.fps = 60;
+                }
+                
+                AppState.frameDuration = 1 / AppState.fps;
+                window.fps = AppState.fps;
+                VideoManager.updateFPSDisplay();
+            },
+
+            updateFPSDisplay: () => {
+                const fpsDisplayMain = document.getElementById('fpsDisplayMain');
+                if (fpsDisplayMain) fpsDisplayMain.textContent = `${AppState.fps} FPS`;
+            },
+
+            togglePlay: () => {
+                if (video.paused) {
+                    video.play();
+                    AppState.isPlaying = true;
+                } else {
+                    video.pause();
+                    AppState.isPlaying = false;
+                }
+            },
+
+            downloadVideo: () => {
+                const a = document.createElement('a');
+                a.href = video.src;
+                a.download = 'SLAM_Yaga_Recording.mp4';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            },
+
+            generateThumbnails: () => {
+                if (!timeRuler) return;
+                if (!video.duration || !AppState.fps) return;
+                
+                let totalFrames = Math.round(video.duration * AppState.fps);
+                AppState.totalThumbnails = Math.ceil(video.duration * AppState.fps);
+                
+                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
+                    const maxFrameFromData = Math.max(...AppState.sensorDataHistory
+                        .filter(d => typeof d.frame === 'number')
+                        .map(d => d.frame), 0);
+                    totalFrames = Math.max(totalFrames, maxFrameFromData + 1);
+                    AppState.totalThumbnails = Math.max(AppState.totalThumbnails, maxFrameFromData + 1);
+                }
+                
+                window.totalThumbnails = AppState.totalThumbnails;
+                
+                if (AppState.totalThumbnails === 0) return;
+                
+                VideoManager.generateTimeRuler(video.duration);
+                PlayheadManager.updatePlayhead();
+                VideoManager.updateTimelineFrameLabels(totalFrames);
+                
+                setTimeout(() => {
+                    TrackManager.drawAllTrackGraphs();
+                }, 100);
+            },
+
+            generateTimeRuler: (duration) => {
+                timeRuler.innerHTML = '';
+                const timelineWidth = timeRuler.offsetWidth || timeRuler.clientWidth || timeRuler.parentElement.offsetWidth;
+                const frameMarkerInterval = Math.max(1, Math.floor(AppState.totalThumbnails / (timelineWidth / 10)));
+                
+                for (let i = 0; i < AppState.totalThumbnails; i += frameMarkerInterval) {
+                    const marker = document.createElement('div');
+                    marker.className = 'frame-marker';
+                    const percent = (i / (AppState.totalThumbnails - 1)) * 100;
+                    marker.style.left = percent + '%';
+                    timeRuler.appendChild(marker);
+                }
+                
+                for (let i = 0; i <= Math.ceil(duration); i++) {
+                    const marker = document.createElement('div');
+                    marker.className = 'time-marker';
+                    const percent = (i / duration) * 100;
+                    marker.style.left = percent + '%';
+                    marker.textContent = `${i}:00`;
+                    timeRuler.appendChild(marker);
+                }
+            },
+
+            updateTimelineFrameLabels: (totalFrames) => {
+                let leftLabel = document.querySelector('.timeline-frame-label-left');
+                let rightLabel = document.querySelector('.timeline-frame-label-right');
+                if (!leftLabel) {
+                    leftLabel = document.createElement('div');
+                    leftLabel.className = 'timeline-frame-label timeline-frame-label-left';
+                    document.querySelector('.time-ruler').appendChild(leftLabel);
+                }
+                if (!rightLabel) {
+                    rightLabel = document.createElement('div');
+                    rightLabel.className = 'timeline-frame-label timeline-frame-label-right';
+                    document.querySelector('.time-ruler').appendChild(rightLabel);
+                }
+                leftLabel.textContent = '1';
+                rightLabel.textContent = (totalFrames - 1).toString();
+            },
+
+            updateVideoAreaSize: () => {
+                const videoArea = document.getElementById('videoArea');
+                const videoContainer = document.getElementById('videoContainer');
+                if (!video || !videoArea || !videoContainer) return;
+                
+                const containerHeight = videoContainer.clientHeight;
+                let aspect = 16/9;
+                if (video.videoWidth && video.videoHeight) {
+                    aspect = video.videoWidth / video.videoHeight;
+                }
+                const areaWidth = Math.round(containerHeight * aspect);
+                videoArea.style.width = areaWidth + 'px';
+            },
+
+            detectVideoFPS: () => {
+                if (!video.duration) return;
+                
+                const testDuration = Math.min(5, video.duration);
+                const startTime = video.currentTime;
+                let frameCount = 0;
+                let lastTime = 0;
+                
+                const checkFPS = () => {
+                    if (video.currentTime >= startTime + testDuration || video.ended) {
+                        const actualDuration = video.currentTime - startTime;
+                        if (actualDuration > 0) {
+                            AppState.fps = Math.round(frameCount / actualDuration);
+                            AppState.frameDuration = 1 / AppState.fps;
+                        }
+                        video.currentTime = startTime;
+                        return;
+                    }
+                    
+                    if (video.currentTime !== lastTime) {
+                        frameCount++;
+                        lastTime = video.currentTime;
+                    }
+                    
+                    requestAnimationFrame(checkFPS);
+                };
+                
+                video.currentTime = startTime;
+                video.play().then(() => {
+                    checkFPS();
+                }).catch(() => {
+                    // Fallback to default FPS
+                    AppState.fps = 60;
+                    AppState.frameDuration = 1/60;
+                });
+            },
+
+            initTimelineAnalyzer: () => {
+                if (!AppState.videoBlob || !AppState.sensorData) return;
+                
+                video.src = AppState.videoBlob;
+                video.load();
+                
+                if (typeof AppState.sensorData === 'string') {
+                    try {
+                        AppState.sensorDataHistory = JSON.parse(AppState.sensorData);
+                    } catch (e) {
+                        console.error('Failed to parse sensor data:', e);
+                        return;
+                    }
+                } else {
+                    AppState.sensorDataHistory = AppState.sensorData;
+                }
+                
+                if (AppState.slamData) {
+                    if (typeof AppState.slamData === 'string') {
+                        try {
+                            AppState.slamDataHistory = JSON.parse(AppState.slamData);
+                        } catch (e) {
+                            console.error('Failed to parse SLAM data:', e);
+                        }
+                    } else {
+                        AppState.slamDataHistory = AppState.slamData;
+                    }
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('videoContainer').style.display = 'flex';
+                document.getElementById('timelineContainer').style.display = 'flex';
+                
+                VideoManager.detectVideoFPS();
+                
+                if (video.duration && AppState.fps) {
+                    VideoManager.generateThumbnails();
+                }
+                
+                video.currentTime = 0;
+                
+                setTimeout(() => {
+                    TrackManager.drawAllTrackGraphs();
+                }, 100);
+            }
+        };
+
+        // --- Panel Management Module ---
+        const PanelManager = {
+            generateDynamicSLAMPanels: (availableTracks) => {
+                const container = document.getElementById('dynamicSLAMPanels');
+                if (!container) return;
+                
+                container.innerHTML = '';
+                
+                const slamKeys = Object.keys(localStorage).filter(key => key.startsWith('yaga_track_'));
+                
+                slamKeys.forEach(key => {
+                    try {
+                        const raw = localStorage.getItem(key);
+                        let data;
+                        try {
+                            data = JSON.parse(raw);
+                        } catch (e) {
+                            return;
+                        }
+                        if (!Array.isArray(data) || data.length === 0) return;
+                        
+                        const firstItem = data[0];
+                        if (!firstItem) return;
+                        
+                        const trackType = key.replace('yaga_track_', '');
+                        const panelId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
+                        const panelTitle = trackType;
+                        
+                        const fields = [];
+                        data.forEach(item => {
+                            const itemFields = Utils.collectFieldsFromLevel1(item);
+                            fields.push(...itemFields);
+                        });
+                        
+                        const uniqueFields = [];
+                        const seen = new Set();
+                        fields.forEach(field => {
+                            const key = field.fullPath;
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                uniqueFields.push(field);
+                            }
+                        });
+                        
+                        const panelHTML = `
+                            <div class="data-panel" id="${panelId}Panel">
+                                <div class="data-panel-header" onclick="PanelManager.togglePanel('${panelId}Panel')">
+                                    <span id="${panelId}PanelChevron" style="display:inline-block;transition:transform 0.2s;vertical-align:middle;width:15px;height:15px;">
+                                        <svg width="15" height="15" viewBox="0 0 22 22" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+                                            <polyline points="6,9 11,14 16,9" fill="none" stroke="#b0b0b0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </span>
+                                    <span class="data-panel-title">${panelTitle}</span>
+                                </div>
+                                <div id="${panelId}PanelBody">
+                                    <div class="data-panel-body-grid">
+                                        ${uniqueFields.map(f => `
+                                            <div class="param-label-group">${f.label}</div>
+                                            <div class="param-cell" id="param-${panelId}-${(f.subkey ? f.field + '_' + f.subkey : f.field).replace(/[^a-zA-Z0-9]/g, '_')}">—</div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        container.insertAdjacentHTML('beforeend', panelHTML);
+                        
+                    } catch (error) {
+                        // Failed to generate panel
+                    }
+                });
+            },
+
+            calculateMinPanelWidth: () => {
+                const panels = document.querySelectorAll('.data-panel');
+                let maxMinWidth = 200;
+                
+                panels.forEach(panel => {
+                    const grid = panel.querySelector('.data-panel-body-grid');
+                    if (grid) {
+                        const originalDisplay = grid.style.display;
+                        grid.style.display = 'grid';
+                        
+                        const labelGroups = grid.querySelectorAll('.param-label-group');
+                        const cells = grid.querySelectorAll('.param-cell');
+                        
+                        let maxLabelWidth = 0;
+                        let maxCellWidth = 0;
+                        
+                        labelGroups.forEach(label => {
+                            const rect = label.getBoundingClientRect();
+                            maxLabelWidth = Math.max(maxLabelWidth, rect.width);
+                        });
+                        
+                        cells.forEach(cell => {
+                            const rect = cell.getBoundingClientRect();
+                            maxCellWidth = Math.max(maxCellWidth, rect.width);
+                        });
+                        
+                        grid.style.display = originalDisplay;
+                        
+                        const panelMinWidth = maxLabelWidth + maxCellWidth + 40;
+                        maxMinWidth = Math.max(maxMinWidth, panelMinWidth);
+                    }
+                });
+                
+                return maxMinWidth;
+            },
+
+            togglePanel: (panelId) => {
+                const body = document.getElementById(panelId + 'Body');
+                const chevron = document.getElementById(panelId + 'Chevron');
+                const header = chevron.parentElement;
+                
+                if (body.style.display === 'none') {
+                    body.style.display = '';
+                    chevron.style.transform = 'rotate(0deg)';
+                    header.style.borderBottom = '1px solid #333';
+                } else {
+                    body.style.display = 'none';
+                    chevron.style.transform = 'rotate(-90deg)';
+                    header.style.borderBottom = 'none';
+                }
+            }
+        };
+
+        // --- Event Handlers ---
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'init-data') {
+                AppState.videoBlob = e.data.payload.videoUrl;
+                AppState.sensorData = e.data.payload.sensors;
+                AppState.slamData = e.data.payload.slamData || null;
+                AppState.dataReady = true;
+                VideoManager.tryInitTimelineAnalyzer();
+            }
+        });
+
+        // --- Data Update Functions ---
+        DataManager.updateSensorInfo = (currentTime) => {
+            const frame = Math.round(currentTime * AppState.fps);
+            const data = AppState.sensorDataHistory;
+            const closest = data.find(d => {
+                if (typeof d.frame === 'number' && d.frame === frame) return true;
+                if (d.frame === frame.toString()) return true;
+                return false;
+            });
+            
+            const numericFields = Utils.extractNumericFields(data);
+            const elements = {};
+            numericFields.forEach(field => {
+                elements[field.key] = field.elementId;
+            });
+            
+            if (!closest) {
+                Object.values(elements).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '—';
+                });
+                return;
+            }
+            
+            Object.entries(elements).forEach(([fieldKey, elementId]) => {
+                const el = document.getElementById(elementId);
+                if (!el) return;
+                
+                let value = null;
+                const keys = fieldKey.split('_');
+                let currentValue = closest;
+                let found = true;
+                
+                for (const key of keys) {
+                    if (currentValue && typeof currentValue === 'object' && key in currentValue) {
+                        currentValue = currentValue[key];
+                    } else {
+                        found = false;
+                        break;
+                    }
+                }
+                
+                if (found) {
+                    value = currentValue;
+                }
+                
+                if (typeof value === 'number' && !isNaN(value)) {
+                    const isAngle = fieldKey.includes('alpha') || fieldKey.includes('beta') || 
+                                   fieldKey.includes('gamma') || fieldKey.includes('rotation') ||
+                                   fieldKey.includes('angle') || fieldKey.includes('yaw') ||
+                                   fieldKey.includes('pitch') || fieldKey.includes('roll');
+                    
+                    if (isAngle) {
+                        el.textContent = `${value.toFixed(1)}°`;
+                    } else {
+                        el.textContent = value.toFixed(2);
+                    }
+                } else {
+                    el.textContent = '—';
+                }
+            });
+        };
+
+        DataManager.updateSLAMInfo = (currentTime) => {
+            const frame = Math.round(currentTime * AppState.fps);
+            const data = AppState.slamDataHistory;
+            const closest = data.find(d => d.frame === frame);
+            
+            PanelManager.updateDynamicSLAMPanels(closest, frame);
+        };
+
+        PanelManager.calculateMinPanelWidth = () => {
+            const videoArea = document.getElementById('videoArea');
+            if (!videoArea) return 600;
+            return Math.max(200, videoArea.offsetWidth - 100);
+        };
+
+        PanelManager.togglePanel = (panelId) => {
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            
+            const body = panel.querySelector('.data-panel-body');
+            const header = panel.querySelector('.data-panel-header');
+            const chevron = header.querySelector('.chevron');
+            
+            if (body.style.display === 'none') {
+                body.style.display = '';
+                chevron.style.transform = 'rotate(0deg)';
+                header.style.borderBottom = '1px solid #333';
+            } else {
+                body.style.display = 'none';
+                chevron.style.transform = 'rotate(-90deg)';
+                header.style.borderBottom = 'none';
+            }
+        };
+
+        PanelManager.updateDynamicSLAMPanels = (closest, frame) => {
+            const slamKeys = Object.keys(localStorage).filter(key => key.startsWith('yaga_track_'));
+            
+            slamKeys.forEach(key => {
+                try {
+                    const raw = localStorage.getItem(key);
+                    let data;
+                    try {
+                        data = JSON.parse(raw);
+                    } catch (e) {
+                        return;
+                    }
+                    if (!Array.isArray(data) || data.length === 0) return;
+                    
+                    const firstItem = data[0];
+                    if (!firstItem) return;
+                    
+                    const trackType = key.replace('yaga_track_', '');
+                    const panelId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
+                    
+                    const frameData = data.find(item => item.frame === frame);
+                    const fields = [];
+                    
+                    data.forEach(item => {
+                        const itemFields = Utils.collectFieldsFromLevel1(item);
+                        fields.push(...itemFields);
+                    });
+                    
+                    const uniqueFields = [];
+                    const seen = new Set();
+                    fields.forEach(field => {
+                        const key = field.fullPath;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            uniqueFields.push(field);
+                        }
+                    });
+                    
+                    const lastValidValueByFrame = {};
+                    uniqueFields.forEach(f => {
+                        const elementId = `param-${panelId}-${(f.subkey ? f.field + '_' + f.subkey : f.field).replace(/[^a-zA-Z0-9]/g, '_')}`;
+                        lastValidValueByFrame[elementId] = {};
+                        let lastValue = undefined;
+                        const sortedData = [...data].sort((a, b) => a.frame - b.frame);
+                        for (const item of sortedData) {
+                            let value = undefined;
+                            
+                            if (f.subkey === null) {
+                                if (item.hasOwnProperty(f.field)) {
+                                    value = item[f.field];
+                                }
+                            } else {
+                                if (item.hasOwnProperty(f.field) && 
+                                    typeof item[f.field] === 'object' && 
+                                    item[f.field] !== null && 
+                                    !Array.isArray(item[f.field]) &&
+                                    item[f.field].hasOwnProperty(f.subkey)) {
+                                    value = item[f.field][f.subkey];
+                                }
+                            }
+                            
+                            if (value !== null && value !== undefined && 
+                                !(typeof value === 'number' && isNaN(value)) && value !== '') {
+                                lastValue = value;
+                            }
+                            lastValidValueByFrame[elementId][item.frame] = lastValue;
+                        }
+                    });
+                    
+                    uniqueFields.forEach(f => {
+                        const elementId = `param-${panelId}-${(f.subkey ? f.field + '_' + f.subkey : f.field).replace(/[^a-zA-Z0-9]/g, '_')}`;
+                        const element = document.getElementById(elementId);
+                        let value = '—';
+                        let faded = false;
+                        let foundInCurrentFrame = false;
+                        
+                        if (frameData) {
+                            if (f.subkey === null) {
+                                if (frameData.hasOwnProperty(f.field)) {
+                                    value = frameData[f.field];
+                                    foundInCurrentFrame = value !== null && value !== undefined && 
+                                        !(typeof value === 'number' && isNaN(value)) && value !== '';
+                                }
+                            } else {
+                                if (frameData.hasOwnProperty(f.field) && 
+                                    typeof frameData[f.field] === 'object' && 
+                                    frameData[f.field] !== null && 
+                                    !Array.isArray(frameData[f.field]) &&
+                                    frameData[f.field].hasOwnProperty(f.subkey)) {
+                                    value = frameData[f.field][f.subkey];
+                                    foundInCurrentFrame = value !== null && value !== undefined && 
+                                        !(typeof value === 'number' && isNaN(value)) && value !== '';
+                                }
+                            }
+                        }
+                        
+                        if (!foundInCurrentFrame) {
+                            const frames = Object.keys(lastValidValueByFrame[elementId])
+                                .map(Number)
+                                .filter(fnum => fnum <= frame && lastValidValueByFrame[elementId][fnum] !== undefined);
+                            const lastFrame = frames.length ? Math.max(...frames) : null;
+                            const lastVal = lastFrame !== null ? lastValidValueByFrame[elementId][lastFrame] : undefined;
+                            if (lastVal !== undefined) {
+                                value = lastVal;
+                                faded = true;
+                            } else {
+                                value = '—';
+                            }
+                        }
+                        
+                        if (element) {
+                            if (faded && value !== '—') {
+                                element.innerHTML = `<span class="faded-value">${value}</span>`;
+                            } else {
+                                element.textContent = value;
+                            }
+                        }
+                    });
+                } catch (error) {
+                    // Failed to update panel
+                }
+            });
+        };
+
+        // --- Track Management Module ---
+        const TrackManager = {
+            createTimelineTracks: () => {
+                const timelineTracks = document.querySelector('.timeline-tracks');
+                if (!timelineTracks) {
+                    return;
+                }
+                
+                if (window.timelineTracksCreated) {
+                    return;
+                }
+                
+                const existingTracks = timelineTracks.querySelectorAll('.track-content');
+                if (existingTracks.length > 1) {
+                    window.timelineTracksCreated = true;
+                    return;
+                }
+                
+                for (let i = 1; i < existingTracks.length; i++) {
+                    existingTracks[i].remove();
+                }
+                
+                if (existingTracks.length > 0) {
+                    const videoTrack = existingTracks[0];
+                    if (!videoTrack.style.height) {
+                        videoTrack.style.height = '50px';
+                    }
+                }
+                
+                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
+                    TrackManager.createSensorTrack(timelineTracks);
+                }
+                
+                TrackManager.createSLAMTracks(timelineTracks);
+                
+                window.timelineTracksCreated = true;
+                
+                setTimeout(() => {
+                    TrackManager.drawAllTrackGraphs();
+                }, 100);
+            },
+
+            createSensorTrack: (timelineTracks) => {
+                const trackContent = document.createElement('div');
+                trackContent.className = 'track-content';
+                trackContent.innerHTML = `
+                    <div class="track-header" id="sensorsTrackHeader">
+                        <span class="track-title">Sensors</span>
+                        <div class="track-labels" id="sensorsTrackLabels"></div>
+                    </div>
+                    <div class="timeline-track" id="sensorsTimelineTrack">
+                        <canvas class="track-graph-canvas" id="sensorsTrackGraph"></canvas>
+                    </div>
+                    <div class="resize-handle"></div>
+                `;
+                
+                timelineTracks.appendChild(trackContent);
+                trackContent.style.height = '50px';
+                
+                const numericFields = Utils.extractNumericFields(AppState.sensorDataHistory);
+                TrackManager.generateSensorTrackToggles(numericFields);
+            },
+
+            createSLAMTracks: (timelineTracks) => {
+                const slamKeys = Object.keys(localStorage).filter(key => key.startsWith('yaga_track_'));
+                slamKeys.forEach(key => {
+                    try {
+                        const raw = localStorage.getItem(key);
+                        let data;
+                        try {
+                            data = JSON.parse(raw);
+                        } catch (e) {
+                            return;
+                        }
+                        if (!Array.isArray(data) || data.length === 0) return;
+                        
+                        const firstItem = data[0];
+                        if (!firstItem) return;
+                        
+                        const trackType = key.replace('yaga_track_', '');
+                        const trackId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
+                        
+                        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'];
+                        const colorIndex = trackType.length % colors.length;
+                        const color = colors[colorIndex];
+                        
+                        const allFields = Utils.extractNumericFields(data);
+                        
+                        const trackContent = document.createElement('div');
+                        trackContent.className = 'track-content';
+                        trackContent.innerHTML = `
+                            <div class="track-header">
+                                <span class="track-title">${trackType}</span>
+                                <div class="track-labels" id="${trackId}TrackLabels"></div>
+                            </div>
+                            <div class="timeline-track" id="${trackId}TimelineTrack">
+                                <canvas class="track-graph-canvas" id="${trackId}TrackGraph"></canvas>
+                            </div>
+                            <div class="resize-handle"></div>
+                        `;
+                        
+                        timelineTracks.appendChild(trackContent);
+                        trackContent.style.height = '50px';
+                        
+                        TrackManager.generateTrackLabels(trackId, allFields);
+                        
+                        allFields.forEach(field => {
+                            const key = trackId + ':' + field.key;
+                            if (AppState.lineVisibility[key] === undefined) {
+                                AppState.lineVisibility[key] = true;
+                            }
+                        });
+                        
+                    } catch (error) {
+                        // Failed to create timeline track
+                    }
+                });
+            },
+
+            generateSensorTrackToggles: (numericFields) => {
+                const header = document.getElementById('sensorsTrackHeader');
+                const labelsContainer = document.getElementById('sensorsTrackLabels');
+                if (!header || !labelsContainer) return;
+                
+                const existingLabels = labelsContainer.querySelectorAll('.track-label');
+                if (existingLabels.length > 0) return;
+                
+                const title = header.querySelector('.track-title');
+                header.innerHTML = '';
+                if (title) header.appendChild(title);
+                header.appendChild(labelsContainer);
+                
+                numericFields.forEach(field => {
+                    const key = 'sensors:' + field.key;
+                    if (AppState.lineVisibility[key] === undefined) {
+                        AppState.lineVisibility[key] = true;
+                    }
+                });
+                
+                const createdLabels = new Set();
+                numericFields.forEach(field => {
+                    if (!createdLabels.has(field.key)) {
+                        const label = document.createElement('div');
+                        label.className = 'track-label';
+                        label.setAttribute('data-track', 'sensor');
+                        label.setAttribute('data-line', field.key);
+                        label.setAttribute('data-trackid', 'sensors');
+                        label.style.borderLeftColor = field.color;
+                        label.style.borderLeftWidth = '3px';
+                        label.style.borderLeftStyle = 'solid';
+                        label.textContent = field.key;
+                        
+                        label.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                        
+                        label.addEventListener('touchstart', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                        
+                        label.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const key = 'sensors:' + field.key;
+                            const isEnabled = !label.classList.contains('disabled');
+                            if (isEnabled) {
+                                label.classList.add('disabled');
+                                AppState.lineVisibility[key] = false;
+                            } else {
+                                label.classList.remove('disabled');
+                                AppState.lineVisibility[key] = true;
+                            }
+                            
+                            labelsContainer.querySelectorAll(`.track-label[data-line="${field.key}"]`).forEach(l => {
+                                if (isEnabled) {
+                                    l.classList.add('disabled');
+                                } else {
+                                    l.classList.remove('disabled');
+                                }
+                            });
+                            
+                            TrackManager.saveTrackVisibility();
+                            setTimeout(() => TrackManager.drawAllTrackGraphs(), 0);
+                        });
+                        
+                        labelsContainer.appendChild(label);
+                        createdLabels.add(field.key);
+                    }
+                });
+            },
+
+            generateTrackLabels: (trackId, fields) => {
+                const labelsContainer = document.getElementById(trackId + 'TrackLabels');
+                if (!labelsContainer) return;
+                
+                const existingLabels = labelsContainer.querySelectorAll('.track-label');
+                if (existingLabels.length > 0) return;
+                
+                labelsContainer.innerHTML = '';
+                
+                const header = labelsContainer.closest('.track-header');
+                if (header && !header.contains(labelsContainer)) {
+                    header.appendChild(labelsContainer);
+                }
+                
+                const createdLabels = new Set();
+                fields.forEach(field => {
+                    if (!createdLabels.has(field.key)) {
+                        const label = document.createElement('div');
+                        label.className = 'track-label';
+                        label.setAttribute('data-track', trackId);
+                        label.setAttribute('data-line', field.key);
+                        label.setAttribute('data-trackid', trackId);
+                        label.style.borderLeftColor = field.color;
+                        label.style.borderLeftWidth = '3px';
+                        label.style.borderLeftStyle = 'solid';
+                        label.textContent = field.key;
+                        
+                        const key = trackId + ':' + field.key;
+                        if (!AppState.lineVisibility[key]) {
+                            AppState.lineVisibility[key] = true;
+                        }
+                        
+                        label.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                        
+                        label.addEventListener('touchstart', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                        
+                        label.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const key = trackId + ':' + field.key;
+                            const isEnabled = !label.classList.contains('disabled');
+                            if (isEnabled) {
+                                label.classList.add('disabled');
+                                AppState.lineVisibility[key] = false;
+                            } else {
+                                label.classList.remove('disabled');
+                                AppState.lineVisibility[key] = true;
+                            }
+                            
+                            labelsContainer.querySelectorAll(`.track-label[data-line="${field.key}"]`).forEach(l => {
+                                if (isEnabled) {
+                                    l.classList.add('disabled');
+                                } else {
+                                    l.classList.remove('disabled');
+                                }
+                            });
+                            
+                            TrackManager.saveTrackVisibility();
+                            setTimeout(() => TrackManager.drawAllTrackGraphs(), 0);
+                        });
+                        
+                        labelsContainer.appendChild(label);
+                        createdLabels.add(field.key);
+                    }
+                });
+            },
+
+            saveTrackVisibility: () => {
+                localStorage.setItem('slam_yaga_line_visibility', JSON.stringify(AppState.lineVisibility));
+            },
+
+            loadTrackVisibility: () => {
+                try {
+                    const savedLines = localStorage.getItem('slam_yaga_line_visibility');
+                    if (savedLines) {
+                        const savedVisibility = JSON.parse(savedLines);
+                        Object.keys(savedVisibility).forEach(key => {
+                            if (savedVisibility[key] === false) {
+                                AppState.lineVisibility[key] = false;
+                            } else {
+                                AppState.lineVisibility[key] = true;
+                            }
+                        });
+                    }
+                    
+                    setTimeout(() => {
+                        document.querySelectorAll('.track-label').forEach(label => {
+                            const lineType = label.getAttribute('data-line');
+                            const trackId = label.getAttribute('data-trackid');
+                            if (lineType && trackId) {
+                                const key = trackId + ':' + lineType;
+                                if (AppState.lineVisibility[key] === false) {
+                                    label.classList.add('disabled');
+                                } else {
+                                    label.classList.remove('disabled');
+                                }
+                            }
+                        });
+                    }, 100);
+                } catch (e) {
+                    // Failed to load line visibility
+                }
+            },
+
+            saveTrackHeights: () => {
+                const heights = {};
+                document.querySelectorAll('.track-content').forEach((trackContent, index) => {
+                    heights[`track_${index}`] = trackContent.offsetHeight;
+                });
+                localStorage.setItem('slam_yaga_track_heights', JSON.stringify(heights));
+            },
+
+            loadTrackHeights: () => {
+                try {
+                    const saved = localStorage.getItem('slam_yaga_track_heights');
+                    if (saved) {
+                        const heights = JSON.parse(saved);
+                        document.querySelectorAll('.track-content').forEach((trackContent, index) => {
+                            const savedHeight = heights[`track_${index}`];
+                            if (savedHeight && savedHeight >= 50) {
+                                trackContent.style.height = savedHeight + 'px';
+                                const canvas = trackContent.querySelector('.track-graph-canvas');
+                                if (canvas) {
+                                    const timelineTrack = canvas.closest('.timeline-track');
+                                    const canvasHeight = timelineTrack ? timelineTrack.offsetHeight : 60;
+                                    canvas.height = canvasHeight;
+                                }
+                            }
+                        });
+                        setTimeout(() => TrackManager.drawAllTrackGraphs(), 0);
+                    }
+                } catch (e) {
+                    // Failed to load track heights
+                }
+            },
+
+            drawAllTrackGraphs: () => {
+                const canvases = document.querySelectorAll('.track-graph-canvas');
+                
+                if (!canvases.length) {
+                    setTimeout(() => TrackManager.drawAllTrackGraphs(), 100);
+                    return;
+                }
+                
+                const timelineTracks = document.querySelector('.timeline-tracks');
+                const tracksRect = timelineTracks.getBoundingClientRect();
+                const slamKeys = Object.keys(localStorage).filter(key => key.startsWith('yaga_track_'));
+                const colorPalette = ['#ff5555', '#00c853', '#2979ff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'];
+                
+                slamKeys.forEach(key => {
+                    const trackType = key.replace('yaga_track_', '');
+                    const trackId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
+                    const canvas = document.getElementById(`${trackId}TrackGraph`);
+                    if (!canvas) {
+                        return;
+                    }
+                    
+                    const trackContent = canvas.closest('.track-content');
+                    const timelineTrack = canvas.closest('.timeline-track');
+                    const trackHeight = timelineTrack ? timelineTrack.offsetHeight : 60;
+                    
+                    canvas.width = Math.round(tracksRect.width);
+                    canvas.height = trackHeight;
+                    canvas.style.width = tracksRect.width + 'px';
+                    canvas.style.height = trackHeight + 'px';
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    let numericFields = [];
+                    let data = null;
+                    try {
+                        data = JSON.parse(localStorage.getItem(key));
+                        if (Array.isArray(data) && data.length > 0) {
+                            numericFields = Utils.collectNumericFields(data[0]);
+                        }
+                    } catch (e) {
+                        return;
+                    }
+                    
+                    if (!data || numericFields.length === 0) {
+                        return;
+                    }
+                    
+                    let totalFrames = 0;
+                    if (data && data.length > 0) {
+                        totalFrames = Math.max(...data.map(d => typeof d.frame === 'number' ? d.frame : 0)) + 1;
+                    }
+                    if (AppState.totalThumbnails && AppState.totalThumbnails > totalFrames) {
+                        totalFrames = AppState.totalThumbnails;
+                    }
+                    if (totalFrames < 1) totalFrames = 1;
+                    
+                    const pixelPerFrame = canvas.width / (totalFrames - 1);
+                    
+                    numericFields.forEach((field, i) => {
+                        const key = trackId + ':' + field;
+                        if (!AppState.lineVisibility || AppState.lineVisibility[key] === false) return;
+                        
+                        const color = colorPalette[i % colorPalette.length];
+                        
+                        const points = data.map((d, idx) => {
+                            const keys = field.split('_');
+                            let value = d;
+                            for (const key of keys) {
+                                if (value && typeof value === 'object' && key in value) {
+                                    value = value[key];
+                                } else {
+                                    return null;
+                                }
+                            }
+                            if (typeof value === 'number' && !isNaN(value)) {
+                                return { frame: (typeof d.frame === 'number' ? d.frame : idx), value };
+                            }
+                            return null;
+                        }).filter(Boolean);
+                        
+                        if (points.length === 0) return;
+                        
+                        let minVal, maxVal, range;
+                        const isAngle = /alpha|beta|gamma|rotation|angle|yaw|pitch|roll/i.test(field);
+                        if (isAngle) {
+                            minVal = -180;
+                            maxVal = 180;
+                            range = 360;
+                        } else {
+                            const values = points.map(p => p.value);
+                            minVal = Math.min(...values);
+                            maxVal = Math.max(...values);
+                            range = maxVal - minVal || 1;
+                        }
+                        
+                        ctx.save();
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        points.forEach((pt, idx) => {
+                            const x = pt.frame * pixelPerFrame;
+                            const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
+                            if (idx === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        });
+                        ctx.stroke();
+                        ctx.restore();
+                        
+                        ctx.save();
+                        ctx.fillStyle = color;
+                        points.forEach(pt => {
+                            const x = pt.frame * pixelPerFrame;
+                            const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
+                            ctx.beginPath();
+                            ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                            ctx.fill();
+                        });
+                        ctx.restore();
+                    });
+                });
+                
+                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
+                    TrackManager.drawSensorGraphs();
+                }
+            },
+
+            drawSensorGraphs: () => {
+                const canvas = document.getElementById('sensorsTrackGraph');
+                if (!canvas) {
+                    return;
+                }
+                
+                const timelineTracks = document.querySelector('.timeline-tracks');
+                const tracksRect = timelineTracks.getBoundingClientRect();
+                const trackContent = canvas.closest('.track-content');
+                const timelineTrack = canvas.closest('.timeline-track');
+                const trackHeight = timelineTrack ? timelineTrack.offsetHeight : 60;
+                
+                canvas.width = Math.round(tracksRect.width);
+                canvas.height = trackHeight;
+                canvas.style.width = tracksRect.width + 'px';
+                canvas.style.height = trackHeight + 'px';
+                
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const colorPalette = ['#ff5555', '#00c853', '#2979ff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57'];
+                
+                const allNumericFields = new Set();
+                AppState.sensorDataHistory.forEach(item => {
+                    const fields = Utils.collectNumericFields(item);
+                    fields.forEach(field => allNumericFields.add(field));
+                });
+                
+                const numericFieldNames = Array.from(allNumericFields);
+                
+                const numericFields = numericFieldNames.map(fieldName => ({
+                    key: fieldName,
+                    color: colorPalette[numericFieldNames.indexOf(fieldName) % colorPalette.length]
+                }));
+                if (numericFields.length === 0) {
+                    return;
+                }
+                
+                let totalFrames = 0;
+                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
+                    totalFrames = Math.max(...AppState.sensorDataHistory
+                        .filter(d => typeof d.frame === 'number')
+                        .map(d => d.frame), 0) + 1;
+                }
+                if (AppState.totalThumbnails && AppState.totalThumbnails > totalFrames) {
+                    totalFrames = AppState.totalThumbnails;
+                }
+                if (totalFrames < 1) totalFrames = 1;
+                
+                const pixelPerFrame = canvas.width / (totalFrames - 1);
+                
+                numericFields.forEach((field, i) => {
+                    const key = 'sensors:' + field.key;
+                    if (!AppState.lineVisibility || AppState.lineVisibility[key] === false) return;
+                    
+                    const color = colorPalette[i % colorPalette.length];
+                    
+                    const points = [];
+                    AppState.sensorDataHistory.forEach((item, idx) => {
+                        const keys = field.key.split('_');
+                        let value = item;
+                        for (const key of keys) {
+                            if (value && typeof value === 'object' && key in value) {
+                                value = value[key];
+                            } else {
+                                return;
+                            }
+                        }
+                        if (typeof value === 'number' && !isNaN(value)) {
+                            points.push({ frame: item.frame || idx, value });
+                        }
+                    });
+                    
+                    if (points.length === 0) {
+                        return;
+                    }
+                    
+                    let minVal, maxVal, range;
+                    const isAngle = /alpha|beta|gamma|rotation|angle|yaw|pitch|roll/i.test(field.key);
+                    if (isAngle) {
+                        minVal = -180;
+                        maxVal = 180;
+                        range = 360;
+                    } else {
+                        const values = points.map(p => p.value);
+                        minVal = Math.min(...values);
+                        maxVal = Math.max(...values);
+                        range = maxVal - minVal || 1;
+                    }
+                    
+                    ctx.save();
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    points.forEach((pt, idx) => {
+                        const x = pt.frame * pixelPerFrame;
+                        const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
+                        if (idx === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                    ctx.restore();
+                    
+                    ctx.save();
+                    ctx.fillStyle = color;
+                    points.forEach(pt => {
+                        const x = pt.frame * pixelPerFrame;
+                        const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                    ctx.restore();
+                });
+            }
+        };
+
+        // --- Initialize Application ---
+        if (window.opener) {
+            window.opener.postMessage('ready-for-data', '*');
+        }
+
+
+
+        // --- Global Functions for HTML onclick ---
+        window.togglePlay = () => VideoManager.togglePlay();
+        window.downloadVideo = () => VideoManager.downloadVideo();
+        window.togglePanel = (panelId) => PanelManager.togglePanel(panelId);
+        window.drawTrackGraph = () => TrackManager.drawAllTrackGraphs();
+        window.saveTrackVisibility = () => TrackManager.saveTrackVisibility();
+        window.setupResizeHandles = () => App.setupResizeHandlers();
+        window.saveTrackHeights = () => TrackManager.saveTrackHeights();
+        window.loadTrackHeights = () => TrackManager.loadTrackHeights();
+        window.setupTrackToggles = () => {}; // Deprecated
+        window.extractNumericFields = (data) => Utils.extractNumericFields(data);
+        window.generateSensorTrackToggles = (numericFields) => TrackManager.generateSensorTrackToggles(numericFields);
+        window.createTimelineTracks = () => TrackManager.createTimelineTracks();
+        window.drawAllTrackGraphs = () => TrackManager.drawAllTrackGraphs();
+        window.fullTimelineRedraw = () => {
+            const timelineTracks = document.querySelector('.timeline-tracks');
+            if (!timelineTracks) return;
+            if (timelineTracks.children.length > 0) {
+                timelineTracks.innerHTML = '';
+            }
+            if ((AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) ||
+                Object.keys(localStorage).some(key => key.startsWith('yaga_track_'))) {
+                TrackManager.createTimelineTracks();
+                setTimeout(() => TrackManager.drawAllTrackGraphs(), 100);
+                setTimeout(() => TrackManager.drawAllTrackGraphs(), 300);
+            }
+        };
+
+        // --- Fallback Upload ---
+        window.showFallbackUpload = () => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('fallbackUpload').style.display = 'block';
+            document.getElementById('videoContainer').style.display = 'none';
+            document.getElementById('timelineContainer').style.display = 'none';
+        };
+
+        window.handleFallbackUpload = async () => {
+            const videoInput = document.getElementById('fallbackVideo');
+            const jsonInput = document.getElementById('fallbackJson');
+            const errorDiv = document.getElementById('fallbackError');
+            errorDiv.textContent = '';
+            
+            if (!videoInput.files[0] || !jsonInput.files[0]) {
+                errorDiv.textContent = 'Select both files!';
+                return;
+            }
+            
+            const videoFile = videoInput.files[0];
+            const jsonFile = jsonInput.files[0];
+            const videoUrl = URL.createObjectURL(videoFile);
+            
+            try {
+                const text = await jsonFile.text();
+                const sensors = JSON.parse(text);
+                
+                AppState.videoBlob = videoUrl;
+                AppState.sensorData = sensors;
+                AppState.dataReady = true;
+                document.getElementById('fallbackUpload').style.display = 'none';
+                VideoManager.tryInitTimelineAnalyzer();
+            } catch (e) {
+                errorDiv.textContent = 'JSON reading error: ' + e;
+            }
+        };
+
+        setTimeout(() => {
+            if (!AppState.dataReady) {
+                window.showFallbackUpload();
+            }
+        }, 1000);
+
+        // --- Window resize handler for graphs ---
+        window.addEventListener('resize', function() {
+            if (typeof TrackManager.drawAllTrackGraphs === 'function') {
+                TrackManager.drawAllTrackGraphs();
+            }
+        });
+
+        // --- Video metadata loaded handler ---
+        video.addEventListener('loadedmetadata', () => setTimeout(() => TrackManager.drawAllTrackGraphs(), 0));
+
+        // --- Main Application Initialization ---
+        const App = {
+            init: () => {
+                App.loadDataFromLocalStorage();
+                App.setupEventListeners();
+                App.setupResizeHandlers();
+                TrackManager.loadTrackVisibility();
+            },
+
+            loadDataFromLocalStorage: () => {
+                if (!AppState.dataReady) {
+                    AppState.availableTracks = DataManager.discoverAvailableTracks();
+                    
+                    const storedVideo = AppState.availableTracks['video']?.data;
+                    const storedSensors = AppState.availableTracks['sensors']?.data;
+                    
+                    if (storedVideo && storedSensors) {
+                        AppState.videoBlob = storedVideo;
+                        AppState.sensorData = storedSensors;
+                        
+                        if (AppState.availableTracks['slam']) {
+                            try {
+                                AppState.slamData = JSON.parse(AppState.availableTracks['slam'].data);
+                            } catch (e) {
+                                // Failed to parse legacy SLAM data
+                            }
+                        }
+                        
+                        AppState.dataReady = true;
+                        VideoManager.tryInitTimelineAnalyzer();
+                        TrackManager.createTimelineTracks();
+                    }
+                }
+            },
+
+            setupEventListeners: () => {
+                video.addEventListener('loadedmetadata', () => {
+                    VideoManager.detectVideoFPS();
+                    if (video.duration && AppState.fps) {
+                        VideoManager.generateThumbnails();
+                    }
+                    video.currentTime = 0;
+                });
+
+                video.addEventListener('timeupdate', () => {
+                    if (!AppState.playheadDragging) {
+                        PlayheadManager.updatePlayhead();
+                    }
+                });
+
+                video.addEventListener('play', () => AppState.isPlaying = true);
+                video.addEventListener('pause', () => AppState.isPlaying = false);
+                video.addEventListener('seeked', () => PlayheadManager.updatePlayhead());
+
+                window.addEventListener('resize', () => {
+                    if (video.duration && AppState.totalThumbnails) {
+                        VideoManager.generateThumbnails();
+                        PlayheadManager.updatePlayhead();
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        VideoManager.togglePlay();
+                    }
+                });
+
+                video.addEventListener('loadedmetadata', VideoManager.updateVideoAreaSize);
+                window.addEventListener('resize', VideoManager.updateVideoAreaSize);
+                
+                const observer = new MutationObserver(VideoManager.updateVideoAreaSize);
+                observer.observe(videoContainer, {attributes: true, attributeFilter: ['style']});
+            },
+
+            setupResizeHandlers: () => {
+                const resizeHandle = document.getElementById('parametersPanelResize');
+                const parametersPanel = document.getElementById('parametersPanel');
+                const videoArea = document.getElementById('videoArea');
+                
+                if (resizeHandle && parametersPanel && videoArea) {
+                    let isResizing = false;
+                    let startX = 0;
+                    let startWidth = 0;
+                    let cachedMaxWidth = 600;
+                    
+                    resizeHandle.addEventListener('mousedown', function(e) {
+                        isResizing = true;
+                        startX = e.clientX;
+                        startWidth = parametersPanel.offsetWidth;
+                        cachedMaxWidth = PanelManager.calculateMinPanelWidth() - 10;
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                        e.preventDefault();
+                    });
+                    
+                    function handleMouseMove(e) {
+                        if (!isResizing) return;
+                        const deltaX = e.clientX - startX;
+                        const newWidth = Math.max(200, Math.min(cachedMaxWidth, startWidth + deltaX));
+                        parametersPanel.style.width = newWidth + 'px';
+                        parametersPanel.style.flexShrink = '0';
+                    }
+                    
+                    function handleMouseUp() {
+                        isResizing = false;
+                        document.removeEventListener('mousemove', handleMouseMove);
+                        document.removeEventListener('mouseup', handleMouseUp);
+                    }
+                }
+
+                const timelineResizeHandle = document.getElementById('timelineResizeHandle');
+                if (timelineResizeHandle && timelineContainer) {
+                    let isResizing = false;
+                    let startY = 0;
+                    let startHeight = 0;
+                    const minHeight = 80;
+                    const maxHeight = 600;
+
+                    timelineResizeHandle.addEventListener('mousedown', function(e) {
+                        isResizing = true;
+                        startY = e.clientY;
+                        startHeight = timelineContainer.offsetHeight;
+                        document.body.style.userSelect = 'none';
+                        e.preventDefault();
+                    });
+
+                    function onMouseMove(e) {
+                        if (!isResizing) return;
+                        const delta = startY - e.clientY;
+                        let newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + delta));
+                        timelineContainer.style.height = newHeight + 'px';
+                    }
+
+                    function onMouseUp() {
+                        if (isResizing) {
+                            isResizing = false;
+                            document.body.style.userSelect = '';
+                        }
+                    }
+
+                    window.addEventListener('mousemove', onMouseMove);
+                    window.addEventListener('mouseup', onMouseUp);
+                }
+            }
+        };
+
+        // --- Playhead Management Module ---
+        const PlayheadManager = {
+            updatePlayhead: () => {
+                if (!video.duration) return;
+                if (!AppState.playheadDragging) {
+                    PlayheadManager.updatePlayheadVisual();
+                }
+                PlayheadManager.updatePlayheadData();
+            },
+
+            updatePlayheadVisual: () => {
+                if (!video.duration) return;
+                const progress = video.currentTime / video.duration;
+                const percent = Math.max(0, Math.min(1, progress));
+                const globalPlayhead = document.getElementById('globalPlayhead');
+                if (globalPlayhead) {
+                    globalPlayhead.style.left = (percent * 100) + '%';
+                }
+            },
+
+            updatePlayheadData: () => {
+                if (!video.duration) return;
+                const currentFrame = Math.round(video.currentTime * AppState.fps);
+                const snappedTime = currentFrame / AppState.fps;
+                const minutes = Math.floor(snappedTime / 60);
+                const seconds = Math.floor(snappedTime % 60);
+                const frame = currentFrame % AppState.fps;
+                const timeDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}.${frame.toString().padStart(2, '0')}`;
+                
+                const timeDisplayElement = timeRuler.querySelector('span');
+                if (timeDisplayElement) {
+                    timeDisplayElement.textContent = timeDisplay;
+                }
+
+                let altFrameDisplay = document.querySelector('.alt-frame-display');
+                const percent = Math.max(0, Math.min(1, video.currentTime / video.duration));
+                if (!altFrameDisplay) {
+                    altFrameDisplay = document.createElement('div');
+                    altFrameDisplay.className = 'alt-frame-display';
+                    altFrameDisplay.style.cssText = `
+                        position: absolute;
+                        top: 0;
+                        background: #ff4444;
+                        color: #fff;
+                        padding: 5px 10px;
+                        border-radius: 5px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        font-family: monospace;
+                        z-index: 10000;
+                        pointer-events: none;
+                        transform: translateX(-50%);`;
+                    timelineContainer.appendChild(altFrameDisplay);
+                }
+                altFrameDisplay.textContent = `${currentFrame}`;
+                altFrameDisplay.style.left = (percent * 100) + '%';
+                altFrameDisplay.style.fontSize = '11px';
+
+                DataManager.updateSensorInfo(snappedTime);
+                DataManager.updateSLAMInfo(snappedTime);
+            },
+
+            playheadDragStart: (e) => {
+                AppState.playheadDragging = true;
+                document.body.style.userSelect = 'none';
+                if (!video.paused) video.pause();
+                
+                const timelineTracks = document.querySelector('.timeline-tracks');
+                if (timelineTracks) {
+                    timelineTracks.classList.add('dragging');
+                }
+                
+                PlayheadManager.movePlayheadToEvent(e);
+            },
+
+            playheadDragMove: (e) => {
+                if (!AppState.playheadDragging) return;
+                e.preventDefault();
+                PlayheadManager.movePlayheadToEvent(e);
+                PlayheadManager.updatePlayheadData();
+            },
+
+            playheadDragEnd: () => {
+                if (AppState.playheadDragging) {
+                    AppState.playheadDragging = false;
+                    document.body.style.userSelect = '';
+                    
+                    const timelineTracks = document.querySelector('.timeline-tracks');
+                    if (timelineTracks) {
+                        timelineTracks.classList.remove('dragging');
+                    }
+                    
+                    const currentFrame = Math.round(video.currentTime * AppState.fps);
+                    const snappedTime = currentFrame / AppState.fps;
+                    video.currentTime = Math.max(0, Math.min(video.duration, snappedTime));
+                    
+                    setTimeout(() => {
+                        PlayheadManager.updatePlayhead();
+                    }, 10);
+                }
+            },
+
+            movePlayheadToEvent: (e) => {
+                if (!timeRuler || !video.duration) return;
+                
+                let clientX;
+                if (e.touches) {
+                    clientX = e.touches[0].clientX;
+                    e.preventDefault();
+                } else {
+                    clientX = e.clientX;
+                }
+                
+                const rulerRect = timeRuler.getBoundingClientRect();
+                const relativeX = clientX - rulerRect.left;
+                const x = Math.max(0, Math.min(rulerRect.width, relativeX));
+                const percent = x / rulerRect.width;
+                
+                const totalFrames = AppState.totalThumbnails || Math.round(video.duration * AppState.fps);
+                const targetFrame = Math.round(percent * totalFrames);
+                const snappedPercent = targetFrame / totalFrames;
+                
+                const globalPlayhead = document.getElementById('globalPlayhead');
+                if (globalPlayhead) {
+                    globalPlayhead.style.left = (snappedPercent * 100) + '%';
+                }
+                
+                let altFrameDisplay = document.querySelector('.alt-frame-display');
+                if (altFrameDisplay) {
+                    altFrameDisplay.textContent = `${targetFrame}`;
+                    altFrameDisplay.style.left = (snappedPercent * 100) + '%';
+                }
+                
+                const newTime = snappedPercent * video.duration;
+                const snappedTime = Math.max(0, Math.min(video.duration, newTime));
+                video.currentTime = snappedTime;
+            },
+
+            seekToPosition: (clientX) => {
+                if (!timeRuler || !video.duration) return;
+                
+                const rulerRect = timeRuler.getBoundingClientRect();
+                const relativeX = clientX - rulerRect.left;
+                const x = Math.max(0, Math.min(rulerRect.width, relativeX));
+                const percent = x / rulerRect.width;
+                
+                if (percent >= 0 && percent <= 1) {
+                    const totalFrames = AppState.totalThumbnails || Math.round(video.duration * AppState.fps);
+                    const targetFrame = Math.round(percent * totalFrames);
+                    const snappedPercent = targetFrame / totalFrames;
+                    
+                    const newTime = snappedPercent * video.duration;
+                    const snappedTime = Math.max(0, Math.min(video.duration, newTime));
+                    video.currentTime = snappedTime;
+                    PlayheadManager.updatePlayhead();
+                }
+            },
+
+            snapToFrame: (time) => {
+                const frameTime = Math.round(time * AppState.fps) / AppState.fps;
+                return Math.max(0, Math.min(video.duration, frameTime));
+            }
+        };
+
+        // --- Initialize Application After All Modules Are Defined ---
+        window.addEventListener('DOMContentLoaded', App.init);
+        window.addEventListener('load', () => {
+            VideoManager.initTimelineAnalyzer();
+            if (video) {
+                video.currentTime = 0;
+            }
+        });
+
+
+
+        // --- Global Event Listeners (After All Modules Are Defined) ---
+        const timelineTracks = document.querySelector('.timeline-tracks');
+        if (timelineTracks) {
+            timelineTracks.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                PlayheadManager.playheadDragStart(e);
+            });
+            
+            timelineTracks.addEventListener('scroll', () => {
+                PlayheadManager.updatePlayhead();
+            });
+            
+            timelineTracks.addEventListener('click', (e) => {
+                setTimeout(() => {
+                    if (!AppState.playheadDragging) {
+                        PlayheadManager.movePlayheadToEvent(e);
+                    }
+                }, 5);
+            });
+        }
+
+        const timeRulerEl = document.getElementById('timeRuler');
+        if (timeRulerEl) {
+            timeRulerEl.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                PlayheadManager.playheadDragStart(e);
+            });
+            timeRulerEl.addEventListener('touchstart', PlayheadManager.playheadDragStart);
+            timeRulerEl.addEventListener('click', (e) => {
+                setTimeout(() => {
+                    if (!AppState.playheadDragging) {
+                        PlayheadManager.movePlayheadToEvent(e);
+                    }
+                }, 5);
+            });
+        }
+
+        document.addEventListener('mousemove', PlayheadManager.playheadDragMove);
+        document.addEventListener('mouseup', PlayheadManager.playheadDragEnd);
+        if (timelineTracks) {
+            timelineTracks.addEventListener('touchstart', PlayheadManager.playheadDragStart);
+        }
+        document.addEventListener('touchmove', PlayheadManager.playheadDragMove, {passive:false});
+        document.addEventListener('touchend', PlayheadManager.playheadDragEnd);
+
+    </script>
+</body>
+</html> 
