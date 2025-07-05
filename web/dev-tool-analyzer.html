@@ -882,9 +882,7 @@
         
         // --- Global State Management ---
         const AppState = {
-            videoBlob: null,
-            sensorData: null,
-            slamData: null,
+            tracks: {},
             dataReady: false,
             availableTracks: {},
             isPlaying: false,
@@ -892,8 +890,6 @@
             totalThumbnails: 0,
             fps: 60,
             frameDuration: 1/60,
-            sensorDataHistory: [],
-            slamDataHistory: [],
             playheadDragging: false,
             lineVisibility: { alpha: true, beta: true, gamma: true }
         };
@@ -965,7 +961,7 @@
                 const fields = new Map();
                 const colors = ['#ff5555', '#00c853', '#2979ff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57'];
                 
-                const processNestedObject = (obj, prefix = '') => {
+                const processNestedObject = (obj, prefix = '', index = 0) => {
                     Object.entries(obj).forEach(([key, value]) => {
                         if (key === 'frame') return;
                         
@@ -979,16 +975,16 @@
                                 });
                             }
                             fields.get(fullKey).values.push({
-                                frame: obj.frame,
+                                frame: obj.frame !== undefined ? obj.frame : index,
                                 value: value
                             });
                         } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                            processNestedObject(value, prefix + key + '_');
+                            processNestedObject(value, prefix + key + '_', index);
                         }
                     });
                 };
                 
-                data.forEach(item => processNestedObject(item));
+                data.forEach((item, index) => processNestedObject(item, '', index));
                 return Array.from(fields.values());
             }
         };
@@ -1033,10 +1029,11 @@
 
             saveToLocalStorage: () => {
                 try {
-                    localStorage.setItem('yaga_track_video', AppState.videoBlob);
-                    localStorage.setItem('yaga_track_sensors', 
-                        typeof AppState.sensorData === 'string' ? 
-                        AppState.sensorData : JSON.stringify(AppState.sensorData));
+                                    Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                        const key = `yaga_track_${trackName}`;
+                        const value = typeof trackData === 'string' ? trackData : JSON.stringify(trackData);
+                        localStorage.setItem(key, value);
+                    });
                 } catch (e) { /* ignore quota errors */ }
             }
         };
@@ -1044,7 +1041,8 @@
         // --- Video & Timeline Management Module ---
         const VideoManager = {
             tryInitTimelineAnalyzer: () => {
-                if (AppState.videoBlob && AppState.sensorData !== null) {
+                                    const hasData = Object.keys(AppState.tracks).length > 0;
+                if (hasData) {
                     DataManager.saveToLocalStorage();
                     VideoManager.initTimelineAnalyzer();
                     PanelManager.generateDynamicSLAMPanels(AppState.availableTracks);
@@ -1072,17 +1070,27 @@
             },
 
             detectVideoFPS: () => {
-                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
-                    const maxFrame = Math.max(...AppState.sensorDataHistory
-                        .filter(d => typeof d.frame === 'number')
-                        .map(d => d.frame), 0);
-                    const dataPoints = AppState.sensorDataHistory.length;
-                    
-                    if (maxFrame > 0 && dataPoints > 1) {
-                        const estimatedFPS = Math.round(maxFrame / (dataPoints / maxFrame));
-                        if (estimatedFPS > 0 && estimatedFPS <= 120) {
-                            AppState.fps = estimatedFPS;
+                let maxFrame = 0;
+                let totalDataPoints = 0;
+                
+                Object.values(AppState.tracks).forEach(trackData => {
+                    if (Array.isArray(trackData) && trackData.length > 0) {
+                        const frames = trackData
+                            .filter(d => typeof d.frame === 'number')
+                            .map(d => d.frame);
+                        
+                        if (frames.length > 0) {
+                            const trackMaxFrame = Math.max(...frames);
+                            maxFrame = Math.max(maxFrame, trackMaxFrame);
+                            totalDataPoints += trackData.length;
                         }
+                    }
+                });
+                
+                if (maxFrame > 0 && totalDataPoints > 1) {
+                    const estimatedFPS = Math.round(maxFrame / (totalDataPoints / maxFrame));
+                    if (estimatedFPS > 0 && estimatedFPS <= 120) {
+                        AppState.fps = estimatedFPS;
                     }
                 }
                 
@@ -1126,13 +1134,15 @@
                 let totalFrames = Math.round(video.duration * AppState.fps);
                 AppState.totalThumbnails = Math.ceil(video.duration * AppState.fps);
                 
-                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
-                    const maxFrameFromData = Math.max(...AppState.sensorDataHistory
-                        .filter(d => typeof d.frame === 'number')
-                        .map(d => d.frame), 0);
-                    totalFrames = Math.max(totalFrames, maxFrameFromData + 1);
-                    AppState.totalThumbnails = Math.max(AppState.totalThumbnails, maxFrameFromData + 1);
-                }
+                Object.values(AppState.tracks).forEach(trackData => {
+                    if (Array.isArray(trackData) && trackData.length > 0) {
+                        const maxFrameFromData = Math.max(...trackData
+                            .filter(d => typeof d.frame === 'number')
+                            .map(d => d.frame), 0);
+                        totalFrames = Math.max(totalFrames, maxFrameFromData + 1);
+                        AppState.totalThumbnails = Math.max(AppState.totalThumbnails, maxFrameFromData + 1);
+                    }
+                });
                 
                 window.totalThumbnails = AppState.totalThumbnails;
                 
@@ -1239,33 +1249,34 @@
             },
 
             initTimelineAnalyzer: () => {
-                if (!AppState.videoBlob || !AppState.sensorData) return;
+                if (Object.keys(AppState.tracks).length === 0) return;
                 
-                video.src = AppState.videoBlob;
-                video.load();
+                const videoTrack = Object.entries(AppState.tracks).find(([name, data]) => {
+                    return typeof data === 'string' && (data.startsWith('blob:') || data.startsWith('data:'));
+                });
                 
-                if (typeof AppState.sensorData === 'string') {
-                    try {
-                        AppState.sensorDataHistory = JSON.parse(AppState.sensorData);
-                    } catch (e) {
-                        console.error('Failed to parse sensor data:', e);
-                        return;
-                    }
-                } else {
-                    AppState.sensorDataHistory = AppState.sensorData;
+                if (videoTrack) {
+                    const [trackName, videoUrl] = videoTrack;
+                    video.src = videoUrl;
+                    video.load();
                 }
                 
-                if (AppState.slamData) {
-                    if (typeof AppState.slamData === 'string') {
+                Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                    if (Array.isArray(trackData)) {
+                        AppState.tracks[trackName] = trackData;
+                    } else if (typeof trackData === 'string') {
                         try {
-                            AppState.slamDataHistory = JSON.parse(AppState.slamData);
+                            const parsed = JSON.parse(trackData);
+                            if (Array.isArray(parsed)) {
+                                AppState.tracks[trackName] = parsed;
+                            }
                         } catch (e) {
-                            console.error('Failed to parse SLAM data:', e);
+                            if (!trackData.startsWith('blob:') && !trackData.startsWith('data:')) {
+                                delete AppState.tracks[trackName];
+                            }
                         }
-                    } else {
-                        AppState.slamDataHistory = AppState.slamData;
                     }
-                }
+                });
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('videoContainer').style.display = 'flex';
@@ -1414,9 +1425,16 @@
         // --- Event Handlers ---
         window.addEventListener('message', function(e) {
             if (e.data && e.data.type === 'init-data') {
-                AppState.videoBlob = e.data.payload.videoUrl;
-                AppState.sensorData = e.data.payload.sensors;
-                AppState.slamData = e.data.payload.slamData || null;
+                if (e.data.payload.videoUrl) {
+                    AppState.tracks['video'] = e.data.payload.videoUrl;
+                }
+                if (e.data.payload.sensors) {
+                    AppState.tracks['sensors'] = e.data.payload.sensors;
+                }
+                if (e.data.payload.slamData) {
+                    AppState.tracks['slam'] = e.data.payload.slamData;
+                }
+                
                 AppState.dataReady = true;
                 VideoManager.tryInitTimelineAnalyzer();
             }
@@ -1425,72 +1443,57 @@
         // --- Data Update Functions ---
         DataManager.updateSensorInfo = (currentTime) => {
             const frame = Math.round(currentTime * AppState.fps);
-            const data = AppState.sensorDataHistory;
-            const closest = data.find(d => {
-                if (typeof d.frame === 'number' && d.frame === frame) return true;
-                if (d.frame === frame.toString()) return true;
-                return false;
-            });
             
-            const numericFields = Utils.extractNumericFields(data);
-            const elements = {};
-            numericFields.forEach(field => {
-                elements[field.key] = field.elementId;
-            });
-            
-            if (!closest) {
-                Object.values(elements).forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = '—';
+                            Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                if (!Array.isArray(trackData) || trackData.length === 0) return;
+                
+                const closest = trackData.find(d => {
+                    if (typeof d.frame === 'number' && d.frame === frame) return true;
+                    if (d.frame === frame.toString()) return true;
+                    return false;
                 });
-                return;
-            }
-            
-            Object.entries(elements).forEach(([fieldKey, elementId]) => {
-                const el = document.getElementById(elementId);
-                if (!el) return;
                 
-                let value = null;
-                const keys = fieldKey.split('_');
-                let currentValue = closest;
-                let found = true;
+                if (!closest) return;
                 
-                for (const key of keys) {
-                    if (currentValue && typeof currentValue === 'object' && key in currentValue) {
-                        currentValue = currentValue[key];
-                    } else {
-                        found = false;
-                        break;
-                    }
-                }
-                
-                if (found) {
-                    value = currentValue;
-                }
-                
-                if (typeof value === 'number' && !isNaN(value)) {
-                    const isAngle = fieldKey.includes('alpha') || fieldKey.includes('beta') || 
-                                   fieldKey.includes('gamma') || fieldKey.includes('rotation') ||
-                                   fieldKey.includes('angle') || fieldKey.includes('yaw') ||
-                                   fieldKey.includes('pitch') || fieldKey.includes('roll');
+                const numericFields = Utils.extractNumericFields(trackData);
+                numericFields.forEach(field => {
+                    const elementId = `param-${trackName.replace(/[^a-zA-Z0-9]/g, '_')}-${field.key.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const el = document.getElementById(elementId);
+                    if (!el) return;
                     
-                    if (isAngle) {
-                        el.textContent = `${value.toFixed(1)}°`;
-                    } else {
-                        el.textContent = value.toFixed(2);
+                    const keys = field.key.split('_');
+                    let value = closest;
+                    let found = true;
+                    
+                    for (const key of keys) {
+                        if (value && typeof value === 'object' && key in value) {
+                            value = value[key];
+                        } else {
+                            found = false;
+                            break;
+                        }
                     }
-                } else {
-                    el.textContent = '—';
-                }
+                    
+                    if (found && typeof value === 'number' && !isNaN(value)) {
+                        const isAngle = field.key.includes('alpha') || field.key.includes('beta') || 
+                                       field.key.includes('gamma') || field.key.includes('rotation') ||
+                                       field.key.includes('angle') || field.key.includes('yaw') ||
+                                       field.key.includes('pitch') || field.key.includes('roll');
+                        
+                        if (isAngle) {
+                            el.textContent = `${value.toFixed(1)}°`;
+                        } else {
+                            el.textContent = value.toFixed(2);
+                        }
+                    } else {
+                        el.textContent = '—';
+                    }
+                });
             });
         };
 
         DataManager.updateSLAMInfo = (currentTime) => {
-            const frame = Math.round(currentTime * AppState.fps);
-            const data = AppState.slamDataHistory;
-            const closest = data.find(d => d.frame === frame);
-            
-            PanelManager.updateDynamicSLAMPanels(closest, frame);
+            // Deprecated - now handled by updateSensorInfo
         };
 
         PanelManager.calculateMinPanelWidth = () => {
@@ -1519,126 +1522,110 @@
         };
 
         PanelManager.updateDynamicSLAMPanels = (closest, frame) => {
-            const slamKeys = Object.keys(localStorage).filter(key => key.startsWith('yaga_track_'));
-            
-            slamKeys.forEach(key => {
-                try {
-                    const raw = localStorage.getItem(key);
-                    let data;
-                    try {
-                        data = JSON.parse(raw);
-                    } catch (e) {
-                        return;
+            Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                if (!Array.isArray(trackData) || trackData.length === 0) return;
+                
+                const trackType = trackName;
+                const panelId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
+                
+                const frameData = trackData.find(item => item.frame === frame);
+                const fields = [];
+                
+                trackData.forEach(item => {
+                    const itemFields = Utils.collectFieldsFromLevel1(item);
+                    fields.push(...itemFields);
+                });
+                
+                const uniqueFields = [];
+                const seen = new Set();
+                fields.forEach(field => {
+                    const key = field.fullPath;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        uniqueFields.push(field);
                     }
-                    if (!Array.isArray(data) || data.length === 0) return;
-                    
-                    const firstItem = data[0];
-                    if (!firstItem) return;
-                    
-                    const trackType = key.replace('yaga_track_', '');
-                    const panelId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
-                    
-                    const frameData = data.find(item => item.frame === frame);
-                    const fields = [];
-                    
-                    data.forEach(item => {
-                        const itemFields = Utils.collectFieldsFromLevel1(item);
-                        fields.push(...itemFields);
-                    });
-                    
-                    const uniqueFields = [];
-                    const seen = new Set();
-                    fields.forEach(field => {
-                        const key = field.fullPath;
-                        if (!seen.has(key)) {
-                            seen.add(key);
-                            uniqueFields.push(field);
-                        }
-                    });
-                    
-                    const lastValidValueByFrame = {};
-                    uniqueFields.forEach(f => {
-                        const elementId = `param-${panelId}-${(f.subkey ? f.field + '_' + f.subkey : f.field).replace(/[^a-zA-Z0-9]/g, '_')}`;
-                        lastValidValueByFrame[elementId] = {};
-                        let lastValue = undefined;
-                        const sortedData = [...data].sort((a, b) => a.frame - b.frame);
-                        for (const item of sortedData) {
-                            let value = undefined;
-                            
-                            if (f.subkey === null) {
-                                if (item.hasOwnProperty(f.field)) {
-                                    value = item[f.field];
-                                }
-                            } else {
-                                if (item.hasOwnProperty(f.field) && 
-                                    typeof item[f.field] === 'object' && 
-                                    item[f.field] !== null && 
-                                    !Array.isArray(item[f.field]) &&
-                                    item[f.field].hasOwnProperty(f.subkey)) {
-                                    value = item[f.field][f.subkey];
-                                }
-                            }
-                            
-                            if (value !== null && value !== undefined && 
-                                !(typeof value === 'number' && isNaN(value)) && value !== '') {
-                                lastValue = value;
-                            }
-                            lastValidValueByFrame[elementId][item.frame] = lastValue;
-                        }
-                    });
-                    
-                    uniqueFields.forEach(f => {
-                        const elementId = `param-${panelId}-${(f.subkey ? f.field + '_' + f.subkey : f.field).replace(/[^a-zA-Z0-9]/g, '_')}`;
-                        const element = document.getElementById(elementId);
-                        let value = '—';
-                        let faded = false;
-                        let foundInCurrentFrame = false;
+                });
+                
+                const lastValidValueByFrame = {};
+                uniqueFields.forEach(f => {
+                    const elementId = `param-${panelId}-${(f.subkey ? f.field + '_' + f.subkey : f.field).replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    lastValidValueByFrame[elementId] = {};
+                    let lastValue = undefined;
+                    const sortedData = [...trackData].sort((a, b) => a.frame - b.frame);
+                    for (const item of sortedData) {
+                        let value = undefined;
                         
-                        if (frameData) {
-                            if (f.subkey === null) {
-                                if (frameData.hasOwnProperty(f.field)) {
-                                    value = frameData[f.field];
-                                    foundInCurrentFrame = value !== null && value !== undefined && 
-                                        !(typeof value === 'number' && isNaN(value)) && value !== '';
-                                }
-                            } else {
-                                if (frameData.hasOwnProperty(f.field) && 
-                                    typeof frameData[f.field] === 'object' && 
-                                    frameData[f.field] !== null && 
-                                    !Array.isArray(frameData[f.field]) &&
-                                    frameData[f.field].hasOwnProperty(f.subkey)) {
-                                    value = frameData[f.field][f.subkey];
-                                    foundInCurrentFrame = value !== null && value !== undefined && 
-                                        !(typeof value === 'number' && isNaN(value)) && value !== '';
-                                }
+                        if (f.subkey === null) {
+                            if (item.hasOwnProperty(f.field)) {
+                                value = item[f.field];
+                            }
+                        } else {
+                            if (item.hasOwnProperty(f.field) && 
+                                typeof item[f.field] === 'object' && 
+                                item[f.field] !== null && 
+                                !Array.isArray(item[f.field]) &&
+                                item[f.field].hasOwnProperty(f.subkey)) {
+                                value = item[f.field][f.subkey];
                             }
                         }
                         
-                        if (!foundInCurrentFrame) {
-                            const frames = Object.keys(lastValidValueByFrame[elementId])
-                                .map(Number)
-                                .filter(fnum => fnum <= frame && lastValidValueByFrame[elementId][fnum] !== undefined);
-                            const lastFrame = frames.length ? Math.max(...frames) : null;
-                            const lastVal = lastFrame !== null ? lastValidValueByFrame[elementId][lastFrame] : undefined;
-                            if (lastVal !== undefined) {
-                                value = lastVal;
-                                faded = true;
-                            } else {
-                                value = '—';
+                        if (value !== null && value !== undefined && 
+                            !(typeof value === 'number' && isNaN(value)) && value !== '') {
+                            lastValue = value;
+                        }
+                        lastValidValueByFrame[elementId][item.frame] = lastValue;
+                    }
+                });
+                
+                uniqueFields.forEach(f => {
+                    const elementId = `param-${panelId}-${(f.subkey ? f.field + '_' + f.subkey : f.field).replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const element = document.getElementById(elementId);
+                    let value = '—';
+                    let faded = false;
+                    let foundInCurrentFrame = false;
+                    
+                    if (frameData) {
+                        if (f.subkey === null) {
+                            if (frameData.hasOwnProperty(f.field)) {
+                                value = frameData[f.field];
+                                foundInCurrentFrame = value !== null && value !== undefined && 
+                                    !(typeof value === 'number' && isNaN(value)) && value !== '';
+                            }
+                        } else {
+                            if (frameData.hasOwnProperty(f.field) && 
+                                typeof frameData[f.field] === 'object' && 
+                                frameData[f.field] !== null && 
+                                !Array.isArray(frameData[f.field]) &&
+                                frameData[f.field].hasOwnProperty(f.subkey)) {
+                                value = frameData[f.field][f.subkey];
+                                foundInCurrentFrame = value !== null && value !== undefined && 
+                                    !(typeof value === 'number' && isNaN(value)) && value !== '';
                             }
                         }
-                        
-                        if (element) {
-                            if (faded && value !== '—') {
-                                element.innerHTML = `<span class="faded-value">${value}</span>`;
-                            } else {
-                                element.textContent = value;
-                            }
+                    }
+                    
+                    if (!foundInCurrentFrame) {
+                        const frames = Object.keys(lastValidValueByFrame[elementId])
+                            .map(Number)
+                            .filter(fnum => fnum <= frame && lastValidValueByFrame[elementId][fnum] !== undefined);
+                        const lastFrame = frames.length ? Math.max(...frames) : null;
+                        const lastVal = lastFrame !== null ? lastValidValueByFrame[elementId][lastFrame] : undefined;
+                        if (lastVal !== undefined) {
+                            value = lastVal;
+                            faded = true;
+                        } else {
+                            value = '—';
                         }
-                    });
-                } catch (error) {
-                    // Failed to update panel
-                }
+                    }
+                    
+                    if (element) {
+                        if (faded && value !== '—') {
+                            element.innerHTML = `<span class="faded-value">${value}</span>`;
+                        } else {
+                            element.textContent = value;
+                        }
+                    }
+                });
             });
         };
 
@@ -1671,11 +1658,11 @@
                     }
                 }
                 
-                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
-                    TrackManager.createSensorTrack(timelineTracks);
-                }
-                
-                TrackManager.createSLAMTracks(timelineTracks);
+                Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                    if (Array.isArray(trackData) && trackData.length > 0) {
+                        TrackManager.createDataTrack(timelineTracks, trackName, trackData);
+                    }
+                });
                 
                 window.timelineTracksCreated = true;
                 
@@ -1684,16 +1671,18 @@
                 }, 100);
             },
 
-            createSensorTrack: (timelineTracks) => {
+            createDataTrack: (timelineTracks, trackName, trackData) => {
+                const trackId = trackName.replace(/[^a-zA-Z0-9]/g, '_');
+                
                 const trackContent = document.createElement('div');
                 trackContent.className = 'track-content';
                 trackContent.innerHTML = `
-                    <div class="track-header" id="sensorsTrackHeader">
-                        <span class="track-title">Sensors</span>
-                        <div class="track-labels" id="sensorsTrackLabels"></div>
+                    <div class="track-header" id="${trackId}TrackHeader">
+                        <span class="track-title">${trackName}</span>
+                        <div class="track-labels" id="${trackId}TrackLabels"></div>
                     </div>
-                    <div class="timeline-track" id="sensorsTimelineTrack">
-                        <canvas class="track-graph-canvas" id="sensorsTrackGraph"></canvas>
+                    <div class="timeline-track" id="${trackId}TimelineTrack">
+                        <canvas class="track-graph-canvas" id="${trackId}TrackGraph"></canvas>
                     </div>
                     <div class="resize-handle"></div>
                 `;
@@ -1701,69 +1690,13 @@
                 timelineTracks.appendChild(trackContent);
                 trackContent.style.height = '50px';
                 
-                const numericFields = Utils.extractNumericFields(AppState.sensorDataHistory);
-                TrackManager.generateSensorTrackToggles(numericFields);
+                const numericFields = Utils.extractNumericFields(trackData);
+                TrackManager.generateTrackToggles(trackId, trackName, numericFields);
             },
 
-            createSLAMTracks: (timelineTracks) => {
-                const slamKeys = Object.keys(localStorage).filter(key => key.startsWith('yaga_track_'));
-                slamKeys.forEach(key => {
-                    try {
-                        const raw = localStorage.getItem(key);
-                        let data;
-                        try {
-                            data = JSON.parse(raw);
-                        } catch (e) {
-                            return;
-                        }
-                        if (!Array.isArray(data) || data.length === 0) return;
-                        
-                        const firstItem = data[0];
-                        if (!firstItem) return;
-                        
-                        const trackType = key.replace('yaga_track_', '');
-                        const trackId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
-                        
-                        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'];
-                        const colorIndex = trackType.length % colors.length;
-                        const color = colors[colorIndex];
-                        
-                        const allFields = Utils.extractNumericFields(data);
-                        
-                        const trackContent = document.createElement('div');
-                        trackContent.className = 'track-content';
-                        trackContent.innerHTML = `
-                            <div class="track-header">
-                                <span class="track-title">${trackType}</span>
-                                <div class="track-labels" id="${trackId}TrackLabels"></div>
-                            </div>
-                            <div class="timeline-track" id="${trackId}TimelineTrack">
-                                <canvas class="track-graph-canvas" id="${trackId}TrackGraph"></canvas>
-                            </div>
-                            <div class="resize-handle"></div>
-                        `;
-                        
-                        timelineTracks.appendChild(trackContent);
-                        trackContent.style.height = '50px';
-                        
-                        TrackManager.generateTrackLabels(trackId, allFields);
-                        
-                        allFields.forEach(field => {
-                            const key = trackId + ':' + field.key;
-                            if (AppState.lineVisibility[key] === undefined) {
-                                AppState.lineVisibility[key] = true;
-                            }
-                        });
-                        
-                    } catch (error) {
-                        // Failed to create timeline track
-                    }
-                });
-            },
-
-            generateSensorTrackToggles: (numericFields) => {
-                const header = document.getElementById('sensorsTrackHeader');
-                const labelsContainer = document.getElementById('sensorsTrackLabels');
+            generateTrackToggles: (trackId, trackName, numericFields) => {
+                const header = document.getElementById(trackId + 'TrackHeader');
+                const labelsContainer = document.getElementById(trackId + 'TrackLabels');
                 if (!header || !labelsContainer) return;
                 
                 const existingLabels = labelsContainer.querySelectorAll('.track-label');
@@ -1775,7 +1708,7 @@
                 header.appendChild(labelsContainer);
                 
                 numericFields.forEach(field => {
-                    const key = 'sensors:' + field.key;
+                    const key = trackName + ':' + field.key;
                     if (AppState.lineVisibility[key] === undefined) {
                         AppState.lineVisibility[key] = true;
                     }
@@ -1786,9 +1719,9 @@
                     if (!createdLabels.has(field.key)) {
                         const label = document.createElement('div');
                         label.className = 'track-label';
-                        label.setAttribute('data-track', 'sensor');
+                        label.setAttribute('data-track', trackName);
                         label.setAttribute('data-line', field.key);
-                        label.setAttribute('data-trackid', 'sensors');
+                        label.setAttribute('data-trackid', trackName);
                         label.style.borderLeftColor = field.color;
                         label.style.borderLeftWidth = '3px';
                         label.style.borderLeftStyle = 'solid';
@@ -1808,81 +1741,7 @@
                             e.preventDefault();
                             e.stopPropagation();
                             
-                            const key = 'sensors:' + field.key;
-                            const isEnabled = !label.classList.contains('disabled');
-                            if (isEnabled) {
-                                label.classList.add('disabled');
-                                AppState.lineVisibility[key] = false;
-                            } else {
-                                label.classList.remove('disabled');
-                                AppState.lineVisibility[key] = true;
-                            }
-                            
-                            labelsContainer.querySelectorAll(`.track-label[data-line="${field.key}"]`).forEach(l => {
-                                if (isEnabled) {
-                                    l.classList.add('disabled');
-                                } else {
-                                    l.classList.remove('disabled');
-                                }
-                            });
-                            
-                            TrackManager.saveTrackVisibility();
-                            setTimeout(() => TrackManager.drawAllTrackGraphs(), 0);
-                        });
-                        
-                        labelsContainer.appendChild(label);
-                        createdLabels.add(field.key);
-                    }
-                });
-            },
-
-            generateTrackLabels: (trackId, fields) => {
-                const labelsContainer = document.getElementById(trackId + 'TrackLabels');
-                if (!labelsContainer) return;
-                
-                const existingLabels = labelsContainer.querySelectorAll('.track-label');
-                if (existingLabels.length > 0) return;
-                
-                labelsContainer.innerHTML = '';
-                
-                const header = labelsContainer.closest('.track-header');
-                if (header && !header.contains(labelsContainer)) {
-                    header.appendChild(labelsContainer);
-                }
-                
-                const createdLabels = new Set();
-                fields.forEach(field => {
-                    if (!createdLabels.has(field.key)) {
-                        const label = document.createElement('div');
-                        label.className = 'track-label';
-                        label.setAttribute('data-track', trackId);
-                        label.setAttribute('data-line', field.key);
-                        label.setAttribute('data-trackid', trackId);
-                        label.style.borderLeftColor = field.color;
-                        label.style.borderLeftWidth = '3px';
-                        label.style.borderLeftStyle = 'solid';
-                        label.textContent = field.key;
-                        
-                        const key = trackId + ':' + field.key;
-                        if (!AppState.lineVisibility[key]) {
-                            AppState.lineVisibility[key] = true;
-                        }
-                        
-                        label.addEventListener('mousedown', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        });
-                        
-                        label.addEventListener('touchstart', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        });
-                        
-                        label.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            
-                            const key = trackId + ':' + field.key;
+                            const key = trackName + ':' + field.key;
                             const isEnabled = !label.classList.contains('disabled');
                             if (isEnabled) {
                                 label.classList.add('disabled');
@@ -1989,16 +1848,14 @@
                 
                 const timelineTracks = document.querySelector('.timeline-tracks');
                 const tracksRect = timelineTracks.getBoundingClientRect();
-                const slamKeys = Object.keys(localStorage).filter(key => key.startsWith('yaga_track_'));
                 const colorPalette = ['#ff5555', '#00c853', '#2979ff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'];
                 
-                slamKeys.forEach(key => {
-                    const trackType = key.replace('yaga_track_', '');
-                    const trackId = trackType.replace(/[^a-zA-Z0-9]/g, '_');
+                Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                    if (!Array.isArray(trackData) || trackData.length === 0) return;
+                    
+                    const trackId = trackName.replace(/[^a-zA-Z0-9]/g, '_');
                     const canvas = document.getElementById(`${trackId}TrackGraph`);
-                    if (!canvas) {
-                        return;
-                    }
+                    if (!canvas) return;
                     
                     const trackContent = canvas.closest('.track-content');
                     const timelineTrack = canvas.closest('.timeline-track');
@@ -2012,24 +1869,13 @@
                     const ctx = canvas.getContext('2d');
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     
-                    let numericFields = [];
-                    let data = null;
-                    try {
-                        data = JSON.parse(localStorage.getItem(key));
-                        if (Array.isArray(data) && data.length > 0) {
-                            numericFields = Utils.collectNumericFields(data[0]);
-                        }
-                    } catch (e) {
-                        return;
-                    }
+                    const numericFields = Utils.extractNumericFields(trackData);
                     
-                    if (!data || numericFields.length === 0) {
-                        return;
-                    }
+                    if (numericFields.length === 0) return;
                     
                     let totalFrames = 0;
-                    if (data && data.length > 0) {
-                        totalFrames = Math.max(...data.map(d => typeof d.frame === 'number' ? d.frame : 0)) + 1;
+                    if (trackData && trackData.length > 0) {
+                        totalFrames = Math.max(...trackData.map(d => typeof d.frame === 'number' ? d.frame : 0)) + 1;
                     }
                     if (AppState.totalThumbnails && AppState.totalThumbnails > totalFrames) {
                         totalFrames = AppState.totalThumbnails;
@@ -2039,31 +1885,21 @@
                     const pixelPerFrame = canvas.width / (totalFrames - 1);
                     
                     numericFields.forEach((field, i) => {
-                        const key = trackId + ':' + field;
+                        const key = trackName + ':' + field.key;
+                        
                         if (!AppState.lineVisibility || AppState.lineVisibility[key] === false) return;
                         
                         const color = colorPalette[i % colorPalette.length];
                         
-                        const points = data.map((d, idx) => {
-                            const keys = field.split('_');
-                            let value = d;
-                            for (const key of keys) {
-                                if (value && typeof value === 'object' && key in value) {
-                                    value = value[key];
-                                } else {
-                                    return null;
-                                }
-                            }
-                            if (typeof value === 'number' && !isNaN(value)) {
-                                return { frame: (typeof d.frame === 'number' ? d.frame : idx), value };
-                            }
-                            return null;
-                        }).filter(Boolean);
+                        const points = field.values.map(pt => ({
+                            frame: pt.frame,
+                            value: pt.value
+                        }));
                         
                         if (points.length === 0) return;
                         
                         let minVal, maxVal, range;
-                        const isAngle = /alpha|beta|gamma|rotation|angle|yaw|pitch|roll/i.test(field);
+                        const isAngle = /alpha|beta|gamma|rotation|angle|yaw|pitch|roll/i.test(field.key);
                         if (isAngle) {
                             minVal = -180;
                             maxVal = 180;
@@ -2079,19 +1915,28 @@
                         ctx.strokeStyle = color;
                         ctx.lineWidth = 1.5;
                         ctx.beginPath();
+                        
+                        let firstPoint = true;
                         points.forEach((pt, idx) => {
-                            const x = pt.frame * pixelPerFrame;
+                            const frame = typeof pt.frame === 'number' && !isNaN(pt.frame) ? pt.frame : idx;
+                            const x = frame * pixelPerFrame;
                             const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
-                            if (idx === 0) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
+                            
+                            if (firstPoint) {
+                                ctx.moveTo(x, y);
+                                firstPoint = false;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
                         });
                         ctx.stroke();
                         ctx.restore();
                         
                         ctx.save();
                         ctx.fillStyle = color;
-                        points.forEach(pt => {
-                            const x = pt.frame * pixelPerFrame;
+                        points.forEach((pt, idx) => {
+                            const frame = typeof pt.frame === 'number' && !isNaN(pt.frame) ? pt.frame : idx;
+                            const x = frame * pixelPerFrame;
                             const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
                             ctx.beginPath();
                             ctx.arc(x, y, 2, 0, 2 * Math.PI);
@@ -2099,126 +1944,6 @@
                         });
                         ctx.restore();
                     });
-                });
-                
-                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
-                    TrackManager.drawSensorGraphs();
-                }
-            },
-
-            drawSensorGraphs: () => {
-                const canvas = document.getElementById('sensorsTrackGraph');
-                if (!canvas) {
-                    return;
-                }
-                
-                const timelineTracks = document.querySelector('.timeline-tracks');
-                const tracksRect = timelineTracks.getBoundingClientRect();
-                const trackContent = canvas.closest('.track-content');
-                const timelineTrack = canvas.closest('.timeline-track');
-                const trackHeight = timelineTrack ? timelineTrack.offsetHeight : 60;
-                
-                canvas.width = Math.round(tracksRect.width);
-                canvas.height = trackHeight;
-                canvas.style.width = tracksRect.width + 'px';
-                canvas.style.height = trackHeight + 'px';
-                
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                const colorPalette = ['#ff5555', '#00c853', '#2979ff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57'];
-                
-                const allNumericFields = new Set();
-                AppState.sensorDataHistory.forEach(item => {
-                    const fields = Utils.collectNumericFields(item);
-                    fields.forEach(field => allNumericFields.add(field));
-                });
-                
-                const numericFieldNames = Array.from(allNumericFields);
-                
-                const numericFields = numericFieldNames.map(fieldName => ({
-                    key: fieldName,
-                    color: colorPalette[numericFieldNames.indexOf(fieldName) % colorPalette.length]
-                }));
-                if (numericFields.length === 0) {
-                    return;
-                }
-                
-                let totalFrames = 0;
-                if (AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) {
-                    totalFrames = Math.max(...AppState.sensorDataHistory
-                        .filter(d => typeof d.frame === 'number')
-                        .map(d => d.frame), 0) + 1;
-                }
-                if (AppState.totalThumbnails && AppState.totalThumbnails > totalFrames) {
-                    totalFrames = AppState.totalThumbnails;
-                }
-                if (totalFrames < 1) totalFrames = 1;
-                
-                const pixelPerFrame = canvas.width / (totalFrames - 1);
-                
-                numericFields.forEach((field, i) => {
-                    const key = 'sensors:' + field.key;
-                    if (!AppState.lineVisibility || AppState.lineVisibility[key] === false) return;
-                    
-                    const color = colorPalette[i % colorPalette.length];
-                    
-                    const points = [];
-                    AppState.sensorDataHistory.forEach((item, idx) => {
-                        const keys = field.key.split('_');
-                        let value = item;
-                        for (const key of keys) {
-                            if (value && typeof value === 'object' && key in value) {
-                                value = value[key];
-                            } else {
-                                return;
-                            }
-                        }
-                        if (typeof value === 'number' && !isNaN(value)) {
-                            points.push({ frame: item.frame || idx, value });
-                        }
-                    });
-                    
-                    if (points.length === 0) {
-                        return;
-                    }
-                    
-                    let minVal, maxVal, range;
-                    const isAngle = /alpha|beta|gamma|rotation|angle|yaw|pitch|roll/i.test(field.key);
-                    if (isAngle) {
-                        minVal = -180;
-                        maxVal = 180;
-                        range = 360;
-                    } else {
-                        const values = points.map(p => p.value);
-                        minVal = Math.min(...values);
-                        maxVal = Math.max(...values);
-                        range = maxVal - minVal || 1;
-                    }
-                    
-                    ctx.save();
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    points.forEach((pt, idx) => {
-                        const x = pt.frame * pixelPerFrame;
-                        const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
-                        if (idx === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    });
-                    ctx.stroke();
-                    ctx.restore();
-                    
-                    ctx.save();
-                    ctx.fillStyle = color;
-                    points.forEach(pt => {
-                        const x = pt.frame * pixelPerFrame;
-                        const y = canvas.height - ((isAngle ? Utils.normalize180(pt.value) : pt.value) - minVal) / range * canvas.height;
-                        ctx.beginPath();
-                        ctx.arc(x, y, 2, 0, 2 * Math.PI);
-                        ctx.fill();
-                    });
-                    ctx.restore();
                 });
             }
         };
@@ -2241,7 +1966,7 @@
         window.loadTrackHeights = () => TrackManager.loadTrackHeights();
         window.setupTrackToggles = () => {}; // Deprecated
         window.extractNumericFields = (data) => Utils.extractNumericFields(data);
-        window.generateSensorTrackToggles = (numericFields) => TrackManager.generateSensorTrackToggles(numericFields);
+        window.generateTrackToggles = (trackId, trackName, numericFields) => TrackManager.generateTrackToggles(trackId, trackName, numericFields);
         window.createTimelineTracks = () => TrackManager.createTimelineTracks();
         window.drawAllTrackGraphs = () => TrackManager.drawAllTrackGraphs();
         window.fullTimelineRedraw = () => {
@@ -2250,8 +1975,7 @@
             if (timelineTracks.children.length > 0) {
                 timelineTracks.innerHTML = '';
             }
-            if ((AppState.sensorDataHistory && AppState.sensorDataHistory.length > 0) ||
-                Object.keys(localStorage).some(key => key.startsWith('yaga_track_'))) {
+            if (Object.keys(AppState.tracks).length > 0) {
                 TrackManager.createTimelineTracks();
                 setTimeout(() => TrackManager.drawAllTrackGraphs(), 100);
                 setTimeout(() => TrackManager.drawAllTrackGraphs(), 300);
@@ -2285,8 +2009,9 @@
                 const text = await jsonFile.text();
                 const sensors = JSON.parse(text);
                 
-                AppState.videoBlob = videoUrl;
-                AppState.sensorData = sensors;
+                AppState.tracks['video'] = videoUrl;
+                AppState.tracks['sensors'] = sensors;
+                
                 AppState.dataReady = true;
                 document.getElementById('fallbackUpload').style.display = 'none';
                 VideoManager.tryInitTimelineAnalyzer();
@@ -2324,21 +2049,33 @@
                 if (!AppState.dataReady) {
                     AppState.availableTracks = DataManager.discoverAvailableTracks();
                     
-                    const storedVideo = AppState.availableTracks['video']?.data;
-                    const storedSensors = AppState.availableTracks['sensors']?.data;
-                    
-                    if (storedVideo && storedSensors) {
-                        AppState.videoBlob = storedVideo;
-                        AppState.sensorData = storedSensors;
-                        
-                        if (AppState.availableTracks['slam']) {
-                            try {
-                                AppState.slamData = JSON.parse(AppState.availableTracks['slam'].data);
-                            } catch (e) {
-                                // Failed to parse legacy SLAM data
+                    Object.entries(AppState.availableTracks).forEach(([trackName, trackInfo]) => {
+                        try {
+                            const data = trackInfo.data;
+                            
+                            if (typeof data === 'string') {
+                                if (data.startsWith('blob:') || data.startsWith('data:')) {
+                                    AppState.tracks[trackName] = data;
+                                } else {
+                                    try {
+                                        const parsed = JSON.parse(data);
+                                        if (Array.isArray(parsed)) {
+                                            AppState.tracks[trackName] = parsed;
+                                        }
+                                    } catch (e) {
+                                        // Ignore parsing errors
+                                    }
+                                }
+                            } else if (Array.isArray(data)) {
+                                AppState.tracks[trackName] = data;
                             }
+                        } catch (e) {
+                            // Ignore processing errors
                         }
-                        
+                    });
+                    
+                    const hasData = Object.keys(AppState.tracks).length > 0;
+                    if (hasData) {
                         AppState.dataReady = true;
                         VideoManager.tryInitTimelineAnalyzer();
                         TrackManager.createTimelineTracks();
@@ -2517,7 +2254,8 @@
                 altFrameDisplay.style.fontSize = '11px';
 
                 DataManager.updateSensorInfo(snappedTime);
-                DataManager.updateSLAMInfo(snappedTime);
+                PanelManager.updateDynamicSLAMPanels(null, frame);
+                // DataManager.updateSLAMInfo is deprecated - now handled by updateSensorInfo
             },
 
             playheadDragStart: (e) => {
