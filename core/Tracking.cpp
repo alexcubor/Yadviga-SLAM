@@ -17,9 +17,31 @@ EMSCRIPTEN_KEEPALIVE uint8_t* pointDescriptors = nullptr;  // Descriptors for ea
 EMSCRIPTEN_KEEPALIVE size_t descriptorSize = 32;  // Fixed size for ORB descriptors
 EMSCRIPTEN_KEEPALIVE cv::Mat essentialMatrix;  // Essential Matrix
 
+// Camera motion data from recoverPose
+EMSCRIPTEN_KEEPALIVE cv::Mat cameraRotation;  // Rotation matrix 3x3
+EMSCRIPTEN_KEEPALIVE cv::Mat cameraTranslation;  // Translation vector 3x1
+EMSCRIPTEN_KEEPALIVE bool motionReady = false;  // Flag for motion data readiness
+EMSCRIPTEN_KEEPALIVE int goodPointsCount = 0;  // Number of good points used for pose estimation
+
+// Raw data storage for debugging
+EMSCRIPTEN_KEEPALIVE cv::Mat rawEssentialMatrix;  // Raw Essential Matrix from findEssentialMat
+EMSCRIPTEN_KEEPALIVE cv::Mat rawRotationMatrix;   // Raw Rotation Matrix from recoverPose
+EMSCRIPTEN_KEEPALIVE cv::Mat rawTranslationVector; // Raw Translation Vector from recoverPose
+EMSCRIPTEN_KEEPALIVE std::vector<uchar> rawInlierMask;  // Raw inlier mask from findEssentialMat
+EMSCRIPTEN_KEEPALIVE std::vector<uchar> rawRecoverPoseStatus;  // Raw status from recoverPose
+EMSCRIPTEN_KEEPALIVE bool rawDataReady = false;  // Flag for raw data readiness
+
+// Optical flow data storage
+EMSCRIPTEN_KEEPALIVE std::vector<cv::Point2f> opticalFlowPrevPoints;  // Previous points from optical flow
+EMSCRIPTEN_KEEPALIVE std::vector<cv::Point2f> opticalFlowCurrPoints;  // Current points from optical flow
+EMSCRIPTEN_KEEPALIVE std::vector<uchar> opticalFlowStatus;  // Status from optical flow
+EMSCRIPTEN_KEEPALIVE std::vector<float> opticalFlowError;  // Error from optical flow
+EMSCRIPTEN_KEEPALIVE bool opticalFlowReady = false;  // Flag for optical flow data readiness
+
 // Mutexes for thread safety
 EMSCRIPTEN_KEEPALIVE std::mutex trackingMutex;  // Mutex for tracking points
 EMSCRIPTEN_KEEPALIVE std::mutex pointsReadyMutex;  // Mutex for points readiness
+EMSCRIPTEN_KEEPALIVE std::mutex motionMutex;  // Mutex for motion data
 
 // Declare external variables
 extern bool frameReady;
@@ -51,6 +73,232 @@ extern "C" int getTrackingPointsCount() {
 extern "C" bool arePointsReady() {
     std::lock_guard<std::mutex> lock(pointsReadyMutex);
     return pointsReady;
+}
+
+// Functions for accessing camera motion data
+extern "C" float* getCameraMotion() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    
+    // Return array: [rx, ry, rz, tx, ty, tz]
+    // rx, ry, rz - rotation in radians (Euler angles)
+    // tx, ty, tz - translation in camera units
+    float* motion = (float*)malloc(6 * sizeof(float));
+    
+    if (motionReady && !cameraRotation.empty() && !cameraTranslation.empty()) {
+        // Convert rotation matrix to Euler angles
+        cv::Mat R = cameraRotation;
+        float sy = sqrt(R.at<double>(0,0) * R.at<double>(0,0) + R.at<double>(1,0) * R.at<double>(1,0));
+        bool singular = sy < 1e-6;
+        
+        float x, y, z;
+        if (!singular) {
+            x = atan2(R.at<double>(2,1), R.at<double>(2,2));
+            y = atan2(-R.at<double>(2,0), sy);
+            z = atan2(R.at<double>(1,0), R.at<double>(0,0));
+        } else {
+            x = atan2(-R.at<double>(1,2), R.at<double>(1,1));
+            y = atan2(-R.at<double>(2,0), sy);
+            z = 0;
+        }
+        
+        motion[0] = x;  // rx (roll)
+        motion[1] = y;  // ry (pitch)
+        motion[2] = z;  // rz (yaw)
+        motion[3] = cameraTranslation.at<double>(0);  // tx
+        motion[4] = cameraTranslation.at<double>(1);  // ty
+        motion[5] = cameraTranslation.at<double>(2);  // tz
+    } else {
+        // Return zeros if no motion data available
+        for (int i = 0; i < 6; i++) {
+            motion[i] = 0.0f;
+        }
+    }
+    
+    return motion;
+}
+
+extern "C" bool isMotionReady() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    return motionReady;
+}
+
+extern "C" int getGoodPointsCount() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    return goodPointsCount;
+}
+
+// Functions for accessing raw data from findEssentialMat and recoverPose
+extern "C" float* getRawEssentialMatrix() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    
+    if (!rawDataReady || rawEssentialMatrix.empty()) {
+        return nullptr;
+    }
+    
+    // Essential Matrix is 3x3, so we need 9 float values
+    float* matrix = (float*)malloc(9 * sizeof(float));
+    
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            matrix[i * 3 + j] = (float)rawEssentialMatrix.at<double>(i, j);
+        }
+    }
+    
+    return matrix;
+}
+
+extern "C" float* getRawRotationMatrix() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    
+    if (!rawDataReady || rawRotationMatrix.empty()) {
+        return nullptr;
+    }
+    
+    // Rotation Matrix is 3x3, so we need 9 float values
+    float* matrix = (float*)malloc(9 * sizeof(float));
+    
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            matrix[i * 3 + j] = (float)rawRotationMatrix.at<double>(i, j);
+        }
+    }
+    
+    return matrix;
+}
+
+extern "C" float* getRawTranslationVector() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    
+    if (!rawDataReady || rawTranslationVector.empty()) {
+        return nullptr;
+    }
+    
+    // Translation Vector is 3x1, so we need 3 float values
+    float* vector = (float*)malloc(3 * sizeof(float));
+    
+    for (int i = 0; i < 3; i++) {
+        vector[i] = (float)rawTranslationVector.at<double>(i);
+    }
+    
+    return vector;
+}
+
+extern "C" uint8_t* getRawInlierMask() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    
+    if (!rawDataReady || rawInlierMask.empty()) {
+        return nullptr;
+    }
+    
+    // Copy inlier mask data
+    uint8_t* mask = (uint8_t*)malloc(rawInlierMask.size() * sizeof(uint8_t));
+    memcpy(mask, rawInlierMask.data(), rawInlierMask.size() * sizeof(uint8_t));
+    
+    return mask;
+}
+
+extern "C" int getInlierMaskSize() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    return rawInlierMask.size();
+}
+
+extern "C" uint8_t* getRawRecoverPoseStatus() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    
+    if (!rawDataReady || rawRecoverPoseStatus.empty()) {
+        return nullptr;
+    }
+    
+    // Copy recoverPose status data
+    uint8_t* status = (uint8_t*)malloc(rawRecoverPoseStatus.size() * sizeof(uint8_t));
+    memcpy(status, rawRecoverPoseStatus.data(), rawRecoverPoseStatus.size() * sizeof(uint8_t));
+    
+    return status;
+}
+
+extern "C" int getRecoverPoseStatusSize() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    return rawRecoverPoseStatus.size();
+}
+
+extern "C" bool isRawDataReady() {
+    std::lock_guard<std::mutex> lock(motionMutex);
+    return rawDataReady;
+}
+
+// Functions for accessing optical flow data
+extern "C" float* getOpticalFlowPrevPoints() {
+    std::lock_guard<std::mutex> lock(trackingMutex);
+    
+    if (!opticalFlowReady || opticalFlowPrevPoints.empty()) {
+        return nullptr;
+    }
+    
+    // Copy previous points data (x, y coordinates)
+    float* points = (float*)malloc(opticalFlowPrevPoints.size() * 2 * sizeof(float));
+    
+    for (size_t i = 0; i < opticalFlowPrevPoints.size(); i++) {
+        points[i * 2] = opticalFlowPrevPoints[i].x;
+        points[i * 2 + 1] = opticalFlowPrevPoints[i].y;
+    }
+    
+    return points;
+}
+
+extern "C" float* getOpticalFlowCurrPoints() {
+    std::lock_guard<std::mutex> lock(trackingMutex);
+    
+    if (!opticalFlowReady || opticalFlowCurrPoints.empty()) {
+        return nullptr;
+    }
+    
+    // Copy current points data (x, y coordinates)
+    float* points = (float*)malloc(opticalFlowCurrPoints.size() * 2 * sizeof(float));
+    
+    for (size_t i = 0; i < opticalFlowCurrPoints.size(); i++) {
+        points[i * 2] = opticalFlowCurrPoints[i].x;
+        points[i * 2 + 1] = opticalFlowCurrPoints[i].y;
+    }
+    
+    return points;
+}
+
+extern "C" uint8_t* getOpticalFlowStatus() {
+    std::lock_guard<std::mutex> lock(trackingMutex);
+    
+    if (!opticalFlowReady || opticalFlowStatus.empty()) {
+        return nullptr;
+    }
+    
+    // Copy status data
+    uint8_t* status = (uint8_t*)malloc(opticalFlowStatus.size() * sizeof(uint8_t));
+    memcpy(status, opticalFlowStatus.data(), opticalFlowStatus.size() * sizeof(uint8_t));
+    
+    return status;
+}
+
+extern "C" float* getOpticalFlowError() {
+    std::lock_guard<std::mutex> lock(trackingMutex);
+    
+    if (!opticalFlowReady || opticalFlowError.empty()) {
+        return nullptr;
+    }
+    
+    // Copy error data
+    float* error = (float*)malloc(opticalFlowError.size() * sizeof(float));
+    memcpy(error, opticalFlowError.data(), opticalFlowError.size() * sizeof(float));
+    
+    return error;
+}
+
+extern "C" int getOpticalFlowPointsCount() {
+    std::lock_guard<std::mutex> lock(trackingMutex);
+    return opticalFlowPrevPoints.size();
+}
+
+extern "C" bool isOpticalFlowReady() {
+    std::lock_guard<std::mutex> lock(trackingMutex);
+    return opticalFlowReady;
 }
 
 void trackingLoop() {
@@ -147,6 +395,16 @@ void trackingLoop() {
                     cv::Size(15, 15), 1,
                     cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01)
                 );
+                
+                // Save optical flow data
+                {
+                    std::lock_guard<std::mutex> lock(trackingMutex);
+                    opticalFlowPrevPoints = prevTrackingPoints;
+                    opticalFlowCurrPoints = trackingPoints;
+                    opticalFlowStatus = pointStatus;
+                    opticalFlowError = err;
+                    opticalFlowReady = true;
+                }
                     
                 // Update previous frame and points
                 gray.copyTo(prevGray);
@@ -179,7 +437,62 @@ void trackingLoop() {
                     0.5,             // threshold
                     inlierMask      // inliers mask
                 );
-                        essentialMatrix = E;  // Save in global variable
+                essentialMatrix = E;  // Save in global variable
+                
+                // Save raw data from findEssentialMat
+                {
+                    std::lock_guard<std::mutex> lock(motionMutex);
+                    rawEssentialMatrix = E.clone();
+                    rawInlierMask = inlierMask;
+                }
+                
+                // Recover pose from Essential Matrix
+                if (!E.empty() && trackingPoints.size() >= 5 && prevTrackingPoints.size() >= 5) {
+                    cv::Mat R, t;
+                    std::vector<uchar> status;
+                    
+                    // Use recoverPose to get rotation and translation
+                    cv::recoverPose(E, prevTrackingPoints, trackingPoints, cameraMatrix, R, t, status);
+                    
+                    // Save raw data from recoverPose
+                    {
+                        std::lock_guard<std::mutex> lock(motionMutex);
+                        rawRotationMatrix = R.clone();
+                        rawTranslationVector = t.clone();
+                        rawRecoverPoseStatus = status;
+                        rawDataReady = true;
+                    }
+                    
+                    // Check if we have valid results
+                    if (!R.empty() && !t.empty()) {
+                        int goodPoints = cv::countNonZero(status);
+                        
+                        // Only update if we have enough good points
+                        if (goodPoints >= 5) {
+                            std::lock_guard<std::mutex> lock(motionMutex);
+                            cameraRotation = R.clone();
+                            cameraTranslation = t.clone();
+                            goodPointsCount = goodPoints;
+                            motionReady = true;
+                            
+                            // Log motion data for debugging
+                            EM_ASM({
+                                console.log("🎥 Camera motion: R[0,0]=" + $0 + ", t[0]=" + $1 + ", good points=" + $2, 
+                                    $0, $1, $2);
+                            }, R.at<double>(0,0), t.at<double>(0), goodPoints);
+                        } else {
+                            std::lock_guard<std::mutex> lock(motionMutex);
+                            motionReady = false;
+                        }
+                    } else {
+                        std::lock_guard<std::mutex> lock(motionMutex);
+                        motionReady = false;
+                    }
+                } else {
+                    std::lock_guard<std::mutex> lock(motionMutex);
+                    motionReady = false;
+                    rawDataReady = false;
+                }
             }
                 
             {

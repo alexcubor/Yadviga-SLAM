@@ -61,6 +61,23 @@ set(EXPORTED_FUNCS
     "_getTrackingInterval"
     "_initIMU"
     "_updateIMU"
+    "_getCameraMotion"
+    "_isMotionReady"
+    "_getGoodPointsCount"
+    "_getRawEssentialMatrix"
+    "_getRawRotationMatrix"
+    "_getRawTranslationVector"
+    "_getRawInlierMask"
+    "_getInlierMaskSize"
+    "_getRawRecoverPoseStatus"
+    "_getRecoverPoseStatusSize"
+    "_isRawDataReady"
+    "_getOpticalFlowPrevPoints"
+    "_getOpticalFlowCurrPoints"
+    "_getOpticalFlowStatus"
+    "_getOpticalFlowError"
+    "_getOpticalFlowPointsCount"
+    "_isOpticalFlowReady"
 )
 # Convert list to string with square brackets and commas
 string(JOIN "," EXPORTED_FUNCS_STR ${EXPORTED_FUNCS})
