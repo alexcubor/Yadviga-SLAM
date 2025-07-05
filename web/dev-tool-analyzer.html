@@ -4,6 +4,7 @@
     <title>Yadviga Analyzer</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -128,6 +129,35 @@
         .play-btn:hover {
             background: linear-gradient(135deg, #333 60%, #666 100%);
             box-shadow: 0 4px 16px #000c;
+        }
+        
+        .export-btn {
+            background: linear-gradient(135deg, #2d5a2d 60%, #4CAF50 100%);
+            outline-width: 1px;
+            outline-color: #4CAF50;
+            outline-style: solid;
+            color: #fff;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px #000a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+            margin: 0 0 0 8px;
+        }
+        .export-btn:hover {
+            background: linear-gradient(135deg, #3d6a3d 60%, #5dBA5d 100%);
+            box-shadow: 0 4px 16px #000c;
+            transform: scale(1.05);
+        }
+        .export-btn:disabled {
+            background: linear-gradient(135deg, #555 60%, #777 100%);
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         .video-area {
             height: 100%;
@@ -843,6 +873,12 @@
                     <button class="play-btn" onclick="togglePlay()" id="mainPlayBtn" aria-label="Play/Pause">
                         <svg id="playPauseIcon" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <polygon points="11,8 21,14 11,20" fill="#fff"/>
+                        </svg>
+                    </button>
+                    <button class="export-btn" onclick="exportToZip()" id="exportBtn" aria-label="Export to ZIP" title="Export session data to ZIP">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L12 16M12 16L7 11M12 16L17 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20 21H4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
                         </svg>
                     </button>
                 </div>
@@ -1979,6 +2015,222 @@
                 TrackManager.createTimelineTracks();
                 setTimeout(() => TrackManager.drawAllTrackGraphs(), 100);
                 setTimeout(() => TrackManager.drawAllTrackGraphs(), 300);
+            }
+        };
+
+        window.exportToZip = async () => {
+            const exportBtn = document.getElementById('exportBtn');
+            if (exportBtn) {
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2"/><path d="M12 6v6l4 2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+
+            try {
+                // Create session metadata
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const sessionId = `session_${timestamp}`;
+                
+                const metadata = {
+                    session: {
+                        id: sessionId,
+                        timestamp: new Date().toISOString(),
+                        duration: video.duration || 0,
+                        fps: AppState.fps || 60,
+                        videoFormat: 'mp4',
+                        tracks: {}
+                    }
+                };
+
+                // Collect track information
+                Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                    if (Array.isArray(trackData)) {
+                        metadata.session.tracks[trackName] = {
+                            count: trackData.length,
+                            fields: trackData.length > 0 ? Object.keys(trackData[0]).filter(k => k !== 'frame') : []
+                        };
+                    }
+                });
+
+                // Create ZIP using JSZip or fallback to individual downloads
+                const JSZip = window.JSZip;
+                if (!JSZip) {
+                    // Fallback: download files individually
+                    await exportIndividualFiles(sessionId, metadata);
+                    return;
+                }
+
+                const zip = new JSZip();
+                
+                // Add metadata
+                zip.file('metadata.json', JSON.stringify(metadata, null, 2));
+                
+                // Add video file
+                const videoTrack = Object.entries(AppState.tracks).find(([name, data]) => 
+                    typeof data === 'string' && (data.startsWith('blob:') || data.startsWith('data:'))
+                );
+                
+                if (videoTrack) {
+                    const [trackName, videoUrl] = videoTrack;
+                    try {
+                        const videoResponse = await fetch(videoUrl);
+                        const videoBlob = await videoResponse.blob();
+                        zip.file('video.mp4', videoBlob);
+                        metadata.session.videoSize = videoBlob.size;
+                    } catch (e) {
+                        console.warn('Failed to add video to ZIP:', e);
+                    }
+                }
+                
+                // Add track data files
+                Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                    if (Array.isArray(trackData) && trackData.length > 0) {
+                        const filename = `${trackName}.json`;
+                        zip.file(filename, JSON.stringify(trackData, null, 2));
+                    }
+                });
+                
+                // Generate and download ZIP
+                const zipBlob = await zip.generateAsync({type: 'blob'});
+                const downloadUrl = URL.createObjectURL(zipBlob);
+                
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `${sessionId}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                URL.revokeObjectURL(downloadUrl);
+                
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #4CAF50;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    font-family: Arial, sans-serif;
+                `;
+                successMsg.textContent = `✅ Exported to ${sessionId}.zip`;
+                document.body.appendChild(successMsg);
+                
+                setTimeout(() => {
+                    document.body.removeChild(successMsg);
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Export failed:', error);
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #f44336;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    font-family: Arial, sans-serif;
+                `;
+                errorMsg.textContent = `❌ Export failed: ${error.message}`;
+                document.body.appendChild(errorMsg);
+                
+                setTimeout(() => {
+                    document.body.removeChild(errorMsg);
+                }, 5000);
+            } finally {
+                // Reset button
+                if (exportBtn) {
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L12 16M12 16L7 11M12 16L17 11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 21H4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+                }
+            }
+        };
+
+        // Fallback export function for when JSZip is not available
+        const exportIndividualFiles = async (sessionId, metadata) => {
+            try {
+                // Download metadata
+                const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], {type: 'application/json'});
+                const metadataUrl = URL.createObjectURL(metadataBlob);
+                const metadataLink = document.createElement('a');
+                metadataLink.href = metadataUrl;
+                metadataLink.download = `${sessionId}_metadata.json`;
+                document.body.appendChild(metadataLink);
+                metadataLink.click();
+                document.body.removeChild(metadataLink);
+                URL.revokeObjectURL(metadataUrl);
+
+                // Download video
+                const videoTrack = Object.entries(AppState.tracks).find(([name, data]) => 
+                    typeof data === 'string' && (data.startsWith('blob:') || data.startsWith('data:'))
+                );
+                
+                if (videoTrack) {
+                    const [trackName, videoUrl] = videoTrack;
+                    try {
+                        const videoResponse = await fetch(videoUrl);
+                        const videoBlob = await videoResponse.blob();
+                        const videoDownloadUrl = URL.createObjectURL(videoBlob);
+                        const videoLink = document.createElement('a');
+                        videoLink.href = videoDownloadUrl;
+                        videoLink.download = `${sessionId}_video.mp4`;
+                        document.body.appendChild(videoLink);
+                        videoLink.click();
+                        document.body.removeChild(videoLink);
+                        URL.revokeObjectURL(videoDownloadUrl);
+                    } catch (e) {
+                        console.warn('Failed to download video:', e);
+                    }
+                }
+
+                // Download track data files
+                Object.entries(AppState.tracks).forEach(([trackName, trackData]) => {
+                    if (Array.isArray(trackData) && trackData.length > 0) {
+                        const dataBlob = new Blob([JSON.stringify(trackData, null, 2)], {type: 'application/json'});
+                        const dataUrl = URL.createObjectURL(dataBlob);
+                        const dataLink = document.createElement('a');
+                        dataLink.href = dataUrl;
+                        dataLink.download = `${sessionId}_${trackName}.json`;
+                        document.body.appendChild(dataLink);
+                        dataLink.click();
+                        document.body.removeChild(dataLink);
+                        URL.revokeObjectURL(dataUrl);
+                    }
+                });
+
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #4CAF50;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    font-family: Arial, sans-serif;
+                `;
+                successMsg.textContent = `✅ Exported ${sessionId} files individually`;
+                document.body.appendChild(successMsg);
+                
+                setTimeout(() => {
+                    document.body.removeChild(successMsg);
+                }, 3000);
+
+            } catch (error) {
+                console.error('Individual export failed:', error);
+                throw error;
             }
         };
 
