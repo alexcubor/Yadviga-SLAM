@@ -220,11 +220,11 @@ function renderFrames() {
             // Allocate memory for frame buffer for Tracking in CPU
             if (!Module._getFrameBuffer()) {
                 Module._setFrameBufferSize(pixels.length);
-                Module._setFrameBuffer(Module._malloc(pixels.length));
+                Module._setFrameBuffer(_malloc(pixels.length));
             }
             
             // Copy data to frame buffer
-            const frameData = new Uint8Array(Module.HEAPU8.buffer, Module._getFrameBuffer(), Module._getFrameBufferSize());
+            const frameData = new Uint8Array(HEAPU8.buffer, Module._getFrameBuffer(), Module._getFrameBufferSize());
             frameData.set(pixels);
             Module._setFrameWidth(canvas.width);
             Module._setFrameHeight(canvas.height);

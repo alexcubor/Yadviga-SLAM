@@ -103,10 +103,69 @@ configure_file(
 # Add binary directory to include paths
 include_directories(${CMAKE_BINARY_DIR})
 
-# Add post-compile step
+# --- Find Node.js (prefer emsdk, fallback to system) ---
+set(NODE_EXECUTABLE "")
+
+# Prefer Node from emsdk if EMSDK env var is set
+if(DEFINED ENV{EMSDK})
+    file(GLOB EMSDK_NODE_CANDIDATES
+        "$ENV{EMSDK}/node/*/bin/node"
+    )
+    list(LENGTH EMSDK_NODE_CANDIDATES EMSDK_NODE_COUNT)
+    if(EMSDK_NODE_COUNT GREATER 0)
+        list(GET EMSDK_NODE_CANDIDATES 0 EMSDK_NODE_PATH)
+        if(EXISTS ${EMSDK_NODE_PATH})
+            set(NODE_EXECUTABLE ${EMSDK_NODE_PATH})
+        endif()
+    endif()
+endif()
+
+# If not found, try system node
+if(NOT NODE_EXECUTABLE)
+    find_program(NODE_EXECUTABLE node)
+endif()
+
+# Fail if still not found
+if(NOT NODE_EXECUTABLE)
+    message(FATAL_ERROR "Node.js not found. Please install Node.js or activate emsdk_env.sh")
+else()
+    message(STATUS "Using Node.js at: ${NODE_EXECUTABLE}")
+endif()
+
+# Ensure terser is installed locally so CMakePost.js can run
+find_program(NPM_EXECUTABLE npm)
+
+if(NPM_EXECUTABLE)
+    set(NODE_MODULES_DIR "${CMAKE_SOURCE_DIR}/node_modules")
+    set(PACKAGE_JSON_FILE "${CMAKE_SOURCE_DIR}/package.json")
+
+    # If no package.json, create one (minimal)
+    if(NOT EXISTS "${PACKAGE_JSON_FILE}")
+        message(STATUS "No package.json found, creating one...")
+        execute_process(
+            COMMAND ${NPM_EXECUTABLE} init -y
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endif()
+
+    # Add a custom target to install terser
+    add_custom_target(npm_terser
+        COMMAND ${NPM_EXECUTABLE} install --no-save terser
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Ensuring terser is installed..."
+    )
+
+    # Make sure this runs before the post-build Node script
+    add_dependencies(yadviga-slam npm_terser)
+else()
+    message(WARNING "npm not found — cannot auto-install terser. Please install it manually.")
+endif()
+
+# --- Post-build step ---
 add_custom_command(
     TARGET yadviga-slam
     POST_BUILD
-    COMMAND node ${CMAKE_SOURCE_DIR}/CMakePost.js
+    COMMAND ${NODE_EXECUTABLE} ${CMAKE_SOURCE_DIR}/CMakePost.js
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
